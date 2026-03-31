@@ -1,0 +1,17 @@
+{
+  "name": "@moving/shared",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "echo 'shared lint placeholder'",
+    "clean": "rm -rf node_modules .turbo"
+  },
+  "devDependencies": {
+    "typescript": "^5.x",
+    "vitest": "^3.x"
+  }
+}
