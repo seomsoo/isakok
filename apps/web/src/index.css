@@ -1,0 +1,28 @@
+@import 'tailwindcss';
+
+/*
+ * 디자인 토큰 (설계 결정사항 통합 v2 §2-3 기반)
+ * Tailwind v4에서는 @theme 블록으로 커스텀 토큰을 정의한다.
+ * 사용: className="bg-primary text-neutral" 또는 CSS에서 var(--color-primary)
+ */
+@theme {
+  --color-primary: #0d9488;
+  --color-secondary: #333344;
+  --color-tertiary: #e0f2f1;
+  --color-neutral: #f8f7f5;
+  --color-warning: #f97316;
+  --color-critical: #ef4444;
+  --color-success: #10b981;
+}
+
+/*
+ * 모바일 WebView 앱 기준 레이아웃
+ * max-width: 430px → iPad에서 가운데 정렬
+ * 데스크톱 레이아웃 불필요 (WebView 전용)
+ */
+#root {
+  max-width: 430px;
+  margin: 0 auto;
+  min-height: 100dvh;
+  background-color: var(--color-neutral);
+}
