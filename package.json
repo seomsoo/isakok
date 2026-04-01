@@ -11,8 +11,14 @@
     "test": "turbo test",
     "clean": "turbo clean"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "supabase"
+    ]
+  },
   "devDependencies": {
-    "turbo": "^2.x",
-    "prettier": "^3.x"
+    "prettier": "^3.x",
+    "supabase": "^2.84.5",
+    "turbo": "^2.x"
   }
 }

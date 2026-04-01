@@ -20,7 +20,7 @@ id (uuid PK), move_id (FK, indexed), user_id (FK, indexed), master_item_id (FK),
 
 ### property_photos
 
-id (uuid PK), move_id (FK, indexed), user_id (FK, indexed), photo_type (CHECK: 'move_in'|'move_out'), room (CHECK: 'entrance'|'room'|'bathroom'|'kitchen'|'balcony'|'other'), location_detail, group_key, image_url, image_hash, memo, taken_at, uploaded_at, created_at, updated_at, deleted_at
+id (uuid PK), move_id (FK, indexed), user_id (FK, indexed), photo_type (CHECK: 'move_in'|'move_out'), room (CHECK: 'entrance'|'room'|'bathroom'|'kitchen'|'balcony'|'other'), location_detail, group_key, storage_path, image_hash, memo, taken_at, uploaded_at, created_at, updated_at, deleted_at
 
 ### ai_guide_cache
 
@@ -84,7 +84,9 @@ CREATE POLICY "ai_cache_select_public" ON ai_guide_cache
 
 ### RPC 규칙
 
-- SECURITY INVOKER 사용 (SECURITY DEFINER 아님 — RLS 적용을 위해)
+- 기본 SECURITY INVOKER (RLS 적용을 위해)
+- 단, 새 행을 삽입하는 RPC(create/update)는 SECURITY DEFINER + 내부 auth.uid() 검증 (RLS가 INSERT를 막을 수 있으므로)
+- SECURITY DEFINER 사용 시 반드시 IS DISTINCT FROM으로 NULL-safe 권한 체크
 
 ## Edge Functions (Deno 런타임)
 
