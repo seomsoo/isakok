@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@moving/shared": "workspace:*",
+    "@supabase/supabase-js": "^2.101.1",
     "react": "^19.x",
     "react-dom": "^19.x"
   },
