@@ -10,6 +10,10 @@
 
 설계 단계 결정 통합. UI/UX, 인증 전략, AI 맞춤 가이드 설계, 집 상태 기록, 스마트 재배치, WebView 아키텍처, Apple 심사 체크리스트, 경쟁 분석, 면접 대비 포인트.
 
+### design-style-guide.md
+
+디자인 스타일 가이드. 토스 스타일 기반 디자인 원칙, 타이포그래피, 간격 체계, 둥글기/그림자, 컬러 사용 원칙, 아이콘, 애니메이션 기준. 컴포넌트 구현 시 이 문서의 수치를 따른다.
+
 ### master-checklist-data.md
 
 시드 데이터 원본. 46개 체크리스트 항목의 상세 정보 (title, description, guide_content, d_day_offset, 조건 태그, guide_url 등).
@@ -20,9 +24,10 @@
 
 ```
 docs/specs/
-├── 00-project-setup.md     ← 0단계 스펙
-├── 01-supabase-setup.md    ← 1단계 스펙
-├── 02-onboarding.md        ← 2단계 스펙
+├── 00-project-setup.md         ← 0단계 스펙
+├── 01-supabase-setup.md        ← 1단계 스펙
+├── 02-onboarding.md            ← 2단계 스펙
+├── component-design-spec.md    ← 공통 컴포넌트 디자인 스펙
 ├── ...
 ```
 

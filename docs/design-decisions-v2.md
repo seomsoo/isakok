@@ -28,19 +28,25 @@
 
 ### 2-2. 톤/무드
 
-- 따뜻하고 친근한 (당근마켓/오늘의집 스타일)
+- 깔끔하고 미니멀한 (토스 스타일 — 정보 중심, 여백 넉넉, 장식 최소)
+- ~~따뜻하고 친근한 (당근마켓/오늘의집 스타일)~~ → 2026-04-02 변경
+- 상세 기준: docs/design-style-guide.md 참조
 
 ### 2-3. 컬러 시스템
 
+포맷: OKLCH (지각 균일, 파생색 L값 조절, Tailwind v4 네이티브 지원). HEX는 참고용.
+
 ```
-Primary:      #0D9488 (Teal — 2026 WGSN "Transformative Teal"과 일치)
-Secondary:    #333344 (Dark Navy)
-Tertiary:     #E0F2F1 (Light Mint) ← Stitch가 #C36D4B로 잘못 생성 가능, follow-up 수정
-Neutral:      #F8F7F5 (Warm Gray)
-System Warning:  #F97316 (Amber — 밀린 할 일)
-System Critical: #EF4444 (Red — 필수 뱃지)
-System Success:  #10B981 (Green — 완료 상태)
+Primary:         oklch(0.60 0.104 184.7)  #0D9488  Teal — 2026 WGSN "Transformative Teal"
+Secondary:       oklch(0.33 0.030 285)    #333344  Dark Navy
+Tertiary:        oklch(0.95 0.019 193)    #E0F2F1  Light Mint
+Neutral:         oklch(0.98 0.003 85)     #F8F7F5  Warm Gray
+System Warning:  oklch(0.70 0.187 48)     #F97316  Amber — 밀린 할 일
+System Critical: oklch(0.64 0.208 25)     #EF4444  Red — 필수 뱃지
+System Success:  oklch(0.70 0.149 163)    #10B981  Green — 완료 상태
 ```
+
+전체 컬러 시스템(확장 토큰, 파생색 규칙 포함): docs/design-style-guide.md 참조
 
 ### 2-4. 네비게이션
 
