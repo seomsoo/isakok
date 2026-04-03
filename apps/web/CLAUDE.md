@@ -104,7 +104,7 @@ pages/ → features/ → services/, @shared/utils
 4. **services/**: Supabase API 호출. lib/supabase.ts import 허용. React import 금지
 5. **shared/components/**: 웹앱 전용 공통 UI (Button, Modal, Spinner, ErrorMessage, DevTabBar)
 6. **stores/**: Zustand. UI 상태만. 서버 데이터 넣지 않음
-7. **lib/**: supabase 클라이언트만. 다른 로직 넣지 않음
+7. **lib/**: supabase 클라이언트 + cn 유틸리티(clsx + tailwind-merge). 그 외 로직 넣지 않음
 
 packages/shared/에 위치하는 것: types/, utils/, constants/ (Supabase 의존 없는 순수 코드)
 
@@ -242,14 +242,24 @@ import { TodayTasks } from '@/features/dashboard/components/TodayTasks'
 
 - 인라인 style={{}} 금지, Tailwind 클래스만
 - 같은 클래스 조합 3번+ 반복 시 공통 컴포넌트로 추출
-- 디자인 토큰:
-  - Primary: #0D9488 (Teal)
-  - Secondary: #333344 (Dark Navy)
-  - Tertiary: #E0F2F1 (Light Mint)
-  - Neutral: #F8F7F5 (Warm Gray)
-  - Warning: #F97316 (Amber)
-  - Critical: #EF4444 (Red)
-  - Success: #10B981 (Green)
+- 디자인 톤: 토스 스타일 (깔끔, 미니멀, 정보 중심). 상세 기준 → docs/design-style-guide.md
+- 컬러 포맷: OKLCH (지각 균일, 파생색 생성 용이, Tailwind v4 네이티브 지원)
+- 디자인 토큰 (OKLCH → HEX 참고값):
+  - Primary: oklch(0.60 0.104 184.7) — #0D9488 Teal
+  - Secondary: oklch(0.33 0.030 285) — #333344 Dark Navy
+  - Tertiary: oklch(0.95 0.019 193) — #E0F2F1 Light Mint
+  - Neutral: oklch(0.98 0.003 85) — #F8F7F5 Warm Gray
+  - Muted: oklch(0.53 0.025 286) — #6B6B7B 보조 텍스트
+  - Placeholder: oklch(0.70 0 0) — #9E9E9E 비활성 텍스트
+  - Border: oklch(0.95 0.003 85) — #F0EFED 구분선, 카드 외곽
+  - Surface: oklch(1.00 0 0) — #FFFFFF 카드 배경
+  - Warning: oklch(0.70 0.187 48) — #F97316 Amber
+  - Critical: oklch(0.64 0.208 25) — #EF4444 Red
+  - Success: oklch(0.70 0.149 163) — #10B981 Green
+- 파생색: L값만 조절 (hover -0.05, pressed -0.10)
+- 핵심 규칙: 배경은 neutral/surface 위주, primary 컬러는 CTA·선택 상태에만 아껴 쓴다
+- 카드: bg-surface rounded-2xl p-4 shadow-sm (radius 16px, 간격 12px)
+- CTA 버튼: h-[52px] rounded-xl (radius 12px)
 
 ## 반응형
 
