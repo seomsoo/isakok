@@ -22,7 +22,6 @@
     "noUncheckedIndexedAccess": true,
 
     /* 경로 별칭 */
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
       "@shared/*": ["../../packages/shared/src/*"]
