@@ -569,3 +569,44 @@
 | 원룸 + 월세 + 용달       | ~38개             | 렌탈이전(#07), 관리비정산(#30), 전세보증보험(#12), 전세금반환(#37) 제외 |
 | 오피스텔 + 전세 + 반포장 | ~40개             | 이사박스준비(#18, 업체 제공), 보증금반환(#36) 제외                      |
 | 원룸 + 월세 + 자가용     | ~35개             | 이사업체 관련(#02,#26,#34,#39), 렌탈이전(#07) 등 제외                   |
+
+-- #02 이사업체 견적 비교: tip → warning
+UPDATE master_checklist_items SET guide_type = 'warning' WHERE sort_order = 2;
+
+-- #03 인터넷 이전/해지: tip → warning
+UPDATE master_checklist_items SET guide_type = 'warning' WHERE sort_order = 3;
+
+-- #09 대형폐기물 배출: tip → warning
+UPDATE master_checklist_items SET guide_type = 'warning' WHERE sort_order = 9;
+
+-- #12 전세보증보험 해지/이전: warning → critical
+UPDATE master_checklist_items SET guide_type = 'critical' WHERE sort_order = 12;
+
+-- #16 관리사무소 이사 통보: tip → warning
+UPDATE master_checklist_items SET guide_type = 'warning' WHERE sort_order = 17;
+
+-- #22 1일 이체한도 확인: warning → critical
+UPDATE master_checklist_items SET guide_type = 'critical' WHERE sort_order = 23;
+
+-- #26 이사업체 최종 확인: tip → warning
+UPDATE master_checklist_items SET guide_type = 'warning' WHERE sort_order = 27;
+
+-- #30 구 집 관리비 정산: tip → warning
+UPDATE master_checklist_items SET guide_type = 'warning' WHERE sort_order = 31;
+
+-- #31 구 집 전기 정산: tip → warning  
+ UPDATE master_checklist_items SET guide_type = 'warning' WHERE sort_order = 32;
+
+-- #32 구 집 가스 정산: tip → warning  
+ UPDATE master_checklist_items SET guide_type = 'warning' WHERE sort_order = 33;
+
+-- #33 구 집 수도 정산: tip → warning  
+ UPDATE master_checklist_items SET guide_type = 'warning' WHERE sort_order = 34;
+
+-- #35 열쇠/카드키 반납: tip → warning  
+ UPDATE master_checklist_items SET guide_type = 'warning' WHERE sort_order = 36;
+
+-- #38 새 집 하자 체크: warning → critical  
+ UPDATE master_checklist_items SET guide_type = 'critical' WHERE sort_order = 39;
+-- #40 도어락 비밀번호 변경: warning → critical  
+ UPDATE master_checklist_items SET guide_type = 'critical' WHERE sort_order = 41;
