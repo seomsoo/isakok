@@ -21,7 +21,7 @@ const variantStyles = {
 
 const sizeStyles = {
   sm: 'h-10 px-4 text-sm font-medium rounded-lg',
-  md: 'h-12 px-5 text-[15px] font-semibold rounded-xl',
+  md: 'h-12 px-5 text-body-md font-semibold rounded-xl',
   lg: 'h-[52px] px-6 text-base font-semibold rounded-xl',
 } as const
 

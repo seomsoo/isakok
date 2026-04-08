@@ -24,7 +24,7 @@ docs/              ← 기획 문서, 단계별 스펙 (SDD)
 
 ## 현재 단계
 
-> 1단계: supabase 세팅 완료
+> 3단계: 대시보드 + 타임라인 + 설정 — 구현 진행 중
 
 ## 개발 방법론
 
@@ -63,6 +63,7 @@ docs/              ← 기획 문서, 단계별 스펙 (SDD)
   - scope: onboarding, dashboard, timeline, checklist, photos, settings, shared, supabase
   - subject: 소문자 시작, 마침표 없음, 명령형 (add/fix/remove)
   - 본문: 선택 (대부분 제목만으로 충분, 설계 판단은 PR에 작성)
+  - Co-Authored-By 트레일러 금지 (커밋, PR 모두)
 - PR: feature branch → main 머지 시 반드시 작성
   - 제목: 커밋과 동일 형식 (`feat(onboarding): add 4-step form`)
   - 본문: what(뭘 했는지), why(왜 이렇게 했는지), 스크린샷(UI 변경 시)

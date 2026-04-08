@@ -8,7 +8,7 @@ export function OfflineBanner() {
 
   return (
     <div
-      className="flex items-center gap-2.5 rounded-2xl bg-warning/8 px-4 py-3.5 text-[13px] text-warning"
+      className="flex items-center gap-2.5 rounded-2xl bg-warning/8 px-4 py-3.5 text-label text-warning"
       role="alert"
     >
       <WifiOff className="h-4 w-4 shrink-0" />
