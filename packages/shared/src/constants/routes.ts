@@ -5,6 +5,7 @@
 export const ROUTES = {
   LANDING: '/',
   ONBOARDING: '/onboarding',
+  PRE_CHECK: '/pre-check',
   DASHBOARD: '/dashboard',
   TIMELINE: '/timeline',
   CHECKLIST_DETAIL: '/checklist/:itemId',

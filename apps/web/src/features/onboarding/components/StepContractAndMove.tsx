@@ -55,7 +55,13 @@ export function StepContractAndMove({ titleRef }: StepContractAndMoveProps) {
     <>
       <div className="flex-1 overflow-y-auto px-6 pt-8 pb-28">
         {/* 계약 유형 */}
-        <h1 ref={titleRef} tabIndex={-1} className="text-h1 font-bold tracking-tight text-secondary outline-none">계약 유형은?</h1>
+        <h1
+          ref={titleRef}
+          tabIndex={-1}
+          className="text-h1 font-bold tracking-tight text-secondary outline-none"
+        >
+          계약 유형은?
+        </h1>
         <p className="mt-2 text-body-sm text-muted">현재 살고 있는 집의 계약 유형이에요</p>
         <div className="mt-5 flex gap-2" role="radiogroup" aria-label="계약 유형 선택">
           {CONTRACT_OPTIONS.map((option) => (
@@ -108,16 +114,15 @@ export function StepContractAndMove({ titleRef }: StepContractAndMoveProps) {
 
       <OnboardingFooter>
         <OfflineBanner />
-        <div className="mt-2">
-          <Button
-            size="lg"
-            disabled={!canSubmit}
-            isLoading={mutation.isPending}
-            onClick={handleSubmit}
-          >
-            맞춤 체크리스트 만들기
-          </Button>
-        </div>
+
+        <Button
+          size="lg"
+          disabled={!canSubmit}
+          isLoading={mutation.isPending}
+          onClick={handleSubmit}
+        >
+          맞춤 체크리스트 만들기
+        </Button>
       </OnboardingFooter>
     </>
   )

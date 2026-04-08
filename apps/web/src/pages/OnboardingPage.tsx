@@ -35,7 +35,7 @@ export function OnboardingPage() {
     <div className="flex min-h-dvh flex-col bg-neutral">
       {/* 헤더 */}
       <header className="px-4 pt-5 pb-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center">
           <button
             type="button"
             onClick={handleBack}
@@ -44,9 +44,6 @@ export function OnboardingPage() {
           >
             <ChevronLeft className="h-9 w-9 text-secondary/80" />
           </button>
-          <span className="text-body-sm text-muted">
-            진행 단계 ({step}/{TOTAL_STEPS})
-          </span>
         </div>
         <div className="mt-8 px-1">
           <ProgressBar currentStep={step} totalSteps={TOTAL_STEPS} />

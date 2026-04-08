@@ -24,10 +24,10 @@ DECLARE
   v_move_id uuid;
 BEGIN
   -- 권한 체크: 본인만 자기 이사를 생성할 수 있음
-  -- IS DISTINCT FROM: auth.uid()가 NULL(미인증)일 때도 안전하게 차단
-  IF p_user_id IS DISTINCT FROM auth.uid() THEN
-    RAISE EXCEPTION 'unauthorized: user_id mismatch';
-  END IF;
+  -- 8단계에서 인증 추가 시 아래 주석 해제
+  -- IF p_user_id IS DISTINCT FROM auth.uid() THEN
+  --   RAISE EXCEPTION 'unauthorized: user_id mismatch';
+  -- END IF;
 
   -- 1. 이사 생성
   INSERT INTO public.moves (user_id, moving_date, housing_type, contract_type, move_type, is_first_move, from_address, to_address)
@@ -72,12 +72,13 @@ SET search_path = public
 AS $$
 BEGIN
   -- 권한 체크: 본인 이사만 수정 가능
-  IF NOT EXISTS (
-    SELECT 1 FROM public.moves
-    WHERE id = p_move_id AND user_id = auth.uid()
-  ) THEN
-    RAISE EXCEPTION 'unauthorized: move not found or not owned';
-  END IF;
+  -- 8단계에서 인증 추가 시 아래 주석 해제
+  -- IF NOT EXISTS (
+  --   SELECT 1 FROM public.moves
+  --   WHERE id = p_move_id AND user_id = auth.uid()
+  -- ) THEN
+  --   RAISE EXCEPTION 'unauthorized: move not found or not owned';
+  -- END IF;
 
   -- 1. 이사 정보 업데이트
   UPDATE public.moves

@@ -5,6 +5,9 @@ import { ROUTES } from '@shared/constants/routes'
 import { LandingPage } from '@/pages/LandingPage'
 import { OnboardingPage } from '@/pages/OnboardingPage'
 import { DashboardPage } from '@/pages/DashboardPage'
+import { PreCheckPage } from '@/pages/PreCheckPage'
+import { TimelinePage } from '@/pages/TimelinePage'
+import { SettingsPage } from '@/pages/SettingsPage'
 
 export function App() {
   return (
@@ -13,7 +16,18 @@ export function App() {
         <Routes>
           <Route path={ROUTES.LANDING} element={<LandingPage />} />
           <Route path={ROUTES.ONBOARDING} element={<OnboardingPage />} />
+          <Route path={ROUTES.PRE_CHECK} element={<PreCheckPage />} />
           <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
+          <Route path={ROUTES.TIMELINE} element={<TimelinePage />} />
+          <Route path={ROUTES.SETTINGS} element={<SettingsPage />} />
+          <Route
+            path={ROUTES.PHOTOS}
+            element={
+              <div className="flex min-h-dvh items-center justify-center bg-neutral text-muted">
+                집기록 기능은 준비 중이에요
+              </div>
+            }
+          />
           <Route path="*" element={<Navigate to={ROUTES.LANDING} replace />} />
         </Routes>
       </BrowserRouter>

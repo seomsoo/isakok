@@ -1,7 +1,7 @@
 # 2단계: 온보딩 → 체크리스트 생성 스펙 (SDD)
 
-> 목표: 랜딩 → 온보딩 3스텝 폼 → createMoveWithChecklist RPC 호출 → 대시보드 이동
-> 이 단계가 끝나면: 유저가 이사 정보를 입력하고, 맞춤 체크리스트가 생성되어 대시보드(빈 화면)로 이동하는 상태
+> 목표: 랜딩 → 온보딩 3스텝 폼 → createMoveWithChecklist RPC 호출 → (밀린 항목 있으면) 프리체크 → 대시보드 이동
+> 이 단계가 끝나면: 유저가 이사 정보를 입력하고, 맞춤 체크리스트가 생성되어 (밀린 항목 프리체크 후) 대시보드(빈 화면)로 이동하는 상태
 
 ---
 
@@ -15,7 +15,8 @@
 - 온보딩 3스텝 폼 (이사일 → 주거유형 → 계약유형+이사방법)
 - createMoveWithChecklist RPC 호출 서비스 함수
 - 온보딩 완료 → 대시보드 라우트로 이동 (대시보드 UI는 3단계)
-- 공통 컴포넌트: Button, ProgressBar
+- 공통 컴포넌트: Button, ProgressBar (화물차→집 아이콘 애니메이션)
+- 프리체크 페이지: 온보딩 직후 밀린 항목 일괄 체크 (건너뛰기 가능, 일회성)
 - Zustand 설치 + 온보딩 폼 상태 관리
 
 ### 안 하는 것
@@ -42,22 +43,32 @@ apps/web/src/
 │   └── DashboardPage.tsx                ← 생성 (플레이스홀더 — 3단계에서 구현)
 │
 ├── features/
-│   └── onboarding/
+│   ├── onboarding/
+│   │   ├── components/
+│   │   │   ├── StepMovingDate.tsx        ← 생성 (1/3 이사일 선택)
+│   │   │   ├── StepHousingType.tsx       ← 생성 (2/3 주거유형 선택)
+│   │   │   ├── StepContractAndMove.tsx   ← 생성 (3/3 계약유형 + 이사방법)
+│   │   │   ├── CalendarPicker.tsx        ← 생성 (캘린더 컴포넌트)
+│   │   │   ├── HousingTypeGrid.tsx       ← 생성 (5개 카드 그리드)
+│   │   │   ├── SelectionChip.tsx         ← 생성 (필/칩 선택 UI)
+│   │   │   └── CheckTip.tsx             ← 생성 (하단 팁 카드)
+│   │   └── hooks/
+│   │       └── useCreateMove.ts          ← 생성 (RPC mutation 훅)
+│   │
+│   └── pre-check/
 │       ├── components/
-│       │   ├── StepMovingDate.tsx        ← 생성 (1/3 이사일 선택)
-│       │   ├── StepHousingType.tsx       ← 생성 (2/3 주거유형 선택)
-│       │   ├── StepContractAndMove.tsx   ← 생성 (3/3 계약유형 + 이사방법)
-│       │   ├── CalendarPicker.tsx        ← 생성 (캘린더 컴포넌트)
-│       │   ├── HousingTypeGrid.tsx       ← 생성 (5개 카드 그리드)
-│       │   ├── SelectionChip.tsx         ← 생성 (필/칩 선택 UI)
-│       │   └── CheckTip.tsx             ← 생성 (하단 팁 카드)
+│       │   └── PreCheckItem.tsx          ← 생성 (체크 가능한 항목 행)
 │       └── hooks/
-│           └── useCreateMove.ts          ← 생성 (RPC mutation 훅)
+│           ├── useOverdueItems.ts        ← 생성 (밀린 항목 조회)
+│           └── useBatchComplete.ts       ← 생성 (일괄 완료 mutation)
+│
+├── pages/
+│   └── PreCheckPage.tsx                 ← 생성 (밀린 항목 프리체크)
 │
 ├── shared/
 │   └── components/
 │       ├── Button.tsx                    ← 생성 (공통 버튼)
-│       ├── ProgressBar.tsx              ← 생성 (3단계 프로그레스)
+│       ├── ProgressBar.tsx              ← 수정 (화물차→집 아이콘 프로그레스)
 │       └── OfflineBanner.tsx            ← 생성 (오프라인 안내 배너)
 │
 ├── shared/
@@ -107,6 +118,7 @@ import { ROUTES } from '@shared/constants/routes'
 import { LandingPage } from '@/pages/LandingPage'
 import { OnboardingPage } from '@/pages/OnboardingPage'
 import { DashboardPage } from '@/pages/DashboardPage'
+import { PreCheckPage } from '@/pages/PreCheckPage'
 
 export function App() {
   return (
@@ -115,6 +127,7 @@ export function App() {
         <Routes>
           <Route path={ROUTES.LANDING} element={<LandingPage />} />
           <Route path={ROUTES.ONBOARDING} element={<OnboardingPage />} />
+          <Route path={ROUTES.PRE_CHECK} element={<PreCheckPage />} />
           <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
           {/* 3단계에서 추가: TIMELINE, CHECKLIST_DETAIL, PHOTOS, SETTINGS */}
           <Route path="*" element={<Navigate to={ROUTES.LANDING} replace />} />
@@ -256,7 +269,7 @@ export function OnboardingPage() {
 
   return (
     <div>
-      <OnboardingHeader />    {/* 뒤로가기 + "진행 단계 (N/3)" + ProgressBar */}
+      <OnboardingHeader />    {/* 뒤로가기 + ProgressBar */}
       {step === 1 && <StepMovingDate />}
       {step === 2 && <StepHousingType />}
       {step === 3 && <StepContractAndMove />}
@@ -269,7 +282,7 @@ export function OnboardingPage() {
 
 ```
 ┌──────────────────────────────┐
-│ ← (뒤로)   진행 단계 (1/3)    │
+│ ← (뒤로)                      │
 ├──────────────────────────────┤
 │ ████████░░░░░░░░░░░░░░░░░░░  │  ← ProgressBar (1/3 채워짐)
 └──────────────────────────────┘
@@ -541,9 +554,10 @@ export function useCreateMove() {
 
   return useMutation({
     mutationFn: createMoveWithChecklist,
-    onSuccess: () => {
+    onSuccess: (moveId) => {
       reset() // 온보딩 스토어 초기화
-      navigate(ROUTES.DASHBOARD, { replace: true }) // 뒤로가기 시 온보딩 안 나오게
+      // 프리체크 페이지로 이동 (밀린 항목 없으면 프리체크에서 자동으로 대시보드로 리다이렉트)
+      navigate(ROUTES.PRE_CHECK, { replace: true })
     },
     onError: (error) => {
       console.error('체크리스트 생성 실패:', error)
@@ -553,8 +567,9 @@ export function useCreateMove() {
 }
 ```
 
-> **왜 `replace: true`?**: 온보딩 완료 후 뒤로가기 누르면 온보딩이 다시 나오면 안 됨.
-> replace로 히스토리를 덮어쓰면 뒤로가기 시 랜딩으로 감.
+> **왜 항상 PRE_CHECK로?**: 프리체크 페이지에서 밀린 항목 유무를 확인하고,
+> 없으면 자동으로 대시보드로 리다이렉트. 프론트에서 분기하는 것보다
+> 단일 경로로 보내는 게 간단함.
 
 > **에러 표시 방식**: StepContractAndMove 컴포넌트에서 `mutation.isError`로 인라인 에러 메시지 표시.
 > `alert()`는 사용하지 않음 — 모바일 WebView에서 네이티브 alert이 UX를 깨뜨림.
@@ -570,7 +585,240 @@ export function useCreateMove() {
 
 ---
 
-## 9. 대시보드 플레이스홀더
+## 9. 프리체크 페이지 (일회성 밀린 항목 체크)
+
+### 개요
+
+온보딩 완료 직후 한 번만 표시되는 전체 화면 페이지.
+이사일이 가까워서 이미 지난 날짜에 배정된 항목(=밀린 항목)을 미리 체크할 수 있다.
+밀린 항목이 없으면 자동으로 대시보드로 리다이렉트.
+
+### 라우트
+
+- 경로: `/pre-check`
+- 진입: 온보딩 완료 → `useCreateMove` onSuccess
+- 이탈: "완료" 또는 "건너뛰기" → 대시보드 (`replace: true`)
+- 재진입 불가: 대시보드에서 뒤로가기해도 이 페이지로 안 돌아옴
+
+### 화면 구조
+
+```
+┌──────────────────────────────┐
+│                              │
+│  이미 하신 일이 있나요?       │  ← 제목 (bold, text-h1)
+│  체크해두면 대시보드가         │  ← 설명 (text-muted)
+│  깔끔해져요                   │
+│                              │
+├──────────────────────────────┤
+│                              │
+│  📋 계약 관련 (3)            │  ← 카테고리별 그룹 헤더
+│  ┌──────────────────────────┐│
+│  │ ☐ 부동산 계약 확인       ││  ← 체크 가능한 항목
+│  │ ☐ 보증금 송금 준비       ││
+│  │ ☑ 관리비 정산 확인       ││  ← 체크한 항목
+│  └──────────────────────────┘│
+│                              │
+│  📦 짐 정리 (2)             │
+│  ┌──────────────────────────┐│
+│  │ ☐ 안 쓰는 물건 정리      ││
+│  │ ☐ 포장 박스 준비         ││
+│  └──────────────────────────┘│
+│                              │
+├──────────────────────────────┤
+│                              │
+│  ┌────────────────────────┐  │
+│  │   N개 체크 완료          │  │  ← CTA 버튼 (체크한 게 있을 때)
+│  └────────────────────────┘  │
+│                              │
+│       건너뛰기               │  ← 텍스트 버튼 (ghost)
+│                              │
+└──────────────────────────────┘
+```
+
+### pages/PreCheckPage.tsx
+
+```typescript
+// 의사코드
+export function PreCheckPage() {
+  const navigate = useNavigate()
+  const { data: overdueItems, isLoading } = useOverdueItems()
+  const batchComplete = useBatchComplete()
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set())
+
+  // 밀린 항목 없으면 바로 대시보드로
+  useEffect(() => {
+    if (!isLoading && (!overdueItems || overdueItems.length === 0)) {
+      navigate(ROUTES.DASHBOARD, { replace: true })
+    }
+  }, [isLoading, overdueItems])
+
+  function handleToggle(itemId: string) {
+    setCheckedIds(prev => {
+      const next = new Set(prev)
+      next.has(itemId) ? next.delete(itemId) : next.add(itemId)
+      return next
+    })
+  }
+
+  function handleComplete() {
+    if (checkedIds.size === 0) {
+      navigate(ROUTES.DASHBOARD, { replace: true })
+      return
+    }
+    batchComplete.mutate(
+      { itemIds: Array.from(checkedIds) },
+      { onSuccess: () => navigate(ROUTES.DASHBOARD, { replace: true }) }
+    )
+  }
+
+  function handleSkip() {
+    navigate(ROUTES.DASHBOARD, { replace: true })
+  }
+
+  // 카테고리별 그룹핑은 여기서 처리
+  const grouped = groupByCategory(overdueItems ?? [])
+
+  return (
+    <div>
+      {/* 제목 + 설명 */}
+      {/* 카테고리별 그룹 → PreCheckItem 리스트 */}
+      {/* 완료 버튼 + 건너뛰기 */}
+    </div>
+  )
+}
+```
+
+### 밀린 항목 조회 (useOverdueItems)
+
+```typescript
+// features/pre-check/hooks/useOverdueItems.ts
+// assigned_date < today AND is_completed = false인 항목 조회
+// master_checklist_items JOIN해서 title, category 가져옴
+
+export function useOverdueItems() {
+  return useQuery({
+    queryKey: ['checklist', 'overdue'],
+    queryFn: getOverdueItems,
+    staleTime: Infinity, // 이 페이지에서만 쓰고 버릴 데이터
+  })
+}
+```
+
+### 서비스 함수 (services/checklist.ts)
+
+```typescript
+/**
+ * 밀린 항목 조회 (assigned_date < 오늘 AND 미완료)
+ * master_checklist_items와 JOIN해서 title, category 포함
+ * @returns 밀린 항목 리스트 (title, category 포함)
+ */
+export async function getOverdueItems(): Promise<OverdueItem[]> {
+  const today = new Date().toISOString().split('T')[0]
+
+  const { data, error } = await supabase
+    .from('user_checklist_items')
+    .select('id, assigned_date, master_item:master_checklist_items(title, category)')
+    .lt('assigned_date', today)
+    .eq('is_completed', false)
+    .order('assigned_date', { ascending: true })
+
+  if (error) throw new Error(`[getOverdueItems] ${error.message}`)
+  return data as OverdueItem[]
+}
+```
+
+### 일괄 완료 (useBatchComplete)
+
+```typescript
+// features/pre-check/hooks/useBatchComplete.ts
+// 선택한 항목 ID 배열을 받아 한 번에 is_completed = true로 업데이트
+
+export function useBatchComplete() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: batchCompleteItems,
+    onSuccess: () => {
+      // 대시보드 진입 시 fresh 데이터를 받도록 관련 쿼리 무효화
+      queryClient.invalidateQueries({ queryKey: ['checklist'] })
+    },
+  })
+}
+```
+
+### 서비스 함수 (services/checklist.ts)
+
+```typescript
+/**
+ * 체크리스트 항목 일괄 완료 처리
+ * @param itemIds - 완료 처리할 항목 ID 배열
+ */
+export async function batchCompleteItems(itemIds: string[]): Promise<void> {
+  if (itemIds.length === 0) return
+
+  const { error } = await supabase
+    .from('user_checklist_items')
+    .update({ is_completed: true, completed_at: new Date().toISOString() })
+    .in('id', itemIds)
+
+  if (error) throw new Error(`[batchCompleteItems] ${error.message}`)
+}
+```
+
+> **왜 새 RPC 없이 .update().in()?**: 단순 UPDATE이고 트랜잭션이 필요 없음.
+> Supabase의 `.in()` 연산자가 `WHERE id IN (...)` 쿼리를 생성하므로
+> 한 번의 요청으로 여러 행을 업데이트. RPC까지 만들면 오버엔지니어링.
+
+### PreCheckItem 컴포넌트
+
+```typescript
+interface PreCheckItemProps {
+  id: string
+  title: string
+  isChecked: boolean
+  onToggle: (id: string) => void
+}
+```
+
+- 왼쪽: 체크박스 (커스텀 — Teal 체크 스타일)
+- 오른쪽: 항목 제목
+- 체크 시: 텍스트에 line-through 없음 (밀린 항목이라 취소선은 부정적)
+- 체크 애니메이션: 체크박스에 scale bounce (0.95 → 1.0)
+
+### 카테고리 그룹핑
+
+master_checklist_items의 `category` 필드 기준으로 그룹핑:
+
+| category    | 한글 표시   |
+| ----------- | ----------- |
+| contract    | 계약 관련   |
+| utility     | 공과금/행정 |
+| packing     | 짐 정리     |
+| cleaning    | 청소        |
+| moving_day  | 이사 당일   |
+| after_move  | 입주 후     |
+
+### 디자인 스펙
+
+- 배경: bg-neutral
+- 카테고리 헤더: text-body font-semibold text-secondary + 항목 수 표시
+- 항목 행: bg-surface rounded-xl p-4, 각 행 간 gap-2
+- 카테고리 간 간격: mt-6
+- CTA 버튼: 체크한 항목 있으면 "N개 체크 완료", 없으면 "대시보드로 이동"
+- 건너뛰기: text-muted, 밑줄 없음, 버튼 아래 중앙 배치
+
+### 엣지케이스
+
+- **밀린 항목 0개**: useEffect에서 감지 → 즉시 대시보드 리다이렉트 (화면 깜빡임 방지를 위해 로딩 상태 표시)
+- **모든 항목 체크**: "N개 체크 완료" 버튼 활성 유지
+- **아무것도 체크 안 하고 완료**: 건너뛰기와 동일하게 대시보드로 이동
+- **네트워크 에러 (일괄 완료 실패)**: 에러 메시지 표시 + 재시도 가능
+- **브라우저 새로고침**: 체크 상태 초기화 (로컬 state) → 다시 체크하면 됨
+- **URL 직접 접근 (/pre-check)**: 밀린 항목 쿼리 → 없으면 대시보드로 리다이렉트
+
+---
+
+## 10. 대시보드 플레이스홀더
 
 ### pages/DashboardPage.tsx
 
@@ -590,7 +838,7 @@ export function DashboardPage() {
 
 ---
 
-## 10. 공통 컴포넌트
+## 11. 공통 컴포넌트
 
 ### shared/components/Button.tsx
 
@@ -628,14 +876,34 @@ interface ProgressBarProps {
 }
 ```
 
-- 3개 바가 가로로 나란히 (gap 포함)
-- 현재 스텝까지: bg-primary
-- 이후 스텝: bg-gray-200
-- 애니메이션: 너비 변화에 transition
+**리디자인: 화물차 → 집 프로그레스바**
+
+```
+스텝 1/3:
+🚚─────────●─────────────────────────🏠
+
+스텝 2/3:
+──────────🚚─────────●────────────────🏠
+
+스텝 3/3:
+──────────────────────🚚──────●───────🏠
+```
+
+- 트랙: 가로 바 (bg-border), 완료 구간은 bg-primary
+- 왼쪽: 화물차 아이콘 (lucide-react `Truck`) — 현재 진행 위치에 표시
+- 오른쪽 끝: 집 아이콘 (lucide-react `Home`) — 고정
+- 화물차 위치: `(currentStep / totalSteps) * 100%` — CSS `left` + `transition`
+- 화물차와 집 사이 트랙이 채워지는 것으로 진행률 표현
+- 애니메이션: 화물차 이동에 `transition-all duration-500 ease-out`
+- 아이콘 크기: 16~18px (트랙 위에 겹치도록 absolute 배치)
+- 트랙 높이: h-1 (4px), 아이콘은 트랙 중앙에 수직 정렬
+
+> **왜 이 디자인?**: 이사 앱의 컨텍스트에 맞는 시각적 은유.
+> 단순 바 3개보다 "집으로 가는 여정" 느낌이 나서 브랜드 경험이 좋아짐.
 
 ---
 
-## 11. 디자인 스펙 (Stitch 기반 + 수정사항)
+## 12. 디자인 스펙 (Stitch 기반 + 수정사항)
 
 ### 색상 규칙
 
@@ -676,12 +944,12 @@ interface ProgressBarProps {
 1. **앱 이름**: "이사체크" → **"이사콕"**
 2. **주거유형 레이아웃**: 2×2 → **왼쪽2+오른쪽3 비대칭 그리드** (아파트 추가)
 3. **선택 스타일**: 보라색 배경 → **Teal(#E0F2F1) 배경 + Teal 테두리**
-4. **온보딩 스텝**: 헤더 "진행 단계 (1/3)" 유지 (Stitch에는 "1/3"으로 표시)
+4. **온보딩 스텝**: 헤더에 텍스트 라벨 없이 ProgressBar만 표시 (Stitch 대비 간소화)
 5. **아이콘**: Stitch 아이콘 → lucide-react 아이콘으로 교체 (일관성)
 
 ---
 
-## 12. 완료 확인 기준 (체크리스트)
+## 13. 완료 확인 기준 (체크리스트)
 
 - [ ] `pnpm dev` → 브라우저에서 랜딩 페이지 표시
 - [ ] 랜딩에서 "이사 시작하기" 클릭 → /onboarding 으로 이동
@@ -694,18 +962,26 @@ interface ProgressBarProps {
 - [ ] "맞춤 체크리스트 만들기" 클릭 → RPC 호출 성공 → /dashboard 이동
 - [ ] 대시보드에 플레이스홀더 텍스트 표시
 - [ ] 뒤로가기 동작: 스텝 3→2→1→랜딩, 대시보드에서 뒤로가기→온보딩 안 나옴
-- [ ] ProgressBar: 스텝에 따라 1/3, 2/3, 3/3 채움
+- [ ] ProgressBar: 화물차 아이콘이 스텝에 따라 이동, 끝에 집 아이콘 고정
+- [ ] ProgressBar: 스텝 전환 시 화물차 이동 애니메이션 동작
 - [ ] `pnpm build` → 에러 없음
 - [ ] `pnpm lint` → 에러 없음
 - [ ] 존재하지 않는 라우트 → 랜딩으로 리다이렉트
 - [ ] 접근성: 주거유형 카드에 role="radiogroup" + role="radio" 적용
 - [ ] 접근성: 캘린더 키보드 네비게이션 동작 (화살표 키 + Enter)
+- [ ] 프리체크: 이사일이 가까울 때 (밀린 항목 있을 때) 프리체크 페이지 표시
+- [ ] 프리체크: 밀린 항목 없으면 자동으로 대시보드 리다이렉트
+- [ ] 프리체크: 카테고리별 그룹핑으로 항목 표시
+- [ ] 프리체크: 항목 체크 → "N개 체크 완료" 버튼 텍스트 반영
+- [ ] 프리체크: "건너뛰기" → 체크 없이 대시보드 이동
+- [ ] 프리체크: 완료 클릭 → 일괄 is_completed 업데이트 → 대시보드 이동
+- [ ] 프리체크: 대시보드에서 뒤로가기해도 프리체크로 안 돌아옴
 - [ ] 오프라인: 네트워크 끊기면 제출 버튼 비활성 + 안내 배너 표시
 - [ ] 오프라인: 네트워크 복귀 시 자동 활성화
 
 ---
 
-## 13. 엣지케이스 / 주의사항
+## 14. 엣지케이스 / 주의사항
 
 ### 캘린더
 
@@ -771,12 +1047,13 @@ interface ProgressBarProps {
 ### 이사일이 오늘인 경우
 
 - RPC 정상 동작하지만, d_day_offset=-30인 항목의 assigned_date가 한 달 전이 됨
-- 대부분 항목이 "밀린 할 일"로 들어감 → 5단계 "초급한 모드"에서 UX 처리
-- 2단계에서는 별도 처리 없음 (RPC 결과 자체는 정상)
+- 대부분 항목이 "밀린 할 일"로 들어감 → **프리체크 페이지에서 미리 체크 가능**
+- 프리체크에서 이미 한 일을 체크하면 대시보드가 깔끔한 상태로 시작됨
+- 5단계 "초급한 모드"와는 별개 (프리체크 = 온보딩 직후 1회, 초급한 모드 = 대시보드 UX)
 
 ---
 
-## 14. 다음 단계 연결
+## 15. 다음 단계 연결
 
 2단계 완료 후 → **3단계: 대시보드 + 타임라인 + 설정** (`docs/specs/03-dashboard.md`)
 

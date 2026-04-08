@@ -1,4 +1,7 @@
+import type { Tables } from '@shared/types/database'
 import { supabase } from '@/lib/supabase'
+
+export type Move = Tables<'moves'>
 
 interface CreateMoveInput {
   movingDate: string
@@ -34,4 +37,24 @@ export async function createMoveWithChecklist(input: CreateMoveInput): Promise<s
   }
 
   return data as string
+}
+
+/**
+ * 현재 진행 중인 이사 조회 (active 상태 1건)
+ * RLS 꺼진 상태이므로 user_id 없이 조회
+ * 8단계에서 auth.uid() 기반으로 전환
+ * @returns 현재 active 이사. 없으면 null
+ */
+export async function getCurrentMove(): Promise<Move | null> {
+  const { data, error } = await supabase
+    .from('moves')
+    .select('*')
+    .eq('status', 'active')
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (error) throw new Error(`[getCurrentMove] ${error.message}`)
+  return data
 }
