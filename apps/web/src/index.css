@@ -20,10 +20,16 @@
   --text-h2--line-height: 1.35;
   --text-h3: 18px;
   --text-h3--line-height: 1.4;
+  --text-body-lg: 17px;
+  --text-body-lg--line-height: 1.5;
   --text-body: 16px;
   --text-body--line-height: 1.6;
+  --text-body-md: 15px;
+  --text-body-md--line-height: 1.5;
   --text-body-sm: 14px;
   --text-body-sm--line-height: 1.5;
+  --text-label: 13px;
+  --text-label--line-height: 1.5;
   --text-caption: 12px;
   --text-caption--line-height: 1.5;
 }
@@ -44,4 +50,24 @@ body {
 
 * {
   -webkit-tap-highlight-color: transparent;
+}
+
+/* 가로 스크롤 스크롤바 숨김 (CategoryChips 등) */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* 체크 토글 마이크로 인터랙션 */
+@keyframes check-pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+
+.animate-check {
+  animation: check-pop 0.25s ease-out;
 }

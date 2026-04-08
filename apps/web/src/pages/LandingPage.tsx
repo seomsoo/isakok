@@ -10,7 +10,7 @@ export function LandingPage() {
     <div className="flex min-h-dvh flex-col bg-neutral">
       {/* 헤더 */}
       <header className="px-6 pt-8">
-        <span className="text-[15px] font-semibold tracking-tight text-secondary">이사콕</span>
+        <span className="text-body-md font-semibold tracking-tight text-secondary">이사콕</span>
       </header>
 
       {/* 히어로 영역 */}
@@ -36,11 +36,11 @@ export function LandingPage() {
         <Button size="lg" onClick={() => navigate(ROUTES.ONBOARDING)}>
           이사 시작하기
         </Button>
-        <p className="mt-2.5 text-center text-[13px] text-secondary/35">
+        <p className="mt-2.5 text-center text-label text-secondary/35">
           가입 없이 바로 시작
         </p>
 
-        <p className="mt-8 text-center text-[13px] text-secondary/45">
+        <p className="mt-8 text-center text-label text-secondary/45">
           이미 시작한 이사가 있나요?{' '}
           <button
             type="button"
