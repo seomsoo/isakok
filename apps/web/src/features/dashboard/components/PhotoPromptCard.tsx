@@ -1,10 +1,13 @@
 import { Camera } from 'lucide-react'
+import type { UrgencyMode } from '@moving/shared'
 
 interface PhotoPromptCardProps {
   daysRemaining: number
+  mode: UrgencyMode
 }
 
-export function PhotoPromptCard({ daysRemaining }: PhotoPromptCardProps) {
+export function PhotoPromptCard({ daysRemaining, mode }: PhotoPromptCardProps) {
+  if (mode === 'critical') return null
   const title =
     daysRemaining > 0
       ? '퇴실 전 집 상태를 기록하세요'
