@@ -66,7 +66,14 @@ docs/              ← 기획 문서, 단계별 스펙 (SDD)
   - Co-Authored-By 트레일러 금지 (커밋, PR 모두)
 - PR: feature branch → main 머지 시 반드시 작성
   - 제목: 커밋과 동일 형식 (`feat(onboarding): add 4-step form`)
-  - 본문: what(뭘 했는지), why(왜 이렇게 했는지), 스크린샷(UI 변경 시)
+  - 본문 섹션 고정 순서: **Spec** → **What** → **Why** → **Verify** → **DB/Migration**(해당 시) → **Follow-ups** → **Screenshot**(UI 변경 시)
+    - Spec: 이 PR이 대응하는 스펙 경로 한 줄 (`docs/specs/{단계}.md`)
+    - What: 이번 PR에서 추가/변경된 것 요약
+    - Why: 설계 판단 근거 (왜 이렇게 했는지, 대안 대비 트레이드오프)
+    - Verify: `pnpm build` / `pnpm lint` / `pnpm test` 결과 + `/verify` 리포트 경로(`docs/specs/{단계}-verify.md`) + Codex 리뷰 결과 요약(P등급 + 수정 여부). PR마다 포맷 동일하게 유지
+    - DB/Migration: supabase 마이그레이션/시드 변경 포함 시만. 적용 명령(`npx supabase db push`), 시드 재실행 필요 여부, 롤백 가능 여부 명시. 없으면 섹션 생략
+    - Follow-ups: 의도적으로 다음 단계로 미룬 TODO (예: "과거 항목 표시는 5단계 스마트 재배치에서 교체"). 스코프 크립 방지용. 없으면 "없음"
+    - Screenshot: UI 변경 시 첨부. 없으면 섹션 생략
   - 머지: Squash merge (PR당 커밋 1개로 main 히스토리 깔끔하게)
 
 ### 커밋 예시
@@ -82,6 +89,9 @@ refactor(shared): extract date calc to pure utility
 ```
 ## feat(onboarding): add 4-step onboarding form
 
+### Spec
+`docs/specs/02-onboarding.md`
+
 ### What
 온보딩 폼 4단계 구현 (이사일 → 주거유형 → 계약유형 → 첫이사 여부)
 
@@ -89,6 +99,19 @@ refactor(shared): extract date calc to pure utility
 - 단일 폼이 아닌 스텝 분리: 모바일에서 한 화면에 4개 질문은 이탈률 높음
 - 아파트 옵션 추가: v2 설계 반영 (세입자만 커버, 신축 입주 제외)
 - validation은 스텝 단위: 선택 안 하면 다음으로 못 넘어감
+
+### Verify
+- `pnpm build` / `pnpm lint` / `pnpm test` 통과
+- `/verify` 리포트: `docs/specs/02-onboarding-verify.md` (누락/스코프 크립/컨벤션 위반 모두 없음)
+- Codex 리뷰: P1 0건 / P2 1건 — 스텝 인덱스 off-by-one 수정 반영
+
+### DB/Migration
+- `supabase/migrations/00002_onboarding.sql` 추가
+- 적용: `npx supabase db push`
+- 시드 재실행 불필요, 롤백은 테이블 drop으로 가능
+
+### Follow-ups
+- 인증 도입 전까지 `user_id` 하드코딩 유지 (8단계에서 `auth.uid()`로 교체)
 
 ### Screenshot
 (UI 캡처)
