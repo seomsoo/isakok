@@ -1,10 +1,10 @@
 # 프로젝트 상태
 
-> 마지막 업데이트: 2026-04-08
+> 마지막 업데이트: 2026-04-13
 
 ## 현재 단계
 
-3단계: 대시보드 + 타임라인 + 설정 — 구현완료-검증대기
+4단계: 항목 상세 + 체크 토글 + 메모 — 구현 완료, 검증 대기
 
 ## 완료된 것
 
@@ -76,28 +76,71 @@
 - **제목 단축**: 30개 항목 모바일 표시 최적화
 - seed.sql, master-checklist-data.md 동기화 완료
 
-#### 검증 (진행 중)
+### 4단계: 항목 상세 + 체크 토글 + 메모
 
-- docs/specs/03-verify.md 작성 완료
-- 빌드/린트/테스트 모두 통과
-- Codex 코드리뷰 완료 (P2 이슈 2건 발견)
-- 미사용 컴포넌트 삭제: CategoryChips, ProgressStepper (의도적 미사용)
+#### DB 스키마 확장 (완료)
+
+- supabase/migrations/00005_guide_structure.sql: master_checklist_items에 guide_steps, guide_items, guide_note, guide_url 컬럼 추가
+- supabase/migrations/00006_seed_guide_structure.sql: 46개 항목에 구조화된 가이드 데이터 시드
+
+#### 페이지/라우트 (완료)
+
+- ChecklistDetailPage (/checklist/:itemId) — 상세페이지 진입점
+- App.tsx 라우트 등록, 대시보드/타임라인에서 항목 클릭 시 상세로 이동
+
+#### 상세페이지 컴포넌트 (완료)
+
+- **DetailHeader**: D-day 트럭 칩 + 카테고리/중요도 배지, 큰 제목, 상대일자. 과거 항목은 "지금 해도 괜찮아요" 임시 처리 (TODO: 5단계에서 모드별 교체)
+- **GuideStepsSection**: Toss Stepper 스타일 (원형 번호 + 세로 연결선), "이렇게 하세요" 섹션
+- **GuideItemsSection**: "미리 준비할 것" 체크리스트 (로컬 상태, 짐 챙기기 UX)
+- **GuideNoteSection**: Steps 없을 때 Tip 단독 섹션 (TipCard 래퍼)
+- **RelatedLinkCard**: "바로가기" 외부 링크 카드 (Globe 아이콘 + 이름/설명)
+- **MemoSection**: 자동 높이 조정 textarea + 디바운스 저장(1s), 저장 중 스피너 + 저장됨 피드백
+- **TipCard**: 민트 배경 + primary 좌측 바 + Lightbulb/Tip 라벨 (재사용 공통)
+- **SectionTitle**: 섹션 제목 공통화 (h3 semibold, 우측 슬롯 지원)
+- **CompletionStamp**: 완료 시 우측 원형 도장 오버레이 (-14deg 회전, success 톤)
+- **CompletionToggleButton**: 하단 sticky CTA (완료로 표시 / 다시 할 일로 되돌리기)
+
+#### 공통 컴포넌트 (완료)
+
+- **SectionDivider**: 섹션 간 8px bg-border/50 띠 (TimelinePage와 동일 패턴)
+- **Toast / ToastProvider**: 메모 저장 실패 등 알림용 전역 토스트
+
+#### 훅/서비스 (완료)
+
+- useChecklistItemDetail: 상세 조회 훅
+- useUpdateMemo: 메모 업데이트 (디바운스 1s, 토스트 에러 처리)
+- useToggleItem: 대시보드 훅 재사용, invalidation 범위 확장
+- services/checklist.ts: getChecklistItemDetail, toggleChecklistItem, updateItemMemo
+
+#### 공유 유틸 (완료)
+
+- packages/shared/utils/dateLabel.ts: getRelativeDateLabel(d-day offset → 한국어 레이블), formatDateKorean
+- packages/shared/constants/linkMeta.ts: URL → 사이트 이름/설명 메타 매핑
+
+#### UI/UX 폴리싱 (완료)
+
+- 토스 스타일 기반 + 이사앱 아이덴티티: 트럭 칩, 완료 스탬프, 짐 챙기기 UX
+- D-day 칩 시각 위계: bg-primary + white 텍스트로 카테고리 배지와 구분
+- 섹션 리듬 통일: h3 semibold 섹션 제목, mt-6 pt-5 → 8px 구분띠
+- TipCard 배경 강화 (bg-tertiary/50) + 좌측 primary 바 유지
+- Stepper 세로선 my-1.5 여백으로 원과 떨어뜨림
+- 과거 항목 표시 톤다운 ("지금 해도 괜찮아요", D-day 칩 숨김)
 
 ## 진행 중인 것
 
-- 3단계 검증 P2 이슈 수정 대기
+- 없음 (구현 완료, /verify 대기)
 
 ## 다음 할 것
 
-1. P2 수정: `/photos` 라우트 등록 (placeholder 페이지 또는 DevTabBar에서 비활성화)
-2. P2 수정: PreCheckPage 에러 핸들링 (쿼리 실패 시 에러 UI 표시)
-3. 스펙 문서 동기화: DevTabBar 아이콘/라벨 변경 반영 (타임라인->전체, TrendingUp->ClipboardList)
-4. feat/dashboard-core -> main PR 생성
+1. /codex:review --background → /codex:result (코드 리뷰)
+2. /verify (스펙 대비 검증)
+3. 커밋 분리 + PR 생성 (feat/checklist-detail → main)
+4. 5단계 스펙 작성: 스마트 재배치 (docs/specs/05-smart-replace.md)
 
 ## 알려진 문제
 
-- `/photos` 라우트 미등록: DevTabBar 집기록 탭 클릭 시 랜딩으로 fallthrough (P2)
-- PreCheckPage 에러 핸들링: overdue 쿼리 실패 시 pre-check 무조건 건너뜀 (P2)
+- 과거 항목 날짜 표시는 4단계 임시 처리 (DetailHeader getDDayTag/getDateText에 TODO 주석). 5단계 스마트 재배치에서 모드별 표시로 덮어쓰기
 
 ## 실패한 접근 (반복 금지)
 
@@ -105,3 +148,5 @@
 - Tailwind v4 font-size 토큰: `--font-size-*`가 아니라 `--text-*` 네임스페이스 사용해야 `text-h1` 유틸리티가 생성됨
 - 커밋 단위: 한번에 몰아서 커밋하지 않음. 작업 단위(파일 1~3개) 기준으로 분리 커밋 (플러그인 사용이 원인)
 - ActionSection 뱃지 레이아웃: 제목 위에 뱃지 배치 시 세로 정렬이 어색함 -> 같은 줄 인라인 배치가 깔끔
+- 상세페이지 섹션 제목에 text-caption(12px) uppercase 사용 금지 — 전체 페이지가 왜소해 보임. text-h3(18px) semibold가 스펙
+- TipCard에 보더 + 배경 모두 약하게 쓰지 말 것 — "애매한 중간"이 됨. 둘 중 하나를 확실히(지금은 좌측 bar + bg-tertiary/50)
