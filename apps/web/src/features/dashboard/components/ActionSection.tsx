@@ -1,11 +1,12 @@
 import { Link } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
-import { ROUTES } from '@shared/constants/routes'
+import { ROUTES, ACTION_SECTION_TITLE, type UrgencyMode } from '@moving/shared'
 import { Badge } from '@/shared/components/Badge'
 
 interface ActionSectionProps {
   items: Record<string, unknown>[]
   nextUpcomingDate?: string
+  mode: UrgencyMode
   onToggle: (id: string, isCompleted: boolean) => void
 }
 
@@ -26,8 +27,16 @@ function sortByUrgency(items: Record<string, unknown>[]) {
   })
 }
 
-export function ActionSection({ items, nextUpcomingDate, onToggle }: ActionSectionProps) {
-  if (items.length === 0) {
+export function ActionSection({ items, nextUpcomingDate, mode, onToggle }: ActionSectionProps) {
+  // 초급한 모드: 필수 항목만
+  const filtered = mode === 'critical'
+    ? items.filter((item) => {
+        const master = item.master_checklist_items as Record<string, unknown> | null
+        return master?.is_skippable === false
+      })
+    : items
+
+  if (filtered.length === 0) {
     return (
       <section className="mt-6 px-5">
         <div className="rounded-2xl bg-surface p-5 text-center shadow-sm">
@@ -40,19 +49,20 @@ export function ActionSection({ items, nextUpcomingDate, onToggle }: ActionSecti
     )
   }
 
-  const sorted = sortByUrgency(items)
-  const visible = sorted.slice(0, 3)
+  const sorted = sortByUrgency(filtered)
+  const maxVisible = mode === 'urgent' || mode === 'critical' ? 5 : 3
+  const visible = sorted.slice(0, maxVisible)
 
   return (
     <section className="mt-2 px-5">
-      <div className="flex justify-between ">
+      <div className="flex justify-between">
         <div className="flex items-center gap-2">
-          <h2 className="text-h3 font-bold text-secondary">지금 해두면 편해요</h2>
-          <Badge variant="count">{items.length}</Badge>
+          <h2 className="text-h3 font-bold text-secondary">{ACTION_SECTION_TITLE[mode]}</h2>
+          <Badge variant="count">{filtered.length}</Badge>
         </div>
         <Link
           to={ROUTES.TIMELINE}
-          className=" flex items-center gap-1 py-3 text-body-sm font-medium text-primary"
+          className="flex items-center gap-1 py-3 text-body-sm font-medium text-primary"
         >
           전체 보기
           <ChevronRight size={16} />

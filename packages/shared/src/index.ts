@@ -10,7 +10,18 @@ export { ROUTES } from './constants/routes'
 export { GREETINGS, getGreetingMessage } from './constants/greetings'
 export { CATEGORY_CHIP_MAP } from './constants/categories'
 export { LINK_META, getLinkMeta } from './constants/linkMeta'
+export {
+  GREETING_TEXT,
+  ACTION_SECTION_TITLE,
+  PROGRESS_LABEL,
+  CRITICAL_ENCOURAGEMENT,
+  CRITICAL_SKIPPABLE_HINT,
+  URGENCY_GROUP_LABELS,
+  MODE_TRANSITION_MESSAGE,
+} from './constants/urgencyText'
 
 // 유틸
-export { calculateProgress } from './utils/progress'
+export { calculateProgress, calculateEssentialProgress } from './utils/progress'
 export { getRelativeDateLabel, formatDateKorean, parseLocalDate } from './utils/dateLabel'
+export { getUrgencyMode, rescheduleOverdueItems } from './utils/urgencyMode'
+export type { UrgencyMode, RescheduledItem } from './utils/urgencyMode'

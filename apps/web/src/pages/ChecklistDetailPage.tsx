@@ -13,12 +13,16 @@ import { CompletionStamp } from '@/features/checklist-detail/components/Completi
 import { CompletionToggleButton } from '@/features/checklist-detail/components/CompletionToggleButton'
 import { useChecklistItemDetail } from '@/features/checklist-detail/hooks/useChecklistItemDetail'
 import { useToggleItem } from '@/features/dashboard/hooks/useToggleItem'
+import { useCurrentMove } from '@/features/dashboard/hooks/useCurrentMove'
+import { useUrgencyMode } from '@/features/dashboard/hooks/useUrgencyMode'
 
 export function ChecklistDetailPage() {
   const { itemId } = useParams<{ itemId: string }>()
   const navigate = useNavigate()
   const { data: item, isLoading, isError } = useChecklistItemDetail(itemId)
   const toggleItem = useToggleItem(item?.move_id ?? '')
+  const { data: move } = useCurrentMove()
+  const { mode } = useUrgencyMode(move?.moving_date ?? '')
 
   const backButton = (
     <button
@@ -95,6 +99,7 @@ export function ChecklistDetailPage() {
           guideType={master.guide_type}
           assignedDate={item.assigned_date}
           dDayOffset={master.d_day_offset}
+          mode={mode}
         />
 
         {master.guide_steps && master.guide_steps.length > 0 && (
