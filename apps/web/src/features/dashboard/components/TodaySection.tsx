@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom'
 import { Badge } from '@/shared/components/Badge'
 import { ChecklistItem } from '@/shared/components/ChecklistItem'
 
@@ -8,6 +9,7 @@ interface TodaySectionProps {
 }
 
 export function TodaySection({ items, hasOverdue, onToggle }: TodaySectionProps) {
+  const navigate = useNavigate()
   return (
     <section className="mt-6 px-5">
       <div className="flex items-center gap-2">
@@ -37,6 +39,7 @@ export function TodaySection({ items, hasOverdue, onToggle }: TodaySectionProps)
                   isCompleted={item.is_completed as boolean}
                   guideType={master?.guide_type as 'tip' | 'warning' | 'critical' | undefined}
                   onToggle={onToggle}
+                  onPress={() => navigate(`/checklist/${item.id as string}`)}
                 />
               </div>
             )

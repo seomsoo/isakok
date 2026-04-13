@@ -64,8 +64,9 @@ export function ActionSection({ items, nextUpcomingDate, onToggle }: ActionSecti
           const guideType = master?.guide_type as string
 
           return (
-            <div
+            <Link
               key={item.id as string}
+              to={`/checklist/${item.id as string}`}
               className="flex items-center gap-3 rounded-2xl bg-surface py-7 px-4"
             >
               <button
@@ -73,7 +74,11 @@ export function ActionSection({ items, nextUpcomingDate, onToggle }: ActionSecti
                 role="checkbox"
                 aria-checked={false}
                 aria-label={`${master?.title as string} 완료 처리`}
-                onClick={() => onToggle(item.id as string, true)}
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  onToggle(item.id as string, true)
+                }}
                 className="flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 border-border transition-all active:scale-90"
               />
               <p className="min-w-0 flex-1 truncate text-body font-medium text-secondary">
@@ -95,7 +100,7 @@ export function ActionSection({ items, nextUpcomingDate, onToggle }: ActionSecti
                 </Badge>
               </div>
               <ChevronRight size={18} className="shrink-0 text-placeholder" />
-            </div>
+            </Link>
           )
         })}
       </div>

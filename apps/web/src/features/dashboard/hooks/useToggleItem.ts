@@ -1,9 +1,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toggleChecklistItem } from '@/services/checklist'
+import { useToast } from '@/shared/components/ToastProvider'
 import { queryKeys } from './queryKeys'
 
 export function useToggleItem(moveId: string) {
   const queryClient = useQueryClient()
+  const toast = useToast()
 
   return useMutation({
     mutationFn: ({ itemId, isCompleted }: { itemId: string; isCompleted: boolean }) =>
@@ -62,12 +64,14 @@ export function useToggleItem(moveId: string) {
       if (context?.previousTimeline) {
         queryClient.setQueryData(queryKeys.timelineItems(moveId), context.previousTimeline)
       }
+      toast.error('체크 상태 변경에 실패했어요')
     },
 
-    onSettled: () => {
+    onSettled: (_data, _err, variables) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.todayItems(moveId) })
       queryClient.invalidateQueries({ queryKey: queryKeys.timelineItems(moveId) })
       queryClient.invalidateQueries({ queryKey: queryKeys.currentMove })
+      queryClient.invalidateQueries({ queryKey: queryKeys.itemDetail(variables.itemId) })
     },
   })
 }

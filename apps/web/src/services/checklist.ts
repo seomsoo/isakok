@@ -97,6 +97,42 @@ export async function getOverdueItems(moveId: string): Promise<OverdueItem[]> {
 }
 
 /**
+ * 체크리스트 항목 상세 조회
+ * user_checklist_items + master_checklist_items JOIN
+ * @param itemId - user_checklist_items PK (UUID)
+ * @returns 유저 항목 + 마스터 가이드 통합 데이터. 없으면 throw
+ */
+export async function getChecklistItemDetail(itemId: string) {
+  const { data, error } = await supabase
+    .from('user_checklist_items')
+    .select(
+      `*, master_checklist_items (
+        title, description, guide_content, guide_steps, guide_items, guide_note,
+        guide_url, guide_type, category, d_day_offset
+      )`,
+    )
+    .eq('id', itemId)
+    .single()
+
+  if (error) throw new Error(`[getChecklistItemDetail] ${error.message}`)
+  return data
+}
+
+/**
+ * 메모 업데이트 (단일 필드 — RPC 불필요)
+ * @param itemId - user_checklist_items PK
+ * @param memo - 저장할 메모 (빈 문자열 허용)
+ */
+export async function updateItemMemo(itemId: string, memo: string): Promise<void> {
+  const { error } = await supabase
+    .from('user_checklist_items')
+    .update({ memo, updated_at: new Date().toISOString() })
+    .eq('id', itemId)
+
+  if (error) throw new Error(`[updateItemMemo] ${error.message}`)
+}
+
+/**
  * 체크리스트 항목 일괄 완료 처리
  * @param itemIds - 완료 처리할 항목 ID 배열
  */

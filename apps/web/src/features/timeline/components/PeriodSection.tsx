@@ -1,4 +1,5 @@
 import { forwardRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/cn'
 import { ChecklistItem } from '@/shared/components/ChecklistItem'
 import { getDateLabel } from '@/features/timeline/hooks/useTimelineItems'
@@ -57,6 +58,7 @@ export const PeriodSection = forwardRef<HTMLDivElement, PeriodSectionProps>(func
 ) {
   const allItems = [...period.overdueItems, ...period.items]
   const dateGroups = groupItemsByDate(allItems, movingDate)
+  const navigate = useNavigate()
 
   return (
     <div ref={ref}>
@@ -100,6 +102,7 @@ export const PeriodSection = forwardRef<HTMLDivElement, PeriodSectionProps>(func
                 isCompleted={item.is_completed as boolean}
                 guideType={master?.guide_type as 'tip' | 'warning' | 'critical' | undefined}
                 onToggle={onToggleItem}
+                onPress={() => navigate(`/checklist/${item.id as string}`)}
               />
             )
           })}
