@@ -4,6 +4,8 @@ interface CircularProgressProps {
   size?: number
   strokeWidth?: number
   className?: string
+  label?: string
+  ariaLabel?: string
 }
 
 export function CircularProgress({
@@ -12,6 +14,8 @@ export function CircularProgress({
   size = 64,
   strokeWidth = 4,
   className,
+  label = '완료',
+  ariaLabel,
 }: CircularProgressProps) {
   const radius = (size - strokeWidth) / 2
   const circumference = 2 * Math.PI * radius
@@ -19,7 +23,7 @@ export function CircularProgress({
   const offset = circumference * (1 - percentage)
 
   return (
-    <div className={className} role="img" aria-label={`진행률 ${completed}/${total} 완료`}>
+    <div className={className} role="img" aria-label={ariaLabel ?? `진행률 ${completed}/${total} 완료`}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         {/* 배경 트랙 */}
         <circle
@@ -53,7 +57,7 @@ export function CircularProgress({
         <span className="text-body font-bold text-white leading-none">
           {completed}/{total}
         </span>
-        <span className="text-caption text-white/70 leading-none mt-0.5">완료</span>
+        <span className="text-caption text-white/70 leading-none mt-0.5">{label}</span>
       </div>
     </div>
   )
