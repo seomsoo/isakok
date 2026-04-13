@@ -2,9 +2,11 @@ import { differenceInCalendarDays, parseISO } from 'date-fns'
 import { ROUTES } from '@shared/constants/routes'
 import { Link } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
+import type { UrgencyMode } from '@moving/shared'
 
 interface UpcomingSectionProps {
   items: Record<string, unknown>[]
+  mode: UrgencyMode
 }
 
 interface GroupedItems {
@@ -37,7 +39,8 @@ function groupByTimeframe(items: Record<string, unknown>[]): GroupedItems[] {
     .map((label) => ({ label, items: groups[label] ?? [] }))
 }
 
-export function UpcomingSection({ items }: UpcomingSectionProps) {
+export function UpcomingSection({ items, mode }: UpcomingSectionProps) {
+  if (mode === 'urgent' || mode === 'critical') return null
   if (items.length === 0) return null
 
   const preview = items.slice(0, 6)

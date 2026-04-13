@@ -6,8 +6,10 @@ import { CATEGORY_CHIP_MAP } from '@shared/constants/categories'
 import { useCurrentMove } from '@/features/dashboard/hooks/useCurrentMove'
 import { useTimelineItems } from '@/features/timeline/hooks/useTimelineItems'
 import { useToggleItem } from '@/features/dashboard/hooks/useToggleItem'
+import { useUrgencyMode } from '@/features/dashboard/hooks/useUrgencyMode'
 import { PeriodSection } from '@/features/timeline/components/PeriodSection'
 import { CompletedSection } from '@/features/timeline/components/CompletedSection'
+import { SkippableSection } from '@/features/timeline/components/SkippableSection'
 import { TimelinePromptCard } from '@/features/timeline/components/TimelinePromptCard'
 import { DevTabBar } from '@/shared/components/DevTabBar'
 import { Skeleton } from '@/shared/components/Skeleton'
@@ -19,7 +21,8 @@ export function TimelinePage() {
   const { data: move, isPending, isFetching } = useCurrentMove()
   const moveId = move?.id ?? ''
   const movingDate = move?.moving_date ?? ''
-  const { data: timeline, isLoading: isTimelineLoading } = useTimelineItems(moveId, movingDate)
+  const { mode } = useUrgencyMode(movingDate)
+  const { data: timeline, isLoading: isTimelineLoading } = useTimelineItems(moveId, movingDate, mode)
   const toggleMutation = useToggleItem(moveId)
 
   const [sortMode, setSortMode] = useState<SortMode>('time')
@@ -114,7 +117,10 @@ export function TimelinePage() {
     ? filterBySearch(timeline?.completedItems ?? [])
     : (timeline?.completedItems ?? [])
 
-  const hasContent = filteredPeriods.length > 0 || completedItems.length > 0
+  const hasSkippable =
+    (mode === 'urgent' || mode === 'critical') && (timeline?.skippableItems?.length ?? 0) > 0
+  const hasContent =
+    filteredPeriods.length > 0 || completedItems.length > 0 || hasSkippable
   const progress = timeline?.progress
 
   return (
@@ -264,6 +270,14 @@ export function TimelinePage() {
               <PeriodSection period={period} movingDate={movingDate} onToggleItem={handleToggle} />
             </div>
           ))}
+
+          {(mode === 'urgent' || mode === 'critical') && timeline?.skippableItems && (
+            <SkippableSection
+              items={timeline.skippableItems}
+              mode={mode}
+              onToggle={handleToggle}
+            />
+          )}
 
           <CompletedSection items={completedItems} onToggle={handleToggle} />
 

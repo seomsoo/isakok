@@ -2,18 +2,24 @@ import { Navigate, Link } from 'react-router-dom'
 import { differenceInCalendarDays, format, parseISO } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { Settings } from 'lucide-react'
-import { ROUTES } from '@shared/constants/routes'
-import { calculateProgress } from '@shared/utils/progress'
+import {
+  ROUTES,
+  calculateProgress,
+  calculateEssentialProgress,
+} from '@moving/shared'
 import { useCurrentMove } from '@/features/dashboard/hooks/useCurrentMove'
-import { useDashboardItems } from '@/features/dashboard/hooks/useTodayItems'
+import { useDashboardItemsWithMode } from '@/features/dashboard/hooks/useTodayItems'
 import { useToggleItem } from '@/features/dashboard/hooks/useToggleItem'
 import { useTimelineItemsForProgress } from '@/features/dashboard/hooks/useTimelineItemsForProgress'
+import { useUrgencyMode } from '@/features/dashboard/hooks/useUrgencyMode'
+import { useModeStore } from '@/stores/modeStore'
 import { GreetingHeader } from '@/features/dashboard/components/GreetingHeader'
 import { DdayCard } from '@/features/dashboard/components/DdayCard'
 import { ActionSection } from '@/features/dashboard/components/ActionSection'
 import { MotivationCard } from '@/features/dashboard/components/MotivationCard'
 import { UpcomingSection } from '@/features/dashboard/components/UpcomingSection'
 import { PhotoPromptCard } from '@/features/dashboard/components/PhotoPromptCard'
+import { ModeTransitionBanner } from '@/features/dashboard/components/ModeTransitionBanner'
 import { PageHeader } from '@/shared/components/PageHeader'
 import { DevTabBar } from '@/shared/components/DevTabBar'
 import { Skeleton } from '@/shared/components/Skeleton'
@@ -21,7 +27,14 @@ import { Skeleton } from '@/shared/components/Skeleton'
 export function DashboardPage() {
   const { data: move, isPending, isFetching } = useCurrentMove()
   const moveId = move?.id ?? ''
-  const { data: dashboardData, isLoading: isDashLoading } = useDashboardItems(moveId)
+  const movingDate = move?.moving_date ?? ''
+  const { mode, daysUntilMove, isTransitioned, transitionMessage } = useUrgencyMode(movingDate)
+  const dismissTransition = useModeStore((s) => s.dismissTransition)
+  const { data: dashboardData, isLoading: isDashLoading } = useDashboardItemsWithMode(
+    moveId,
+    mode,
+    movingDate,
+  )
   const { data: allItems } = useTimelineItemsForProgress(moveId)
   const toggleMutation = useToggleItem(moveId)
 
@@ -29,7 +42,17 @@ export function DashboardPage() {
   if (!move) return <Navigate to={ROUTES.LANDING} replace />
 
   const daysRemaining = differenceInCalendarDays(parseISO(move.moving_date), new Date())
-  const progress = calculateProgress(allItems ?? [])
+  const isEssentialMode = mode === 'urgent' || mode === 'critical'
+  const progress = isEssentialMode
+    ? calculateEssentialProgress(
+        (allItems ?? []).map((item) => ({
+          is_completed: item.is_completed,
+          is_skippable:
+            (item.master_checklist_items as { is_skippable?: boolean } | null)?.is_skippable ===
+            true,
+        })),
+      )
+    : calculateProgress(allItems ?? [])
 
   function handleToggle(id: string, isCompleted: boolean) {
     toggleMutation.mutate({ itemId: id, isCompleted })
@@ -59,7 +82,13 @@ export function DashboardPage() {
         }
       />
 
-      <GreetingHeader daysRemaining={daysRemaining} />
+      <GreetingHeader mode={mode} />
+
+      {isTransitioned && transitionMessage && (
+        <div className="mt-4">
+          <ModeTransitionBanner message={transitionMessage} onDismiss={dismissTransition} />
+        </div>
+      )}
 
       <div className="mt-5">
         <DdayCard
@@ -67,6 +96,7 @@ export function DashboardPage() {
           movingDate={move.moving_date}
           completed={progress.completed}
           total={progress.total}
+          mode={mode}
         />
       </div>
 
@@ -76,20 +106,23 @@ export function DashboardPage() {
         </div>
       ) : (
         <>
-          <MotivationCard completed={progress.completed} total={progress.total} />
+          <MotivationCard completed={progress.completed} total={progress.total} mode={mode} />
           <ActionSection
             items={actionItems}
             nextUpcomingDate={nextUpcomingDate}
+            mode={mode}
             onToggle={handleToggle}
           />
 
-          <UpcomingSection items={upcoming} />
+          <UpcomingSection items={upcoming} mode={mode} />
         </>
       )}
 
-      <PhotoPromptCard daysRemaining={daysRemaining} />
+      <PhotoPromptCard daysRemaining={daysRemaining} mode={mode} />
 
       <DevTabBar />
+      {/* daysUntilMove referenced for future use */}
+      <span className="sr-only">{daysUntilMove}</span>
     </div>
   )
 }

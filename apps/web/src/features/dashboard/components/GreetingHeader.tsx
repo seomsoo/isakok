@@ -1,14 +1,14 @@
-import { getGreetingMessage } from '@shared/constants/greetings'
+import { GREETING_TEXT, type UrgencyMode } from '@moving/shared'
 
 interface GreetingHeaderProps {
-  daysRemaining: number
+  mode: UrgencyMode
 }
 
-export function GreetingHeader({ daysRemaining }: GreetingHeaderProps) {
+export function GreetingHeader({ mode }: GreetingHeaderProps) {
   return (
     <div className="px-5 pt-2">
       <h1 className="text-h1 font-bold tracking-tight text-secondary">
-        {getGreetingMessage(daysRemaining)}
+        {GREETING_TEXT[mode]}
       </h1>
     </div>
   )

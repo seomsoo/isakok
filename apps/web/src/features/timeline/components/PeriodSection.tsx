@@ -56,7 +56,9 @@ export const PeriodSection = forwardRef<HTMLDivElement, PeriodSectionProps>(func
   { period, movingDate, onToggleItem },
   ref,
 ) {
-  const allItems = [...period.overdueItems, ...period.items]
+  const allItems = [...period.overdueItems, ...period.items].sort((a, b) =>
+    (a.assigned_date as string).localeCompare(b.assigned_date as string),
+  )
   const dateGroups = groupItemsByDate(allItems, movingDate)
   const navigate = useNavigate()
 
@@ -83,8 +85,8 @@ export const PeriodSection = forwardRef<HTMLDivElement, PeriodSectionProps>(func
       </div>
 
       {/* 날짜별 서브그룹 */}
-      {dateGroups.map((group) => (
-        <div key={group.label}>
+      {dateGroups.map((group, idx) => (
+        <div key={`${group.label}-${idx}`}>
           {/* 날짜 서브헤더 */}
           <div className="flex items-center gap-2 px-5 pt-3 pb-0.5">
             <span className="text-label font-medium text-muted">{group.label}</span>
