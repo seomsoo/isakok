@@ -1,6 +1,9 @@
+import { CRITICAL_ENCOURAGEMENT, type UrgencyMode } from '@moving/shared'
+
 interface MotivationCardProps {
   completed: number
   total: number
+  mode: UrgencyMode
 }
 
 function getMessage(completed: number, total: number): string {
@@ -28,9 +31,17 @@ function getEmoji(completed: number, total: number): string {
   return '👋'
 }
 
-export function MotivationCard({ completed, total }: MotivationCardProps) {
+export function MotivationCard({ completed, total, mode }: MotivationCardProps) {
+  if (mode === 'critical') {
+    return (
+      <div className="mx-2 mt-3 rounded-2xl px-4">
+        <p className="text-body-sm font-bold text-primary/75">💛 {CRITICAL_ENCOURAGEMENT}</p>
+      </div>
+    )
+  }
+
   return (
-    <div className="mx-2 mt-3 rounded-2xl  px-4 ">
+    <div className="mx-2 mt-3 rounded-2xl px-4">
       <p className="text-body-sm font-bold text-primary/75">
         {getMessage(completed, total)}
         {getEmoji(completed, total)}
