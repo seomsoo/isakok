@@ -14,24 +14,121 @@
 - supabase/seed.sql: 마스터 체크리스트 46개
 - apps/web/src/lib/supabase.ts: 클라이언트 초기화
 - packages/shared/src/types/database.ts: Supabase 타입
+- docs/specs/01-supabase-setup.md, 01-verify.md
 
 ### 2단계: 온보딩
 
-- 3스텝 폼 + Pre-check 페이지, useCreateMove + onboardingStore, 디자인 시스템 OKLCH 전환
+- 온보딩 3스텝 폼: StepMovingDate, StepHousingType, StepContractAndMove
+- CalendarPicker, HousingTypeGrid, SelectionChip, CheckTip 컴포넌트
+- OnboardingPage (라우트 + ProgressBar + 뒤로가기)
+- OnboardingFooter: 하단 CTA 공통 컴포넌트, 상단 블러 그라데이션
+- useCreateMove 훅 + move 서비스
+- onboardingStore (Zustand)
+- LandingPage, DashboardPage (플레이스홀더)
+- Button, ProgressBar, OfflineBanner 공통 컴포넌트
+- cn.ts (clsx + tailwind-merge), queryClient.ts
+- **ProgressBar 리디자인**: Truck -> Home 아이콘 이동 방식 (완료 시 트럭이 집 아이콘으로 변환)
+- **Pre-check 페이지**: 온보딩 완료 후 밀린 항목 사전 체크 (일회성, 자동 건너뛰기)
+
+### 디자인 시스템
+
+- OKLCH 디자인 토큰 전환 (index.css @theme)
+- 타이포 토큰: --text-h1 ~ --text-caption 6개
+- design-style-guide.md, component-design-spec.md 추가
+- 토스 스타일 기반 디자인 톤 변경
 
 ### 3단계: 대시보드 + 타임라인 + 설정
 
-- 대시보드: DdayCard, GreetingHeader, ActionSection, UpcomingSection, MotivationCard, PhotoPromptCard
-- 타임라인: PeriodSection, CompletedSection, useTimelineItems
-- 설정: SettingsPage, MoveEditSheet, useUpdateMove, updateMoveWithReschedule RPC
-- 데이터: guide_type 재분류, 카테고리·제목 단축
+#### 대시보드
+
+- **DdayCard**: D-Day 숫자 + 원형 진행률 (가로 프로그레스 바 제거 -- 원형으로 충분)
+- **GreetingHeader**: D-Day 기반 동적 인사 문구
+- **ActionSection**: 오늘 할 일 + 밀린 할 일 통합, guide_type 우선순위 정렬 (critical > warning > tip), 인라인 뱃지, 체크박스 좌측 + 화살표 우측, 최대 3개 표시
+- **UpcomingSection**: 내일/이번 주/다음 주 그룹핑, 점(dot) + 호버 효과, 최대 6개 미리보기
+- **MotivationCard**: 진행률 기반 동적 응원 메시지
+- **PhotoPromptCard**: D-Day 전후 문구 분기, 집기록 유도 CTA
+- **PageHeader, DevTabBar, CircularProgress, Badge, Skeleton**: 공통 컴포넌트
+
+#### 대시보드 훅/서비스
+
+- useCurrentMove, useTodayItems (overdue + today + upcoming 분리), useToggleItem (낙관적 업데이트)
+- useTimelineItemsForProgress (진행률 계산용)
+- services/checklist.ts: getTodayItems, getOverdueItems, batchCompleteItems
+- services/move.ts: getCurrentMove
+- queryKeys.ts: 쿼리 키 상수
+
+#### 타임라인
+
+- TimelinePage, PeriodSection, CompletedSection, TimelinePromptCard
+- useTimelineItems 훅
+- 정렬 (시간순/카테고리별), 검색, Truck -> Home 프로그레스 바
+
+#### 설정
+
+- SettingsPage, MoveInfoSection, MoveEditSheet, SettingsMenuList
+- useUpdateMove 훅
+- services/settings.ts: updateMoveWithReschedule
+
+#### 데이터 변경 (Supabase 원격 반영 완료)
+
+- **guide_type 재분류**: 13개 항목 수정 (10 tip->warning, 4 warning->critical)
+- **카테고리명 단축**: 업체/이사방법->업체, 정리/폐기->정리, 행정/서류->행정, 공과금/정산->정산, 통신/구독->통신, 짐싸기/포장->포장, 집상태기록->기록, 이사당일->당일, 입주후->입주
+- **제목 단축**: 30개 항목 모바일 표시 최적화
+- seed.sql, master-checklist-data.md 동기화 완료
 
 ### 4단계: 항목 상세 + 체크 토글 + 메모
 
-- ChecklistDetailPage + DetailHeader, GuideStepsSection, GuideItemsSection, GuideNoteSection, RelatedLinkCard, MemoSection (디바운스 + in-flight 직렬화), CompletionStamp, CompletionToggleButton
-- ToastProvider, SectionDivider, SectionTitle, TipCard 공통화
-- useChecklistItemDetail, useUpdateMemo, getChecklistItemDetail, updateItemMemo
-- packages/shared/utils/dateLabel.ts (parseLocalDate 포함)
+#### DB 스키마 확장
+
+- supabase/migrations/00005_guide_structure.sql: master_checklist_items에 guide_steps, guide_items, guide_note, guide_url 컬럼 추가
+- supabase/migrations/00006_seed_guide_structure.sql: 46개 항목에 구조화된 가이드 데이터 시드
+
+#### 페이지/라우트
+
+- ChecklistDetailPage (/checklist/:itemId) — 상세페이지 진입점
+- App.tsx: ToastProvider 마운트 + 라우트 등록, 대시보드/타임라인에서 항목 클릭 시 상세로 이동
+
+#### 상세페이지 컴포넌트
+
+- **DetailHeader**: D-day 트럭 칩 + 카테고리/중요도 배지, 큰 제목, 상대일자. 과거 항목은 "지금 해도 괜찮아요" 임시 처리 (5단계에서 모드별 교체됨)
+- **GuideStepsSection**: Toss Stepper 스타일 (원형 번호 + 세로 연결선), "이렇게 하세요" 섹션
+- **GuideItemsSection**: "미리 준비할 것" 체크리스트 (로컬 상태, 짐 챙기기 UX)
+- **GuideNoteSection**: Steps 없을 때 Tip 단독 섹션 (TipCard 래퍼)
+- **RelatedLinkCard**: "바로가기" 외부 링크 카드 (Globe 아이콘 + 이름/설명)
+- **MemoSection**: 자동 높이 조정 textarea + 디바운스 저장(1s) + in-flight 직렬화(최신 값 승자), 저장 중 스피너 + 저장됨 피드백
+- **TipCard**: 민트 배경 + primary 좌측 바 + Lightbulb/Tip 라벨 (재사용 공통)
+- **SectionTitle**: 섹션 제목 공통화 (h3 semibold, 우측 슬롯 지원)
+- **CompletionStamp**: 완료 시 우측 원형 도장 오버레이 (-14deg 회전, success 톤)
+- **CompletionToggleButton**: 하단 sticky CTA (완료로 표시 / 다시 할 일로 되돌리기)
+
+#### 공통 컴포넌트
+
+- **SectionDivider**: 섹션 간 8px bg-border/50 띠 (TimelinePage와 동일 패턴)
+- **Toast / ToastProvider**: 메모 저장 실패 등 알림용 전역 토스트
+
+#### 훅/서비스
+
+- useChecklistItemDetail: 상세 조회 훅
+- useUpdateMemo: 메모 업데이트 (디바운스 1s, 토스트 에러 처리)
+- useToggleItem: 대시보드 훅 재사용, invalidation 범위 확장 (itemDetail 키 추가)
+- useUpdateMove: console.error → toast.error 전환 (성공 토스트 포함)
+- services/checklist.ts: getChecklistItemDetail, updateItemMemo 추가
+
+#### 공유 유틸 (4단계)
+
+- packages/shared/utils/dateLabel.ts: getRelativeDateLabel(d-day offset → 한국어 레이블), formatDateKorean, **parseLocalDate**(YYYY-MM-DD 로컬 파싱)
+- packages/shared/constants/linkMeta.ts: URL → 사이트 이름/설명 메타 매핑
+
+#### Codex 리뷰 수정 (4단계)
+
+- **[P1] MemoSection 자동저장 경쟁상태** → `inFlightRef` + `pendingRef`로 in-flight 직렬화(최신 값만 서버 반영)
+- **[P2] DetailHeader/formatDateKorean UTC 파싱 버그** → `parseLocalDate` 도입, YYYY-MM-DD를 로컬 생성자로 파싱
+
+#### 문서/Git (4단계)
+
+- docs/specs/04-detail.md(스펙), 04-detail-verify.md(검증 리포트, 종합 판정 ✅)
+- docs/wireframe/detail.png
+- CLAUDE.md PR 템플릿 확장: Spec → What → Why → Verify → DB/Migration(조건부) → Follow-ups → Screenshot(조건부) 고정 순서
 - PR #5 머지 완료
 
 ### 5단계: 스마트 재배치 (이번 세션)
