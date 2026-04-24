@@ -1,5 +1,6 @@
 import { Camera } from 'lucide-react'
-import type { UrgencyMode } from '@moving/shared'
+import { useNavigate } from 'react-router-dom'
+import { ROUTES, type UrgencyMode } from '@moving/shared'
 
 interface PhotoPromptCardProps {
   daysRemaining: number
@@ -7,6 +8,7 @@ interface PhotoPromptCardProps {
 }
 
 export function PhotoPromptCard({ daysRemaining, mode }: PhotoPromptCardProps) {
+  const navigate = useNavigate()
   if (mode === 'critical') return null
   const title =
     daysRemaining > 0
@@ -17,7 +19,7 @@ export function PhotoPromptCard({ daysRemaining, mode }: PhotoPromptCardProps) {
     daysRemaining > 0 ? '작은 흠집도 꼼꼼하게 기록해두세요.' : '사소한 흠집도 꼼꼼하게 기록하세요.'
 
   function handlePress() {
-    console.log('TODO: 집기록')
+    navigate(ROUTES.PHOTOS)
   }
 
   return (
