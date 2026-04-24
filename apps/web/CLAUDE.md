@@ -84,9 +84,14 @@ export async function getCurrentMove(userId: string): Promise<Move | null> {
 | updateItemMemo           | WRITE   | 메모 추가                         | 4    |
 | updateMoveWithReschedule | RPC     | 이사 수정+재배치 (트랜잭션)       | 4    |
 | softDeleteMove           | WRITE   | 이사 soft delete                  | 3    |
-| uploadPhoto              | WRITE   | Storage+DB 2단계                  | 6    |
+| uploadPhoto              | WRITE   | Storage+DB 2단계 (EXIF+해시+리사이즈) | 6    |
 | getPhotosByMove          | READ    | 이사별 사진 (그룹핑은 프론트)     | 6    |
+| getDeletedPhotos         | READ    | soft delete된 사진 조회           | 6    |
+| createSignedUrls         | READ    | 배치 signed URL 생성              | 6    |
 | softDeletePhoto          | WRITE   | 사진 soft delete                  | 6    |
+| hardDeletePhoto          | WRITE   | Storage+DB 영구삭제               | 6    |
+| restorePhoto             | WRITE   | soft delete 복구                  | 6    |
+| updatePhotoMemo          | WRITE   | 사진 메모 수정                    | 6    |
 | generateAiGuide          | EDGE FN | AI 가이드 생성 (캐시)             | 7    |
 
 ## 레이어 규칙 (엄격)

@@ -12,5 +12,6 @@ export const ROUTES = {
   PHOTOS: '/photos',
   PHOTO_RECORD: '/photos/record',
   PHOTO_REPORT: '/photos/report',
+  PHOTO_TRASH: '/photos/trash',
   SETTINGS: '/settings',
 } as const
