@@ -9,6 +9,10 @@ import { PreCheckPage } from '@/pages/PreCheckPage'
 import { TimelinePage } from '@/pages/TimelinePage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { ChecklistDetailPage } from '@/pages/ChecklistDetailPage'
+import { PhotosPage } from '@/pages/PhotosPage'
+import { PhotoRoomPage } from '@/pages/PhotoRoomPage'
+import { PhotoReportPage } from '@/pages/PhotoReportPage'
+import { PhotoTrashPage } from '@/pages/PhotoTrashPage'
 import { ToastProvider } from '@/shared/components/ToastProvider'
 
 export function App() {
@@ -24,14 +28,10 @@ export function App() {
             <Route path={ROUTES.TIMELINE} element={<TimelinePage />} />
             <Route path={ROUTES.SETTINGS} element={<SettingsPage />} />
             <Route path={ROUTES.CHECKLIST_DETAIL} element={<ChecklistDetailPage />} />
-            <Route
-              path={ROUTES.PHOTOS}
-              element={
-                <div className="flex min-h-dvh items-center justify-center bg-neutral text-muted">
-                  집기록 기능은 준비 중이에요
-                </div>
-              }
-            />
+            <Route path={ROUTES.PHOTO_REPORT} element={<PhotoReportPage />} />
+            <Route path={ROUTES.PHOTO_TRASH} element={<PhotoTrashPage />} />
+            <Route path={ROUTES.PHOTOS} element={<PhotosPage />} />
+            <Route path="/photos/:room" element={<PhotoRoomPage />} />
             <Route path="*" element={<Navigate to={ROUTES.LANDING} replace />} />
           </Routes>
         </BrowserRouter>

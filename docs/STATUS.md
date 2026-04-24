@@ -1,10 +1,10 @@
 # 프로젝트 상태
 
-> 마지막 업데이트: 2026-04-13
+> 마지막 업데이트: 2026-04-24 (2차 Codex 리뷰 수정 후)
 
 ## 현재 단계
 
-5단계: 스마트 재배치 (4모드) — 구현 완료, 검증 통과, PR #6 리뷰 대기
+6단계: 집 상태 기록 + 리포트 — 구현 완료, 1차+2차 Codex 리뷰 수정 완료, 검증 통과, PR 생성 전
 
 ## 완료된 것
 
@@ -170,15 +170,82 @@
 - feat/smart-reschedule 브랜치, 12개 작업 단위 커밋 (1~3 파일/커밋 컨벤션)
 - PR #6: <https://github.com/seomsoo/isakok/pull/6> (Spec/What/Why/Verify/Follow-ups 템플릿)
 
+### 6단계: 집 상태 기록 + 리포트
+
+#### 페이지/라우트
+
+- PhotosPage (`/photos`) — 입주/퇴실 토글 + 방별 카드 리스트
+- PhotoRoomPage (`/photos/:room`) — 방별 사진 추가/조회/메모/삭제
+- PhotoReportPage (`/photos/report`) — 방별 사진 요약 리포트 (읽기 전용, 공유 CTA)
+- PhotoTrashPage (`/photos/trash`) — 최근 삭제 (복구/영구삭제)
+
+#### 리포트 컴포넌트
+
+- ReportHeader: 타입 배지(입주/퇴실) + 날짜 제목 + 통계 (사진·메모·공간)
+- ReportRoomSection: 방 라벨 + N장 카운트, 3열 그리드 (에디토리얼 번호 배지), "메모" 라벨 + 번호.텍스트 (line-clamp-2)
+- TipCard: ShieldCheck 아이콘 + SHA-256 증거 안내
+- 공유: Web Share API + clipboard 폴백, DevTabBar 미표시 (몰입형)
+
+#### 사진 관련 컴포넌트
+
+- PhotoTopTabs (입주/퇴실 토글, tablist + aria-selected)
+- PhotoInfoBanner (dismiss 가능, localStorage 기반)
+- RoomSection (썸네일 가로 스크롤 + 추가 버튼)
+- PhotoGrid, PhotoCard, PhotoEmptyState, RoomTipCard
+- PhotoUploadFab (카메라 + 갤러리), PhotoUploadButton
+- PhotoFullscreenViewer (핀치줌 1~4x, 더블탭, portal)
+- DeletePhotoDialog (바텀시트, overflow 경고)
+- DeletedPhotosSection (최근 삭제 리스트)
+
+#### 훅
+
+- usePhotos, useUploadPhoto, useDeletePhoto, useRestorePhoto
+- useDeletedPhotos, useSignedUrls, useUpdatePhotoMemo
+- queryKeys.ts (photoKeys 상수)
+
+#### 서비스 (services/photos.ts)
+
+- uploadPhoto (Storage + DB 2단계, EXIF 추출, SHA-256 해시, 리사이즈)
+- getPhotosByMove, getDeletedPhotos, createSignedUrls
+- softDeletePhoto, hardDeletePhoto (Storage 에러 체크 포함)
+- updatePhotoMemo, restorePhoto
+
+#### 유틸
+
+- exif.ts: EXIF DateTimeOriginal → taken_at
+- photoHash.ts: SHA-256 해시 (Web Crypto API)
+- resizeImage.ts: 클라이언트 리사이즈 (긴 변 1920px, WebP 80%)
+
+#### Codex 리뷰 수정 (1차)
+
+- [P1] PhotoReportPage 로딩 가드 — isPhotosLoading 가드 + Skeleton UI
+- [P1] PhotosPage maxCount 적용 — remaining 계산 + slice 적용
+- [P2] hardDeletePhoto Storage 에러 체크 — storageError 체크 + throw
+- [P2] PhotoRoomPage 동시 업로드 가드 — uploadingCount > 0 조기 리턴
+
+#### Codex 리뷰 수정 (2차 — 리포트 리파인 후)
+
+- [P1] PhotoGrid 메모 autosave stale overwrite — `photo.memo` prop 비교 → `lastSavedRef`(useRef)로 마지막 전송 값 추적, stale 비교 제거
+- [P2] PhotoTrashPage 필터 리셋 누락 — 선택된 방 사진이 0건이 되면 `counts` 기반 `FILTER_ALL`로 자동 리셋
+
+#### UI 리파인 (디자인 리뷰 후)
+
+- ReportRoomSection: progress bar → "N장", 해시 배지 제거, 타임스탬프 → 에디토리얼 번호, 메모 미니멀화
+- PhotoReportPage: TipCard Lightbulb → ShieldCheck, DevTabBar 제거, 공유 패딩 조정
+- PhotoTopTabs 접근성: radiogroup → tablist, aria-checked → aria-selected
+- default export 제거 (4개 Photo 페이지)
+
+#### 문서
+
+- docs/specs/06-property-photo.md (스펙), 06-property-photo-verify.md (검증 리포트 ✅ 통과)
+
 ## 진행 중인 것
 
-- 없음 (PR #6 리뷰/머지 대기)
+없음
 
 ## 다음 할 것
 
-1. PR #6 리뷰 & squash merge (feat/smart-reschedule → main)
-2. 머지 후 로컬 main pull + `/commit-commands:clean_gone`
-3. 6단계 스펙 작성: docs/specs/06-property-photo.md (집 상태 기록 — 방별 사진, EXIF, SHA-256, Storage 업로드)
+1. PR 생성 (feat/property-photos → main, 6단계 전체 포함)
 
 ## 알려진 문제
 
@@ -196,6 +263,8 @@
 - TipCard에 보더+배경 둘 다 약하게 쓰지 말 것 → 좌측 bar + bg-tertiary/50
 - YYYY-MM-DD를 `new Date()`에 직접 넣지 말 것 → `parseLocalDate` 사용
 - 디바운스 자동저장에서 mutate 즉시 호출 금지 → in-flight ref + pending ref 직렬화
+- 디바운스 자동저장의 변경 판별에 서버 prop(예: `photo.memo`)을 쓰지 말 것 — 비동기 fetch 전 stale prop이라 빠른 편집 시 저장 누락. 대신 `lastSavedRef`로 마지막 전송 값 추적
+- 필터 UI에서 선택된 항목의 데이터가 0건이 되면 자동으로 전체 필터로 리셋할 것 — 칩이 숨겨져 사용자가 빈 목록에 갇힘
 - `noUncheckedIndexedAccess` 켜진 packages/shared에서 `arr[n].field` 직접 접근 금지 → optional chaining
 - verify 리포트의 Codex 리뷰 항목을 갱신할 때 원래 "문제" 설명을 지우지 말 것 → "문제 + 수정" 두 줄 구조 유지
 - `is_skippable` 같은 nested 필드는 `master_checklist_items.is_skippable` 경로로 추출해 progress util에 넘길 것 — 최상위로 가정 시 모두 undefined 처리되어 과대 계산
