@@ -142,10 +142,10 @@
 
 ### 🟡 권장 수정 (스펙/문서)
 
-- `shared/utils/cacheKey.ts`에 `prompt_version` 파라미터 없음 — Edge Function 쪽과 "동일 로직" 주장 불일치. 현재 클라이언트에서 미사용이라 실질 영향 없음
-- `00012_extend_claim_lock_timeout.sql` (lock 150초 확장)이 스펙에 미기재
-- 에러 시 `master_version: 0` 리셋 로직이 스펙에 미기재
-- CLAUDE.md의 import 별칭 `@shared/`와 실제 `@moving/shared` 불일치 (빌드에는 문제없음)
+- ~~`shared/utils/cacheKey.ts`에 `prompt_version` 파라미터 없음~~ → ✅ 스펙 폴더 구조에서 "동일 로직" 표현을 "클라이언트용, prompt_version 미포함"으로 정정
+- ~~`00012_extend_claim_lock_timeout.sql` (lock 150초 확장)이 스펙에 미기재~~ → ✅ 스펙 폴더 구조에 00010~00012 추가, in-flight lock 상세/claim RPC SQL/lock 해제 설명 모두 150초로 반영
+- ~~에러 시 `master_version: 0` 리셋 로직이 스펙에 미기재~~ → ✅ catch 블록 의사코드 + lock 해제 설명에 master_version: 0 리셋 반영
+- CLAUDE.md의 import 별칭 `@shared/`와 실제 `@moving/shared` 불일치 (빌드에는 문제없음) — 별도 PR에서 정리
 
 ### 🟢 양호 (핵심 설계)
 

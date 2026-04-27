@@ -86,7 +86,7 @@ supabase/
 
 packages/shared/src/
 ├── utils/
-│   ├── cacheKey.ts                         ← 생성 (Edge Function과 동일 로직, 클라용)
+│   ├── cacheKey.ts                         ← 생성 (클라이언트용, prompt_version 미포함 — 현재 미사용)
 │   └── conditionTags.ts                    ← 생성 (유저 조건 ∩ 항목 조건 교집합, 전체조건 제외)
 ├── types/
 │   └── aiGuide.ts                          ← 생성 (요청/응답/도메인 타입)
@@ -157,7 +157,7 @@ BEGIN
   WHERE cache_key = p_cache_key
     AND (
       generating_at IS NULL
-      OR generating_at < now() - interval '30 seconds'
+      OR generating_at < now() - interval '150 seconds'
       OR master_version <> p_master_version
     );
 
@@ -572,12 +572,12 @@ serve(async (req) => {
   } catch (err) {
     log({ status: 'error', cacheKey, error: String(err), duration_ms: Date.now() - startedAt });
 
-    // best effort: lock 해제 (예외 시)
+    // best effort: lock 해제 + master_version 무효화 (예외 시)
     if (cacheKey) {
       try {
         await supabaseAdmin
           .from('ai_guide_cache')
-          .update({ generating_at: null })
+          .update({ generating_at: null, master_version: 0 })
           .eq('cache_key', cacheKey);
       } catch {}
     }
@@ -600,8 +600,8 @@ ADR-019 참고. 핵심은:
 1. **lock 획득은 RPC 호출 1번** — `claim_ai_guide_generation(cache_key, version)`이 boolean 반환
 2. **true:** 락 획득. Claude API 호출 권한 있음
 3. **false:** 다른 프로세스가 락 보유 중 또는 직전에 보유했었음. 5초 대기 후 캐시 재조회.
-4. **stale lock 자동 회수:** RPC 내부에 30초 초과 lock은 자동으로 무효화하는 조건이 들어 있음. 따라서 Edge Function 크래시 후 다음 호출이 자동 복구.
-5. **lock 해제:** 정상 흐름에선 `update generating_at=null`. 예외 발생 시 catch 블록에서 best-effort 해제. 만약 그것도 실패하면 30초 후 stale로 자동 처리.
+4. **stale lock 자동 회수:** RPC 내부에 150초 초과 lock은 자동으로 무효화하는 조건이 들어 있음 (LLM 120초 timeout + 30초 버퍼). 따라서 Edge Function 크래시 후 다음 호출이 자동 복구.
+5. **lock 해제:** 정상 흐름에선 `update generating_at=null`. 예외 발생 시 catch 블록에서 best-effort로 `generating_at=null, master_version=0`으로 리셋 (version 0은 실제 version 1+와 불일치하므로 다음 요청에서 재생성 분기 진입). 만약 그것도 실패하면 150초 후 stale로 자동 처리.
 
 ### 4-4. Claude API 호출
 
