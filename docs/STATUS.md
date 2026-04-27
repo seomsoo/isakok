@@ -1,10 +1,10 @@
 # 프로젝트 상태
 
-> 마지막 업데이트: 2026-04-24 (2차 Codex 리뷰 수정 후)
+> 마지막 업데이트: 2026-04-28 (7단계 PR 머지 후)
 
 ## 현재 단계
 
-6단계: 집 상태 기록 + 리포트 — 구현 완료, 1차+2차 Codex 리뷰 수정 완료, 검증 통과, PR 생성 전
+7단계: AI 맞춤 가이드 — 구현 완료, Codex 리뷰 + spec-reviewer 수정 완료, 검증 통과, PR #8 머지 완료
 
 ## 완료된 것
 
@@ -239,19 +239,73 @@
 
 - docs/specs/06-property-photo.md (스펙), 06-property-photo-verify.md (검증 리포트 ✅ 통과)
 
+### 7단계: AI 맞춤 가이드
+
+#### DB 마이그레이션 (00007~00012)
+
+- 00007: ai_guide_cache ALTER (generating_at 컬럼) + claim_ai_guide_generation/apply_ai_guides RPC
+- 00008: system_config 테이블 (master_checklist_version=1)
+- 00009: guide_content 보강 3건 (#11, #41, #42) + master_version bump
+- 00010: sort_order 오프셋 보정
+- 00011: claim RPC INSERT 후 즉시 true 반환
+- 00012: stale lock 30초 → 150초 확장 (LLM 120초 + 30초 버퍼)
+
+#### Edge Function (supabase/functions/)
+
+- generate-ai-guide/index.ts: moveId만 수신 → moves 직접 조회(ADR-018) → 캐시 확인 → claim lock(ADR-019) → Claude API → apply_ai_guides batch
+- _shared/: anthropic.ts, cacheKey.ts, supabaseAdmin.ts, conditionsValidator.ts, logger.ts, cors.ts
+- _shared/prompts/checklist-guide.ts: 프롬프트 v1.0.1 + parseResponse + normalizeGuides (6개 가드)
+
+#### 클라이언트
+
+- ai-guide feature: useGenerateAiGuide (useMutation), aiGuide service (invoke), queryKeys
+- aiGuideStore (Zustand): trigger key = `${moveId}_${housing}_${contract}_${move}` — 조건 변경 시 자동 재트리거
+- DashboardPage: useEffect에서 1회 백그라운드 트리거
+- PersonalizedTipCard: Sparkles 아이콘 + 조건 태그 0~3개 + "맞춤 팁" 라벨
+- GuideNoteSection: useRef snapshot (ADR-020, 세션 내 스왑 방지)
+- GuideStepsSection: tip prop 제거 (순수 단계 목록)
+
+#### Shared 패키지
+
+- types/aiGuide.ts, constants/aiGuide.ts, utils/cacheKey.ts, utils/conditionTags.ts
+- index.ts: 신규 export 추가
+
+#### Codex 리뷰 수정
+
+- [P1] trigger key 일반화: move.id → `${moveId}_${conditions}` (조건 변경 시 재트리거)
+- [P1] 에러 시 master_version: 0 리셋 (stale 캐시 영구 제공 방지)
+- [P2] lock timeout 30초 → 150초 (00012 마이그레이션)
+
+#### spec-reviewer 수정
+
+- 마이그레이션 번호 00005~00008 → 00007~00012 스펙 정정
+- hasSteps prop 미사용 제거
+- 스펙 문서에 lock 150초, master_version:0 리셋, cacheKey prompt_version 불일치 반영
+
+#### 문서
+
+- docs/specs/07-ai-guide.md (스펙 v2), 07-ai-guide-verify.md (검증 리포트 ✅ 통과)
+- docs/DECISIONS.md: design-decisions-v2.md에서 통합 리네임
+
+#### Git
+
+- feat/ai-guide 브랜치, 15개 작업 단위 커밋 (1~3 파일/커밋 컨벤션)
+- PR #8: https://github.com/seomsoo/isakok/pull/8
+
 ## 진행 중인 것
 
 없음
 
 ## 다음 할 것
 
-1. PR 생성 (feat/property-photos → main, 6단계 전체 포함)
+1. 8단계: 인증 + 비회원 로컬 + RLS 켜기
 
 ## 알려진 문제
 
-- guide_content 직접 표시는 7단계 AI 맞춤 가이드 도입 시 custom_guide 우선으로 교체 예정
-- urgent/critical 모드 격려 문구는 7단계에서 사용자 상황별 맞춤 교체 검토 (Follow-up)
+- urgent/critical 모드 격려 문구는 사용자 상황별 맞춤 교체 검토 (Follow-up)
 - previousMode는 현재 세션 단위. 8단계 인증 후 서버 영속 검토 (Follow-up)
+- CLAUDE.md import 별칭 `@shared/` vs 실제 `@moving/shared` 불일치 (빌드 문제 없음, 정리 필요)
+- shared/constants/aiGuide.ts dead code (VALID_HOUSING_TYPES 등 미사용 상수)
 
 ## 실패한 접근 (반복 금지)
 
