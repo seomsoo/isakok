@@ -3,6 +3,12 @@ export type { HousingType, ContractType, MoveType } from './types/move'
 export type { MoveStatus } from './types/move'
 export type { GuideType, CategoryType } from './types/checklist'
 export type { RoomType, PhotoType } from './types/photo'
+export type {
+  AiGuideConditions,
+  GenerateAiGuideRequest,
+  GenerateAiGuideResponse,
+  AiGeneratedGuide,
+} from './types/aiGuide'
 
 // 상수
 export { COLORS } from './constants/colors'
@@ -28,3 +34,5 @@ export { getRelativeDateLabel, formatDateKorean, parseLocalDate } from './utils/
 export { getUrgencyMode, rescheduleOverdueItems } from './utils/urgencyMode'
 export type { UrgencyMode, RescheduledItem } from './utils/urgencyMode'
 export { generateFileHash } from './utils/photoHash'
+export { buildCacheKey } from './utils/cacheKey'
+export { getConditionTags } from './utils/conditionTags'

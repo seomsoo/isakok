@@ -108,7 +108,8 @@ export async function getChecklistItemDetail(itemId: string) {
     .select(
       `*, master_checklist_items (
         title, description, guide_content, guide_steps, guide_items, guide_note,
-        guide_url, guide_type, category, d_day_offset
+        guide_url, guide_type, category, d_day_offset,
+        housing_types, contract_types, move_types
       )`,
     )
     .eq('id', itemId)

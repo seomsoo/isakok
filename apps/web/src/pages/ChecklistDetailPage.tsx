@@ -79,7 +79,23 @@ export function ChecklistDetailPage() {
     guide_type: 'tip' | 'warning' | 'critical'
     category: string
     d_day_offset: number
+    housing_types: string[]
+    contract_types: string[]
+    move_types: string[]
   }
+
+  const userConditions = move
+    ? {
+        housing_type: move.housing_type as
+          | '원룸'
+          | '오피스텔'
+          | '빌라'
+          | '아파트'
+          | '투룸+',
+        contract_type: move.contract_type as '월세' | '전세',
+        move_type: move.move_type as '용달' | '반포장' | '포장' | '자가용',
+      }
+    : null
 
   const handleToggle = () => {
     toggleItem.mutate({
@@ -103,10 +119,7 @@ export function ChecklistDetailPage() {
         />
 
         {master.guide_steps && master.guide_steps.length > 0 && (
-          <GuideStepsSection
-            steps={master.guide_steps}
-            tip={master.guide_note ?? master.guide_content}
-          />
+          <GuideStepsSection steps={master.guide_steps} />
         )}
 
         {master.guide_items && master.guide_items.length > 0 && (
@@ -116,16 +129,18 @@ export function ChecklistDetailPage() {
           </>
         )}
 
-        {(!master.guide_steps || master.guide_steps.length === 0) && (
-          <>
-            <SectionDivider />
-            <GuideNoteSection
-              note={master.guide_note}
-              fallbackContent={master.guide_content}
-              hasSteps={false}
-            />
-          </>
-        )}
+        <SectionDivider />
+        <GuideNoteSection
+          note={master.guide_note}
+          fallbackContent={master.guide_content}
+          customGuide={item.custom_guide}
+          userConditions={userConditions}
+          itemConditions={{
+            housing_types: master.housing_types,
+            contract_types: master.contract_types,
+            move_types: master.move_types,
+          }}
+        />
 
         {master.guide_url && (
           <>

@@ -1,13 +1,11 @@
 import { cn } from '@/lib/cn'
 import { SectionTitle } from './SectionTitle'
-import { TipCard } from './TipCard'
 
 interface GuideStepsSectionProps {
   steps: string[]
-  tip?: string | null
 }
 
-export function GuideStepsSection({ steps, tip }: GuideStepsSectionProps) {
+export function GuideStepsSection({ steps }: GuideStepsSectionProps) {
   return (
     <section className="mt-3">
       <SectionTitle>이렇게 하세요</SectionTitle>
@@ -34,8 +32,6 @@ export function GuideStepsSection({ steps, tip }: GuideStepsSectionProps) {
           )
         })}
       </ol>
-
-      {tip && <TipCard body={tip} className="mt-7" />}
     </section>
   )
 }
