@@ -298,12 +298,12 @@
 
 ## 다음 할 것
 
-1. 8단계: 인증 + 비회원 로컬 + RLS 켜기
+1. 8단계: 하네스 고도화 (CI + 교정 루프 + 워커 격리)
 
 ## 알려진 문제
 
 - urgent/critical 모드 격려 문구는 사용자 상황별 맞춤 교체 검토 (Follow-up)
-- previousMode는 현재 세션 단위. 8단계 인증 후 서버 영속 검토 (Follow-up)
+- previousMode는 현재 세션 단위. 9단계 인증 후 서버 영속 검토 (Follow-up)
 - CLAUDE.md import 별칭 `@shared/` vs 실제 `@moving/shared` 불일치 (빌드 문제 없음, 정리 필요)
 - shared/constants/aiGuide.ts dead code (VALID_HOUSING_TYPES 등 미사용 상수)
 
