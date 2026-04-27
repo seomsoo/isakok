@@ -100,8 +100,8 @@ CREATE POLICY "ai_cache_select_public" ON ai_guide_cache
 
 ### generate-ai-guide
 
-- 모델: claude-sonnet-4-20250514
-- 캐시 키: ${housing_type}_${contract*type}*${move_type}_${is_first_move}
+- 모델: claude-haiku-4-5-20251001 (ADR-021: Sonnet→Haiku 전환, 응답 시간 120s→60s)
+- 캐시 키: ${housing_type}_${contract_type}_${move_type}_${prompt_version}
 - 캐시 있고 버전 일치 → 바로 반환
 - 캐시 없거나 버전 불일치 → Claude API 호출 → 캐시 저장 → 반환
 - 에러 시 기존 guide_content로 폴백
