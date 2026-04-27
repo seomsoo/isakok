@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Navigate, Link } from 'react-router-dom'
 import { differenceInCalendarDays, format, parseISO } from 'date-fns'
 import { ko } from 'date-fns/locale'
@@ -8,6 +9,8 @@ import {
   calculateEssentialProgress,
 } from '@moving/shared'
 import { useCurrentMove } from '@/features/dashboard/hooks/useCurrentMove'
+import { useGenerateAiGuide } from '@/features/ai-guide/hooks/useGenerateAiGuide'
+import { useAiGuideStore } from '@/stores/aiGuideStore'
 import { useDashboardItemsWithMode } from '@/features/dashboard/hooks/useTodayItems'
 import { useToggleItem } from '@/features/dashboard/hooks/useToggleItem'
 import { useTimelineItemsForProgress } from '@/features/dashboard/hooks/useTimelineItemsForProgress'
@@ -37,6 +40,21 @@ export function DashboardPage() {
   )
   const { data: allItems } = useTimelineItemsForProgress(moveId)
   const toggleMutation = useToggleItem(moveId)
+  const generateAiGuide = useGenerateAiGuide()
+  const { hasTriggered, markTriggered } = useAiGuideStore()
+  const triggerKey = move
+    ? `${move.id}_${move.housing_type}_${move.contract_type}_${move.move_type}`
+    : ''
+
+  useEffect(() => {
+    if (!move || !triggerKey) return
+    if (hasTriggered(triggerKey)) return
+    if (generateAiGuide.isPending || generateAiGuide.isSuccess) return
+
+    markTriggered(triggerKey)
+    generateAiGuide.mutate({ moveId: move.id })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [triggerKey])
 
   if (isPending || (isFetching && !move)) return <DashboardSkeleton />
   if (!move) return <Navigate to={ROUTES.LANDING} replace />
