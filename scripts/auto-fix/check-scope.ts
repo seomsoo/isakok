@@ -22,13 +22,13 @@ const DENIED_PATH_PATTERNS = [
   /^packages\/shared\/src\/services\/auth\//,
   /\/auth\//,
   // 환경변수
-  /^\.env(\.|$)/,
+  /(^|\/)\.env(\.|$)/,
   // 의존성 / 빌드 설정
-  /^package\.json$/,
-  /^pnpm-lock\.yaml$/,
+  /(^|\/)package\.json$/,
+  /(^|\/)pnpm-lock\.yaml$/,
   /next\.config\./,
   /vite\.config\./,
-  /^tsconfig(\..*)?\.json$/,
+  /(^|\/)tsconfig(\..*)?\.json$/,
   /tailwind\.config\./,
   // CI / 훅
   /^\.github\/workflows\//,
@@ -41,9 +41,9 @@ const ALLOWED_OVERRIDES = [/^\.env\.example$/]
 
 const DENIED_DIFF_PATTERNS = [
   { pattern: /-\s*expect\(/, name: 'expect() 제거' },
-  { pattern: /\+\s*\.skip\(/, name: '.skip() 추가' },
-  { pattern: /\+\s*\.todo\(/, name: '.todo() 추가' },
-  { pattern: /\+\s*\.only\(/, name: '.only() 추가' },
+  { pattern: /\+.*\.skip\(/, name: '.skip() 추가' },
+  { pattern: /\+.*\.todo\(/, name: '.todo() 추가' },
+  { pattern: /\+.*\.only\(/, name: '.only() 추가' },
   { pattern: /\+.*as\s+any\b/, name: 'as any 추가' },
   { pattern: /\+.*as\s+unknown\s+as\b/, name: 'as unknown as 추가' },
   { pattern: /\+\s*\/\/\s*@ts-ignore/, name: '@ts-ignore 추가' },
@@ -70,7 +70,14 @@ function getChangedFiles(): string[] {
     const unstagedOutput = execSync('git diff --name-only', {
       encoding: 'utf-8',
     })
-    const all = [...stagedOutput.split('\n'), ...unstagedOutput.split('\n')]
+    const untrackedOutput = execSync('git ls-files --others --exclude-standard', {
+      encoding: 'utf-8',
+    })
+    const all = [
+      ...stagedOutput.split('\n'),
+      ...unstagedOutput.split('\n'),
+      ...untrackedOutput.split('\n'),
+    ]
     return [...new Set(all.filter(Boolean))]
   } catch {
     console.error('git diff 실행 실패')
