@@ -4,7 +4,7 @@
  * JS에서 동적으로 색상이 필요한 경우 (차트, 아이콘 등) 이 상수를 사용
  */
 export const COLORS = {
-  primary: '#0D9488',
+  primary: '#0F766E',
   secondary: '#333344',
   tertiary: '#E0F2F1',
   neutral: '#F8F7F5',

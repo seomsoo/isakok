@@ -412,7 +412,7 @@ export function OnboardingPage() {
 **카드 상태:**
 
 - 기본: 흰색 배경 + 연한 테두리 + 아이콘(회색) + 텍스트
-- 선택: 연한 Teal 배경(#E0F2F1) + Teal 테두리(#0D9488) + 아이콘(Teal) + 텍스트(Teal) + 우측 상단 체크 아이콘
+- 선택: 연한 Teal 배경(#E0F2F1) + Teal 테두리(#0F766E) + 아이콘(Teal) + 텍스트(Teal) + 우측 상단 체크 아이콘
 - 호버: 연한 회색 배경
 
 **카드별 아이콘:**
@@ -789,14 +789,14 @@ interface PreCheckItemProps {
 
 master_checklist_items의 `category` 필드 기준으로 그룹핑:
 
-| category    | 한글 표시   |
-| ----------- | ----------- |
-| contract    | 계약 관련   |
-| utility     | 공과금/행정 |
-| packing     | 짐 정리     |
-| cleaning    | 청소        |
-| moving_day  | 이사 당일   |
-| after_move  | 입주 후     |
+| category   | 한글 표시   |
+| ---------- | ----------- |
+| contract   | 계약 관련   |
+| utility    | 공과금/행정 |
+| packing    | 짐 정리     |
+| cleaning   | 청소        |
+| moving_day | 이사 당일   |
+| after_move | 입주 후     |
 
 ### 디자인 스펙
 
@@ -909,12 +909,12 @@ interface ProgressBarProps {
 
 | 용도               | 색상                 | CSS               |
 | ------------------ | -------------------- | ----------------- |
-| CTA 버튼 배경      | #0D9488              | bg-primary        |
+| CTA 버튼 배경      | #0F766E              | bg-primary        |
 | 카드 선택 배경     | #E0F2F1              | bg-tertiary       |
-| 카드 선택 테두리   | #0D9488              | border-primary    |
+| 카드 선택 테두리   | #0F766E              | border-primary    |
 | 미선택 카드 배경   | #FFFFFF              | bg-white          |
 | 미선택 카드 테두리 | #E5E7EB              | border-gray-200   |
-| 비활성 버튼        | #0D9488/50           | bg-primary/50     |
+| 비활성 버튼        | #0F766E/50           | bg-primary/50     |
 | 텍스트 (메인)      | #333344              | text-secondary    |
 | 텍스트 (설명)      | #333344/60           | text-secondary/60 |
 | 페이지 배경        | #F8F7F5              | bg-neutral        |

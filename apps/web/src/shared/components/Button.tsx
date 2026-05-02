@@ -9,14 +9,10 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const variantStyles = {
-  primary:
-    'bg-primary text-white shadow-sm active:bg-[oklch(0.50_0.104_184.7)]',
-  secondary:
-    'bg-border text-secondary border border-border active:bg-neutral',
-  ghost:
-    'bg-transparent text-primary active:bg-tertiary',
-  danger:
-    'bg-critical text-white active:bg-[oklch(0.54_0.208_25)]',
+  primary: 'bg-primary text-white shadow-sm active:bg-[oklch(0.41_0.086_186.4)]',
+  secondary: 'bg-border text-secondary border border-border active:bg-neutral',
+  ghost: 'bg-transparent text-primary active:bg-tertiary',
+  danger: 'bg-critical text-white active:bg-[oklch(0.54_0.208_25)]',
 } as const
 
 const sizeStyles = {
