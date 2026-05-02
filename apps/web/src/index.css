@@ -1,18 +1,18 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-primary: oklch(0.60 0.104 184.7);
-  --color-secondary: oklch(0.33 0.030 285);
+  --color-primary: oklch(0.51 0.086 186.4);
+  --color-secondary: oklch(0.33 0.03 285);
   --color-tertiary: oklch(0.95 0.019 193);
   --color-neutral: oklch(0.98 0.003 85);
-  --color-warning: oklch(0.70 0.187 48);
+  --color-warning: oklch(0.7 0.187 48);
   --color-critical: oklch(0.64 0.208 25);
-  --color-success: oklch(0.70 0.149 163);
+  --color-success: oklch(0.7 0.149 163);
   --color-muted: oklch(0.53 0.025 286);
-  --color-placeholder: oklch(0.70 0 0);
+  --color-placeholder: oklch(0.7 0 0);
   --color-border: oklch(0.95 0.003 85);
   --color-border-input: oklch(0.91 0 0);
-  --color-surface: oklch(1.00 0 0);
+  --color-surface: oklch(1 0 0);
 
   --text-h1: 26px;
   --text-h1--line-height: 1.35;
@@ -63,14 +63,26 @@ body {
 
 /* 체크 토글 마이크로 인터랙션 */
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(24px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes check-pop {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.2); }
-  100% { transform: scale(1); }
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .animate-check {

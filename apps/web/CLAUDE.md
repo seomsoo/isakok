@@ -74,25 +74,25 @@ export async function getCurrentMove(userId: string): Promise<Move | null> {
 
 ### API 함수 목록
 
-| 함수                     | 타입    | 설명                              | 단계 |
-| ------------------------ | ------- | --------------------------------- | ---- |
-| createMoveWithChecklist  | RPC     | 이사+체크리스트 생성 (트랜잭션)   | 2    |
-| getCurrentMove           | READ    | active 이사 1건 조회              | 3    |
-| getTodayItems            | READ    | 오늘 할 일 + 과거 미완료          | 3    |
-| getTimelineItems         | READ    | 전체 체크리스트 (그룹핑은 프론트) | 3    |
-| toggleChecklistItem      | WRITE   | 체크 토글 (낙관적 업데이트)       | 4    |
-| updateItemMemo           | WRITE   | 메모 추가                         | 4    |
-| updateMoveWithReschedule | RPC     | 이사 수정+재배치 (트랜잭션)       | 4    |
-| softDeleteMove           | WRITE   | 이사 soft delete                  | 3    |
+| 함수                     | 타입    | 설명                                  | 단계 |
+| ------------------------ | ------- | ------------------------------------- | ---- |
+| createMoveWithChecklist  | RPC     | 이사+체크리스트 생성 (트랜잭션)       | 2    |
+| getCurrentMove           | READ    | active 이사 1건 조회                  | 3    |
+| getTodayItems            | READ    | 오늘 할 일 + 과거 미완료              | 3    |
+| getTimelineItems         | READ    | 전체 체크리스트 (그룹핑은 프론트)     | 3    |
+| toggleChecklistItem      | WRITE   | 체크 토글 (낙관적 업데이트)           | 4    |
+| updateItemMemo           | WRITE   | 메모 추가                             | 4    |
+| updateMoveWithReschedule | RPC     | 이사 수정+재배치 (트랜잭션)           | 4    |
+| softDeleteMove           | WRITE   | 이사 soft delete                      | 3    |
 | uploadPhoto              | WRITE   | Storage+DB 2단계 (EXIF+해시+리사이즈) | 6    |
-| getPhotosByMove          | READ    | 이사별 사진 (그룹핑은 프론트)     | 6    |
-| getDeletedPhotos         | READ    | soft delete된 사진 조회           | 6    |
-| createSignedUrls         | READ    | 배치 signed URL 생성              | 6    |
-| softDeletePhoto          | WRITE   | 사진 soft delete                  | 6    |
-| hardDeletePhoto          | WRITE   | Storage+DB 영구삭제               | 6    |
-| restorePhoto             | WRITE   | soft delete 복구                  | 6    |
-| updatePhotoMemo          | WRITE   | 사진 메모 수정                    | 6    |
-| generateAiGuide          | EDGE FN | AI 가이드 생성 (캐시)             | 7    |
+| getPhotosByMove          | READ    | 이사별 사진 (그룹핑은 프론트)         | 6    |
+| getDeletedPhotos         | READ    | soft delete된 사진 조회               | 6    |
+| createSignedUrls         | READ    | 배치 signed URL 생성                  | 6    |
+| softDeletePhoto          | WRITE   | 사진 soft delete                      | 6    |
+| hardDeletePhoto          | WRITE   | Storage+DB 영구삭제                   | 6    |
+| restorePhoto             | WRITE   | soft delete 복구                      | 6    |
+| updatePhotoMemo          | WRITE   | 사진 메모 수정                        | 6    |
+| generateAiGuide          | EDGE FN | AI 가이드 생성 (캐시)                 | 7    |
 
 ## 레이어 규칙 (엄격)
 
@@ -250,7 +250,7 @@ import { TodayTasks } from '@/features/dashboard/components/TodayTasks'
 - 디자인 톤: 토스 스타일 (깔끔, 미니멀, 정보 중심). 상세 기준 → docs/design-style-guide.md
 - 컬러 포맷: OKLCH (지각 균일, 파생색 생성 용이, Tailwind v4 네이티브 지원)
 - 디자인 토큰 (OKLCH → HEX 참고값):
-  - Primary: oklch(0.60 0.104 184.7) — #0D9488 Teal
+  - Primary: oklch(0.51 0.086 186.4) — #0F766E Deep Teal
   - Secondary: oklch(0.33 0.030 285) — #333344 Dark Navy
   - Tertiary: oklch(0.95 0.019 193) — #E0F2F1 Light Mint
   - Neutral: oklch(0.98 0.003 85) — #F8F7F5 Warm Gray

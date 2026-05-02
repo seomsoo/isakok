@@ -58,10 +58,11 @@ export function PhotoReportPage() {
   if (!move) return <Navigate to={ROUTES.LANDING} replace />
   if (photos.length === 0) return <Navigate to={`/photos?type=${photoType}`} replace />
 
-  const earliest = photos
-    .map(photoDate)
-    .filter((d): d is Date => d !== null)
-    .sort((a, b) => a.getTime() - b.getTime())[0] ?? null
+  const earliest =
+    photos
+      .map(photoDate)
+      .filter((d): d is Date => d !== null)
+      .sort((a, b) => a.getTime() - b.getTime())[0] ?? null
 
   const memoCount = photos.filter((p) => p.memo && p.memo.trim().length > 0).length
   const roomCount = ROOM_META.filter((r) => photos.some((p) => p.room === r.type)).length
@@ -154,7 +155,7 @@ export function PhotoReportPage() {
           <button
             type="button"
             onClick={handleShare}
-            className="flex h-[54px] w-full items-center justify-center gap-2 rounded-[14px] bg-primary text-[16px] font-bold tracking-tight text-white shadow-[0_4px_14px_rgba(13,148,136,0.25)] active:bg-primary/90 transition-colors"
+            className="flex h-[54px] w-full items-center justify-center gap-2 rounded-[14px] bg-primary text-[16px] font-bold tracking-tight text-white shadow-[0_4px_14px_rgba(15,118,110,0.25)] active:bg-primary/90 transition-colors"
           >
             <Upload size={17} strokeWidth={1.8} />
             리포트 공유하기
@@ -170,7 +171,6 @@ export function PhotoReportPage() {
           onClose={() => setSelected(null)}
         />
       )}
-
     </main>
   )
 }

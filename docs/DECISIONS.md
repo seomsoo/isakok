@@ -37,7 +37,7 @@
 포맷: OKLCH (지각 균일, 파생색 L값 조절, Tailwind v4 네이티브 지원). HEX는 참고용.
 
 ```
-Primary:         oklch(0.60 0.104 184.7)  #0D9488  Teal — 2026 WGSN "Transformative Teal"
+Primary:         oklch(0.51 0.086 186.4)  #0F766E  Deep Teal
 Secondary:       oklch(0.33 0.030 285)    #333344  Dark Navy
 Tertiary:        oklch(0.95 0.019 193)    #E0F2F1  Light Mint
 Neutral:         oklch(0.98 0.003 85)     #F8F7F5  Warm Gray
