@@ -417,7 +417,7 @@ export default tseslint.config(
  * 사용: className="bg-primary text-neutral" 또는 CSS에서 var(--color-primary)
  */
 @theme {
-  --color-primary: #0d9488;
+  --color-primary: #0f766e;
   --color-secondary: #333344;
   --color-tertiary: #e0f2f1;
   --color-neutral: #f8f7f5;
@@ -736,7 +736,7 @@ export interface SoftDeletable {
  * JS에서 동적으로 색상이 필요한 경우 (차트, 아이콘 등) 이 상수를 사용
  */
 export const COLORS = {
-  primary: '#0D9488',
+  primary: '#0F766E',
   secondary: '#333344',
   tertiary: '#E0F2F1',
   neutral: '#F8F7F5',
