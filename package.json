@@ -3,13 +3,18 @@
   "private": true,
   "packageManager": "pnpm@10.27.0",
   "scripts": {
+    "prepare": "husky",
     "dev": "turbo dev",
     "build": "turbo build",
     "lint": "turbo lint",
+    "typecheck": "turbo run typecheck",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "turbo test",
-    "clean": "turbo clean"
+    "clean": "turbo clean",
+    "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
+    "verify:fast": "pnpm lint && pnpm typecheck",
+    "auto-fix:check-scope": "tsx scripts/auto-fix/check-scope.ts"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -17,8 +22,13 @@
     ]
   },
   "devDependencies": {
+    "@commitlint/cli": "^20.5.2",
+    "@commitlint/config-conventional": "^20.5.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "prettier": "^3.x",
     "supabase": "^2.84.5",
+    "tsx": "^4.21.0",
     "turbo": "^2.x"
   }
 }

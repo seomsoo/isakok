@@ -1,10 +1,10 @@
 # 프로젝트 상태
 
-> 마지막 업데이트: 2026-04-28 (7단계 PR 머지 후)
+> 마지막 업데이트: 2026-05-02 (8-1 검증 완료)
 
 ## 현재 단계
 
-7단계: AI 맞춤 가이드 — 구현 완료, Codex 리뷰 + spec-reviewer 수정 완료, 검증 통과, PR #8 머지 완료
+8단계-1: 하네스 코어 — 검증 완료 (완전 통과), 다음 단계(8-2) 대기
 
 ## 완료된 것
 
@@ -253,8 +253,8 @@
 #### Edge Function (supabase/functions/)
 
 - generate-ai-guide/index.ts: moveId만 수신 → moves 직접 조회(ADR-018) → 캐시 확인 → claim lock(ADR-019) → Claude API → apply_ai_guides batch
-- _shared/: anthropic.ts, cacheKey.ts, supabaseAdmin.ts, conditionsValidator.ts, logger.ts, cors.ts
-- _shared/prompts/checklist-guide.ts: 프롬프트 v1.0.1 + parseResponse + normalizeGuides (6개 가드)
+- \_shared/: anthropic.ts, cacheKey.ts, supabaseAdmin.ts, conditionsValidator.ts, logger.ts, cors.ts
+- \_shared/prompts/checklist-guide.ts: 프롬프트 v1.0.1 + parseResponse + normalizeGuides (6개 가드)
 
 #### 클라이언트
 
@@ -292,13 +292,73 @@
 - feat/ai-guide 브랜치, 15개 작업 단위 커밋 (1~3 파일/커밋 컨벤션)
 - PR #8: https://github.com/seomsoo/isakok/pull/8
 
+### 8단계-1: 하네스 코어
+
+#### 정책/에이전트/가드
+
+- `.claude/policies/auto-fix-scope.md`: 교정 루프 적용 범위 정책 (§0~§6 전체)
+- `.claude/commands/auto-fix.md`: /auto-fix 명령어 (§0 사전 가드 + 3회 루프 + 출력 형식)
+- `.claude/agents/auto-fixer.md`: auto-fixer sub-agent (절대 원칙 6개, 거부 사례, 한계 표명)
+- `.claude/agents/spec-reviewer.md`: 컴포넌트 설계 검토 섹션 추가
+- `scripts/auto-fix/check-scope.ts`: 경로/패턴 매칭 가드 (중첩 경로, untracked, .skip/.todo/.only 패턴)
+- `docs/auto-fix-log/.gitkeep`: 교정 로그 디렉토리
+
+#### 커밋훅 (Husky v9)
+
+- `.husky/pre-commit`: lint-staged 실행
+- `.husky/commit-msg`: commitlint 검증
+- `.husky/pre-push`: pnpm verify (빌드/린트/타입체크/테스트 전체)
+- `.lintstagedrc.cjs`: prettier --write (monorepo에서 eslint --fix 문제로 prettier-only)
+- `commitlint.config.cjs`: conventional commits 룰 3개
+
+#### CI
+
+- `.github/workflows/ci.yml`: PR 트리거, lint/typecheck/test/build 4단계 순차 (Node 22, pnpm auto-detect)
+- 브랜치 보호 룰: GitHub UI 수동 설정 완료
+
+#### 프로젝트 설정
+
+- `package.json`: `packageManager: pnpm@10.27.0`, verify/verify:fast/auto-fix:check-scope 스크립트
+- `turbo.json`: typecheck 태스크 추가
+- `apps/web/package.json`: typecheck 스크립트 추가, build에서 tsc -b → tsc --noEmit -p tsconfig.app.json
+- `packages/shared/package.json`: test → vitest run, test:watch → vitest
+
+#### Codex 리뷰 수정
+
+- [P2] `check-scope.ts` 중첩 경로 매칭 보강 (`(^|\/)` 접두사) — `f01e46d`
+- [P2] `check-scope.ts` untracked 파일 스캔 추가 (`git ls-files --others`) — `f01e46d`
+- [P2] `check-scope.ts` 테스트 비활성화 패턴 확장 (`.skip/.todo/.only`) — `f01e46d`
+
+#### 시나리오 테스트 (5건 전체 통과)
+
+- /auto-fix 루프: 의도적 lint 에러 → 자동 수정 통과
+- 거부 범위 차단: apps/web/package.json 수정 → check-scope 감지, exit 1
+- 휴리스틱 차단: `as any` 추가 → check-scope 감지, exit 1
+- dirty tree 중단: dirty working tree → /auto-fix 즉시 중단
+- main 브랜치 중단: main에서 /auto-fix → 즉시 중단
+
+#### 문서
+
+- docs/specs/08-1-harness-core.md (스펙), 08-1-verify.md (검증 리포트 ✅ 완전 통과)
+
+#### Git
+
+- feat/quality-harness 브랜치
+- 커밋: f01e46d (check-scope 가드 패턴 강화), d3008bd (auto-fixer agent + spec-reviewer), fe9b2fa (lint-staged prettier-only), 241b20e (tsconfig.app.json), 9a8f35a (husky commit hooks)
+
 ## 진행 중인 것
 
 없음
 
 ## 다음 할 것
 
-1. 8단계: 하네스 고도화 (CI + 교정 루프 + 워커 격리)
+1. 8단계-2: 하네스 CI 봇 구현 (`docs/specs/08-2-harness-ci-bot.md` 스펙 기반)
+   - PR 자동 요약 워크플로우 (`pr-summarize.yml`)
+   - Auto-fix 봇 dry-run 모드 (`auto-fix-bot.yml`)
+   - 추가 sub-agent 6종 정의
+   - 보조 스크립트 3종 (`fetch-logs.mjs`, `check-attempts.mjs`, `run.mjs`)
+   - 운영 가이드 (`docs/harness-ops.md`)
+   - Dependabot + Gitleaks 설정
 
 ## 알려진 문제
 

@@ -1,0 +1,6 @@
+pnpm verify:fast || {
+  echo ""
+  echo "❌ pre-push 검증 실패. CI에서도 실패할 가능성이 높습니다."
+  echo "   --no-verify로 우회 가능하지만 권장하지 않음."
+  exit 1
+}
