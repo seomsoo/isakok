@@ -28,7 +28,7 @@ tools: Read, Edit, Bash, Grep, Glob
 ## 출력 형식
 
 ````markdown
-## Auto-fix Report
+## AI Auto-fix Report
 
 **Type:** {lint / typecheck / test / build}
 **Verdict:** {fixable / needs-human / out-of-scope}
