@@ -16,6 +16,7 @@ import { PhotoTrashPage } from '@/pages/PhotoTrashPage'
 import { ToastProvider } from '@/shared/components/ToastProvider'
 
 export function App() {
+  let testUnused = 'ci-test'
   return (
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
