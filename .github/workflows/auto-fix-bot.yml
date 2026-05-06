@@ -169,7 +169,7 @@ jobs:
 
       - name: Post dry-run result as PR comment
         if: ${{ steps.proceed.outputs.ok == 'true' && steps.mode.outputs.value == 'dry-run' }}
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.AUTO_FIX_BOT_TOKEN }}
           script: |
