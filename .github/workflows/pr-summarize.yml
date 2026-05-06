@@ -80,8 +80,19 @@ jobs:
           echo "modified=$MODIFIED" >> $GITHUB_OUTPUT
           echo "deleted=$DELETED" >> $GITHUB_OUTPUT
 
-      - name: Call pr-summarizer agent (trusted script)
+      - name: Check trusted script exists
         if: ${{ steps.actor.outputs.skip != 'true' && steps.fork.outputs.skip != 'true' }}
+        id: script
+        run: |
+          if [[ -f "tools/scripts/auto-fix/run.mjs" ]]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "::notice::run.mjs not yet on main — skipping summarizer (bootstrap)"
+          fi
+
+      - name: Call pr-summarizer agent (trusted script)
+        if: ${{ steps.actor.outputs.skip != 'true' && steps.fork.outputs.skip != 'true' && steps.script.outputs.exists == 'true' }}
         id: summarize
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY_HARNESS }}
@@ -96,7 +107,7 @@ jobs:
             --output /tmp/pr-summary.md
 
       - name: Post comment to PR (read from file)
-        if: ${{ steps.actor.outputs.skip != 'true' && steps.fork.outputs.skip != 'true' }}
+        if: ${{ steps.actor.outputs.skip != 'true' && steps.fork.outputs.skip != 'true' && steps.script.outputs.exists == 'true' }}
         uses: actions/github-script@v7
         with:
           script: |
