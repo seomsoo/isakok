@@ -148,10 +148,11 @@ jobs:
 
       - name: Download CI failure logs (trusted script)
         if: steps.proceed.outputs.ok == 'true'
+        working-directory: workspace
         env:
           GH_TOKEN: ${{ secrets.AUTO_FIX_BOT_TOKEN }}
           RUN_ID: ${{ github.event.workflow_run.id }}
-        run: node tools/scripts/auto-fix/fetch-logs.mjs > /tmp/ci-logs.txt
+        run: node ../tools/scripts/auto-fix/fetch-logs.mjs > /tmp/ci-logs.txt
 
       - name: Auto-fix (dry-run, analysis only)
         if: ${{ steps.proceed.outputs.ok == 'true' && steps.mode.outputs.value == 'dry-run' }}
