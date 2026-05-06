@@ -132,11 +132,12 @@ jobs:
 
       - name: Check attempt count (trusted)
         if: steps.proceed.outputs.ok == 'true'
+        working-directory: workspace
         env:
           GH_TOKEN: ${{ secrets.AUTO_FIX_BOT_TOKEN }}
           BRANCH: ${{ github.event.workflow_run.head_branch }}
           MAX_ATTEMPTS: 3
-        run: node tools/scripts/auto-fix/check-attempts.mjs
+        run: node ../tools/scripts/auto-fix/check-attempts.mjs
 
       - name: Check daily budget (best-effort)
         if: steps.proceed.outputs.ok == 'true'
