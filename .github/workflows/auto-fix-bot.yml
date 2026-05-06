@@ -80,7 +80,7 @@ jobs:
 
       - name: Download PR info artifact
         if: steps.proceed.outputs.ok == 'true'
-        uses: dawidd6/action-download-artifact@v6
+        uses: dawidd6/action-download-artifact@v21
         with:
           run_id: ${{ github.event.workflow_run.id }}
           name: pr-info
