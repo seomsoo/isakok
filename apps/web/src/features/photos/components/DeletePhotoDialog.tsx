@@ -7,7 +7,12 @@ interface DeletePhotoDialogProps {
   onConfirm: () => void
 }
 
-export function DeletePhotoDialog({ isOpen, overflow, onClose, onConfirm }: DeletePhotoDialogProps) {
+export function DeletePhotoDialog({
+  isOpen,
+  overflow,
+  onClose,
+  onConfirm,
+}: DeletePhotoDialogProps) {
   useEffect(() => {
     if (!isOpen) return
     function onKey(e: KeyboardEvent) {
@@ -25,12 +30,18 @@ export function DeletePhotoDialog({ isOpen, overflow, onClose, onConfirm }: Dele
       aria-modal="true"
       aria-describedby="delete-photo-desc"
       className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 px-4 pb-[calc(env(safe-area-inset-bottom)+12px)]"
-      onClick={onClose}
     >
       <div
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-[calc(100%-0px)] animate-[slideUp_200ms_ease] rounded-2xl bg-white"
-      >
+        className="absolute inset-0"
+        role="button"
+        tabIndex={0}
+        aria-label="닫기"
+        onClick={onClose}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') onClose()
+        }}
+      />
+      <div className="relative w-full max-w-[calc(100%-0px)] animate-[slideUp_200ms_ease] rounded-2xl bg-white">
         <div className="px-6 pt-7 pb-5 text-center">
           <p className="text-[17px] font-bold tracking-tight text-secondary">
             이 사진을 삭제할까요?
