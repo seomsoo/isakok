@@ -181,7 +181,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: prNumber,
-              body: `## 🤖 Auto-fix dry-run\n\n${result}\n\n*이 댓글은 dry-run 모드의 결과입니다. 실제 수정은 적용되지 않았습니다.*`,
+              body: `${result}\n\n> dry-run mode — no changes applied`,
             });
 
       - name: Auto-fix (apply mode)
