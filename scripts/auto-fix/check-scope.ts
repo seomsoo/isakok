@@ -35,6 +35,8 @@ const DENIED_PATH_PATTERNS = [
   /^\.husky\//,
   // 정책 자체
   /^\.claude\/policies\//,
+  // 자동 수정 시스템 핵심 (8-2 추가)
+  /^scripts\/auto-fix\//,
 ]
 
 const ALLOWED_OVERRIDES = [/^\.env\.example$/]

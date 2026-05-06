@@ -9,7 +9,7 @@ export function GuideStepsSection({ steps }: GuideStepsSectionProps) {
   return (
     <section className="mt-3">
       <SectionTitle>이렇게 하세요</SectionTitle>
-      <ol role="list" className="flex flex-col">
+      <ol className="flex flex-col">
         {steps.map((step, idx) => {
           const isLast = idx === steps.length - 1
           return (

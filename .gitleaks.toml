@@ -1,0 +1,22 @@
+title = "Gitleaks Config for 이사일정관리"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "허용 항목"
+
+regexes = [
+  '''VITE_SUPABASE_ANON_KEY\s*=\s*['"]?dummy''',
+  '''dummy-anon-key-for-ci-build-only''',
+  '''sk-ant-xxx''',
+  '''sk-ant-api03-xxxxx''',
+  '''your-anon-key''',
+  '''your-project\.supabase\.co''',
+  '''ghp_xxx''',
+  '''ghp_xxxxxxxxxxxxxxxxxxxx''',
+]
+
+paths = [
+  '''\.env\.example$''',
+]

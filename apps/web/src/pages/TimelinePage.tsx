@@ -22,7 +22,11 @@ export function TimelinePage() {
   const moveId = move?.id ?? ''
   const movingDate = move?.moving_date ?? ''
   const { mode } = useUrgencyMode(movingDate)
-  const { data: timeline, isLoading: isTimelineLoading } = useTimelineItems(moveId, movingDate, mode)
+  const { data: timeline, isLoading: isTimelineLoading } = useTimelineItems(
+    moveId,
+    movingDate,
+    mode,
+  )
   const toggleMutation = useToggleItem(moveId)
 
   const [sortMode, setSortMode] = useState<SortMode>('time')
@@ -119,8 +123,7 @@ export function TimelinePage() {
 
   const hasSkippable =
     (mode === 'urgent' || mode === 'critical') && (timeline?.skippableItems?.length ?? 0) > 0
-  const hasContent =
-    filteredPeriods.length > 0 || completedItems.length > 0 || hasSkippable
+  const hasContent = filteredPeriods.length > 0 || completedItems.length > 0 || hasSkippable
   const progress = timeline?.progress
 
   return (
@@ -186,7 +189,16 @@ export function TimelinePage() {
                 </button>
                 {showSortMenu && (
                   <>
-                    <div className="fixed inset-0 z-10" onClick={() => setShowSortMenu(false)} />
+                    <div
+                      className="fixed inset-0 z-10"
+                      role="button"
+                      tabIndex={0}
+                      aria-label="메뉴 닫기"
+                      onClick={() => setShowSortMenu(false)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') setShowSortMenu(false)
+                      }}
+                    />
                     <div className="absolute right-0 top-full z-20 mt-1 w-36 overflow-hidden rounded-xl bg-surface shadow-lg">
                       <button
                         type="button"
@@ -272,11 +284,7 @@ export function TimelinePage() {
           ))}
 
           {(mode === 'urgent' || mode === 'critical') && timeline?.skippableItems && (
-            <SkippableSection
-              items={timeline.skippableItems}
-              mode={mode}
-              onToggle={handleToggle}
-            />
+            <SkippableSection items={timeline.skippableItems} mode={mode} onToggle={handleToggle} />
           )}
 
           <CompletedSection items={completedItems} onToggle={handleToggle} />
