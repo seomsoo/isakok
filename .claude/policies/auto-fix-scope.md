@@ -92,6 +92,10 @@ tsconfig.*.json
 
 # 정책 자체 (자기 자신 수정 금지)
 .claude/policies/**
+
+# 자동 수정 시스템 핵심 스크립트 (8-2 추가)
+# 봇이 이 파일들을 수정하면 check-scope 등 가드 자체가 우회됨
+scripts/auto-fix/**
 ```
 
 ### 2-2. 패턴 기반 차단 (휴리스틱)
