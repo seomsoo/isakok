@@ -114,6 +114,8 @@ jobs:
       - name: Setup pnpm
         if: steps.proceed.outputs.ok == 'true'
         uses: pnpm/action-setup@v4
+        with:
+          package_json_file: tools/package.json
 
       - name: Setup Node
         if: steps.proceed.outputs.ok == 'true'
