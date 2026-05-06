@@ -1,10 +1,10 @@
 # 프로젝트 상태
 
-> 마지막 업데이트: 2026-05-04 (8-2 검증 완료)
+> 마지막 업데이트: 2026-05-06 (8-2 머지 + 하네스 실동작 검증 + 프롬프트 튜닝 완료)
 
 ## 현재 단계
 
-8단계-2: 하네스 CI 봇 — 검증 완료 (✅ 통과), 커밋 + PR 대기
+8단계 완료 — 다음 단계 대기
 
 ## 완료된 것
 
@@ -34,7 +34,7 @@
 
 - OKLCH 디자인 토큰 전환 (index.css @theme)
 - 타이포 토큰: --text-h1 ~ --text-caption 6개
-- design-style-guide.md, component-design-spec.md 추가
+- DESIGN.md, component-design-spec.md 추가
 - 토스 스타일 기반 디자인 톤 변경
 
 ### 3단계: 대시보드 + 타임라인 + 설정
@@ -400,7 +400,50 @@
 
 #### Git
 
-- feat/harness-ci-bot 브랜치 (커밋 + PR 대기)
+- feat/harness-ci-bot 브랜치 → PR #11 머지 완료
+
+### 8단계-3: 하네스 실동작 검증 + 프롬프트 튜닝
+
+#### GitHub Secrets/Variables 등록
+
+- `ANTHROPIC_API_KEY_HARNESS` (Secret): 하네스 전용 Anthropic API 키 (로컬 키와 분리)
+- `AUTO_FIX_BOT_TOKEN` (Secret): Fine-grained PAT (Contents RW, PRs RW, Actions R)
+- `AUTO_FIX_MODE` (Variable): `dry-run` (off → dry-run 전환 완료)
+- `AUTO_FIX_DAILY_TOKEN_LIMIT` (Variable): `100000` (기본값)
+- `HARNESS_LLM_MODEL` (Variable): `claude-sonnet-4-6` (기본값)
+
+#### 워크플로우 버그 수정 (테스트 PR #22, #24로 발견)
+
+- auto-fix-bot.yml: `package_json_file: tools/package.json` 추가 (pnpm 버전 인식 실패 수정) — PR #23
+- auto-fix-bot.yml: check-attempts step에 `working-directory: workspace` 추가 (git repo 컨텍스트) — PR #25
+- auto-fix-bot.yml: fetch-logs step에 `working-directory: workspace` 추가 (gh run view도 git 필요) — PR #26
+- pr-summarize.yml: summarizer step에 `GH_TOKEN` 환경변수 추가 (PR 본문 조회 실패 수정) — PR #23
+- run.mjs: diff 내용을 프롬프트에 직접 포함 (30KB 제한 + 트렁케이트) — PR #23
+
+#### 에이전트 프롬프트 튜닝 (PR #27, #28, #29)
+
+- pr-summarizer.md: 테이블 기반 간결 포맷 + AI Summary 제목 + 사이즈 라벨(XS~XL) + Start here(핵심 파일) + Heads up(해당 시만)
+- auto-fixer.md: Problem/Fix/Scope check 3섹션 구조 + AI Auto-fix Report 제목
+- run.mjs: "최종 마크다운만 출력, 중간 사고 금지, 추가 파일 읽지 마라" 지시 강화
+- auto-fix-bot.yml: dry-run 댓글 래퍼 간결화
+
+#### Dependabot 정리
+
+- Actions PR 5개 머지: checkout v6, setup-node v6, download-artifact v21, github-script v9, action-setup v6 (#12~#16)
+- npm 메이저 업데이트 PR 5개 닫기: ESLint 10, TypeScript 6, Vite 8, Vitest 4, minor-and-patch (#17~#21)
+- GitHub Settings에서 auto-merge 기능 활성화
+
+#### 실동작 검증 결과 (테스트 PR #24)
+
+- CI: lint 실패 정상 감지 ✅
+- pr-summarize: diff 기반 정확한 요약 댓글 ✅ (중간 사고 출력 제거 확인)
+- auto-fix-bot (dry-run): lint 에러 분석 + 수정 제안 댓글 ✅
+- gitleaks: 시크릿 스캔 통과 ✅
+
+#### Git
+
+- 워크플로우 수정: PR #23, #25, #26 (각 1 파일씩 분할 머지)
+- 프롬프트 튜닝: PR #27, #28, #29 (에이전트 정의 + run.mjs + 워크플로우)
 
 ## 진행 중인 것
 
@@ -408,10 +451,9 @@
 
 ## 다음 할 것
 
-1. 8-2 커밋 (파일 1~3개 단위 분할) + PR 생성
-2. PR 머지 후 GitHub Secrets/Variables 5개 등록 (ANTHROPIC_API_KEY_HARNESS, AUTO_FIX_BOT_TOKEN, AUTO_FIX_MODE, AUTO_FIX_DAILY_TOKEN_LIMIT, HARNESS_LLM_MODEL)
-3. 8-2 실제 동작 검증 (pr-summarize 트리거, auto-fix-bot dry-run 테스트)
-4. 9단계: 인증 + 비회원 로컬 + RLS 켜기
+1. 9단계: 인증 + 비회원 로컬 + RLS 켜기
+2. AUTO_FIX_MODE dry-run → apply 전환 (9단계 PR 몇 개 dry-run 결과 확인 후)
+3. Anthropic Console 월 예산 알림 설정 ($5~$10) - 완료
 
 ## 알려진 문제
 
@@ -437,3 +479,5 @@
 - `is_skippable` 같은 nested 필드는 `master_checklist_items.is_skippable` 경로로 추출해 progress util에 넘길 것 — 최상위로 가정 시 모두 undefined 처리되어 과대 계산
 - 모드 전환 배너의 dismissed 플래그는 모드 변경 시 반드시 리셋 (`setPreviousMode`에서 같이 처리)
 - CI 워크플로우에서 `execSync`로 사용자 제어 가능한 값(브랜치명 등)을 쉘 보간하지 말 것 → `execFileSync` + argument array 사용 (GH_TOKEN 환경에서 command injection 위험)
+- auto-fix-bot 워크플로우에서 trusted tools를 `tools/` 경로에 체크아웃하면, `gh` CLI 명령어는 git repo 컨텍스트가 필요하므로 `working-directory: workspace` 지정 필수 (pnpm setup도 `package_json_file: tools/package.json` 명시 필요)
+- Claude API 단일 응답(비-에이전트)에서 중간 사고 출력을 막으려면 프롬프트에 "최종 마크다운만 출력, 추가 파일을 읽으려 하지 마라" 명시 필요 — 에이전트 정의만으로는 부족, user prompt에도 중복 지시

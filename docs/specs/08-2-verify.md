@@ -47,13 +47,11 @@
 
 ### Secrets / Variables
 
-- [ ] `ANTHROPIC_API_KEY_HARNESS` Secret 등록 → GitHub 설정, 코드에서 미검증 (가이드 문서에 명시됨)
-- [ ] `AUTO_FIX_BOT_TOKEN` Secret 등록 → GitHub 설정, 코드에서 미검증
-- [ ] `AUTO_FIX_MODE` Variable 등록 → GitHub 설정, 코드에서 미검증
-- [ ] `AUTO_FIX_DAILY_TOKEN_LIMIT` Variable 등록 → GitHub 설정, 코드에서 미검증
-- [ ] `HARNESS_LLM_MODEL` Variable 등록 → GitHub 설정, 코드에서 미검증
-
-> 참고: 위 5개 항목은 GitHub Settings에 수동 등록이 필요하며, 워크플로우에서 참조하는 변수명은 올바르게 정의되어 있음. 실제 등록은 PR 머지 후 수행.
+- [x] `ANTHROPIC_API_KEY_HARNESS` Secret 등록 → 2026-05-06 등록 완료 (하네스 전용 키 별도 발급)
+- [x] `AUTO_FIX_BOT_TOKEN` Secret 등록 → 2026-05-06 등록 완료 (Fine-grained PAT: Contents RW, PRs RW, Actions R)
+- [x] `AUTO_FIX_MODE` Variable 등록 → 2026-05-06 등록 완료 (`dry-run`으로 설정)
+- [x] `AUTO_FIX_DAILY_TOKEN_LIMIT` Variable 등록 → 2026-05-06 등록 완료 (`100000`)
+- [x] `HARNESS_LLM_MODEL` Variable 등록 → 2026-05-06 등록 완료 (`claude-sonnet-4-6`)
 
 ### 부가 도구
 
@@ -67,22 +65,23 @@
 
 ### 8-2 실제 동작 검증 (apply 모드 제외)
 
-- [ ] PR 생성 시 pr-summarize 워크플로우 자동 트리거 + 댓글 게시 → PR 머지 후 검증 필요
-- [ ] pr-summarize가 trusted tools(`tools/`)로 실행되는지 확인 → 워크플로우 코드 확인 완료 (line 44-50)
-- [ ] 의도적 lint 실패 PR → CI 실패 → auto-fix-bot 트리거 → PR 머지 후 검증 필요
-- [ ] mode=dry-run 전환 → 봇이 PR 댓글로 dry-run 결과 게시 → PR 머지 후 검증 필요
-- [ ] dry-run 모드에서 git apply / PR 생성이 절대 일어나지 않음 → 코드 확인 완료 (run.mjs line 120-121)
-- [ ] fork PR로 트리거 시도 → fork 가드 차단 → PR 머지 후 검증 필요
-- [ ] 시도 횟수 4회 시도 → check-attempts가 차단 → PR 머지 후 검증 필요
-- [ ] budget-guard가 한도 초과 시 차단 → PR 머지 후 검증 필요
+- [x] PR 생성 시 pr-summarize 워크플로우 자동 트리거 + 댓글 게시 → 2026-05-06 테스트 PR #24에서 확인 (diff 기반 테이블 요약 정상 동작)
+- [x] pr-summarize가 trusted tools(`tools/`)로 실행되는지 확인 → 워크플로우 코드 확인 완료 + 실동작 확인 (main checkout → tools/)
+- [x] 의도적 lint 실패 PR → CI 실패 → auto-fix-bot 트리거 → 2026-05-06 테스트 PR #24에서 확인 (CI failure → workflow_run 트리거)
+- [x] mode=dry-run 전환 → 봇이 PR 댓글로 dry-run 결과 게시 → 2026-05-06 확인 (lint 에러 분석 + 수정 제안 댓글)
+- [x] dry-run 모드에서 git apply / PR 생성이 절대 일어나지 않음 → 코드 확인 + 실동작 확인 (댓글만 게시, 코드 변경 없음)
+- [ ] fork PR로 트리거 시도 → fork 가드 차단 → 1인 리포로 fork 테스트 불가, 코드 확인만 완료 (line 39-49)
+- [ ] 시도 횟수 4회 시도 → check-attempts가 차단 → 코드 확인 완료, 실제 4회 테스트는 미수행 (비용 절약)
+- [ ] budget-guard가 한도 초과 시 차단 → 코드 확인 완료, 실제 한도 초과 테스트는 미수행 (best-effort 설계)
 - [x] CI 봇이 `docs/auto-fix-log/`에 commit하지 않음 → 워크플로우 코드에 commit step 없음, PR 댓글 + artifact만 사용
 
 ---
 
 ## 누락 (스펙에 있는데 구현 안 됨)
 
-1. **Secrets/Variables 실제 등록**: 워크플로우에서 참조하는 5개 시크릿/변수가 GitHub Settings에 아직 미등록 (PR 머지 후 수동 설정 필요)
+1. ~~**Secrets/Variables 실제 등록**~~ → 2026-05-06 등록 완료
 2. ~~8-1 정책 보강 별도 PR~~ → 8-2 PR에 통합 결정 (정책-코드 동시 반영으로 거부 범위 공백 방지)
+3. fork 가드 / 시도 횟수 한도 / budget-guard 한도 초과 실제 테스트 미수행 — 코드 확인만 완료 (1인 리포 + 비용 제약)
 
 ---
 
@@ -122,10 +121,9 @@
 
 ## 종합 판정
 
-✅ **통과** (Codex P1 1건 + P2 2건 모두 수정 완료)
+✅ **통과** (Codex P1 1건 + P2 2건 모두 수정 완료, Secrets 등록 + 실동작 검증 완료)
 
-### 비차단 참고 사항 (PR 머지 후 수동 처리)
+### 비차단 참고 사항
 
-- GitHub Secrets/Variables 5개 등록
-- 8-2 실제 동작 검증 (PR 머지 후 트리거 테스트)
-- 8-1 정책 보강 PR 분리 여부는 운영 판단 (현재 통합되어 있어도 기능상 문제 없음)
+- fork/시도횟수/예산 가드는 코드 확인만 완료 (실환경 테스트 미수행 — 1인 리포 + 비용 제약)
+- apply 모드 전환은 9단계 dry-run 경험 축적 후 결정
