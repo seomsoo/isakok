@@ -247,7 +247,7 @@ import { TodayTasks } from '@/features/dashboard/components/TodayTasks'
 
 - 인라인 style={{}} 금지, Tailwind 클래스만
 - 같은 클래스 조합 3번+ 반복 시 공통 컴포넌트로 추출
-- 디자인 톤: 토스 스타일 (깔끔, 미니멀, 정보 중심). 상세 기준 → docs/design-style-guide.md
+- 디자인 톤: 토스 스타일 (깔끔, 미니멀, 정보 중심). 상세 기준 → docs/DESIGN.md
 - 컬러 포맷: OKLCH (지각 균일, 파생색 생성 용이, Tailwind v4 네이티브 지원)
 - 디자인 토큰 (OKLCH → HEX 참고값):
   - Primary: oklch(0.51 0.086 186.4) — #0F766E Deep Teal
