@@ -1,10 +1,10 @@
 # 프로젝트 상태
 
-> 마지막 업데이트: 2026-05-02 (8-1 검증 완료)
+> 마지막 업데이트: 2026-05-04 (8-2 검증 완료)
 
 ## 현재 단계
 
-8단계-1: 하네스 코어 — 검증 완료 (완전 통과), 다음 단계(8-2) 대기
+8단계-2: 하네스 CI 봇 — 검증 완료 (✅ 통과), 커밋 + PR 대기
 
 ## 완료된 것
 
@@ -346,19 +346,72 @@
 - feat/quality-harness 브랜치
 - 커밋: f01e46d (check-scope 가드 패턴 강화), d3008bd (auto-fixer agent + spec-reviewer), fe9b2fa (lint-staged prettier-only), 241b20e (tsconfig.app.json), 9a8f35a (husky commit hooks)
 
+### 8단계-2: 하네스 CI 봇
+
+#### 에이전트 6종
+
+- `.claude/agents/security-auditor.md`: 민감정보 흐름, RLS 정책, 인증 코드 의미 분석 (패턴 매칭은 Gitleaks/ESLint가 담당)
+- `.claude/agents/pr-summarizer.md`: PR 변경사항 자동 요약 (사실만 기술, 평가 금지)
+- `.claude/agents/ux-state-reviewer.md`: loading/empty/error/success 4상태 검토
+- `.claude/agents/web-a11y-reviewer.md`: WCAG 2.1/2.2 기준 의미 분석 (24×24/44×44 터치 타겟)
+- `.claude/agents/native-a11y-reviewer.md`: RN accessibility props (정의만, 9단계 활성)
+- `.claude/agents/perf-budget-reviewer.md`: 번들 사이즈, 렌더링, 이미지 최적화 검토
+- 모든 에이전트에 prompt injection 방어 문구 포함
+
+#### CI 워크플로우
+
+- `.github/workflows/ci.yml`: PR 번호 artifact 저장 step 추가 (verify 앞, head_sha/head_ref 포함)
+- `.github/workflows/pr-summarize.yml`: PR opened 시 trusted tools(main) + workspace(PR) 분리 패턴, 파일 읽기 댓글 게시 (기존 댓글 업데이트), actor/fork 가드
+- `.github/workflows/auto-fix-bot.yml`: workflow_run 트리거, pull_request CI 실패에만 동작, 7단계 가드 (CI 실패/PR 한정/actor/fork/mode/시도 횟수/일일 예산), trusted tools 패턴, dry-run 댓글 게시, apply 모드 정의 (활성화는 별도 운영 결정)
+- `.github/workflows/gitleaks.yml`: 시크릿 스캔 (push/PR/주간 스케줄)
+- `.github/dependabot.yml`: 주간 의존성 업데이트 (npm, github-actions 그룹)
+
+#### 보조 스크립트
+
+- `scripts/auto-fix/fetch-logs.mjs`: CI 실패 로그 다운로드 (maxBuffer 50MB / 출력 5MB 분리)
+- `scripts/auto-fix/check-attempts.mjs`: 같은 PR 시도 횟수 체크 (`execFileSync` argument array — shell injection 방지)
+- `scripts/auto-fix/run.mjs`: Claude API 호출 + patch 생성, `HARNESS_LLM_MODEL` 환경변수, `--workspace` 인자, dry-run 시 git apply 차단, prompt injection 방어 문구 자동 추가
+- `scripts/auto-fix/budget-guard.mjs`: 일일 토큰 사용량 best-effort 관측 (`--check` / `--record`)
+
+#### 8-1 정책 보강 (8-2 PR에 통합)
+
+- `.claude/policies/auto-fix-scope.md` §2-1에 `scripts/auto-fix/**` 거부 범위 추가
+- `scripts/auto-fix/check-scope.ts`의 `DENIED_PATH_PATTERNS`에 `/^scripts\/auto-fix\//` 추가
+
+#### 부가 도구
+
+- `eslint-plugin-jsx-a11y`: root package.json 설치 + eslint.config.js recommended 룰 적용
+- `.gitleaks.toml`: allowlist에 docs 전체 제외 없음, regex 더미값만 허용
+
+#### 운영 문서
+
+- `docs/harness-ops.md`: 모드 전환 절차(off→dry-run→apply), 비용 모니터링(best-effort), 장애 대응 5개 시나리오
+- `docs/architecture/harness-engineering.md`: 면접 카드용 시스템 설명
+
+#### Codex 리뷰 수정 (모두 반영)
+
+- [P1] `check-attempts.mjs` shell injection — `execSync` → `execFileSync` + argument array 전환
+- [P2] `auto-fix-bot.yml` cache-dependency-path — `cache-dependency-path: tools/pnpm-lock.yaml` 추가
+- [P2] `auto-fix-bot.yml` head_branch → head_sha checkout — artifact 다운로드를 workspace checkout 앞으로 이동, `pr-info/head_sha`로 checkout
+
+#### 문서
+
+- docs/specs/08-2-harness-ci-bot.md (스펙 v2-fix), 08-2-verify.md (검증 리포트 ✅ 통과)
+
+#### Git
+
+- feat/harness-ci-bot 브랜치 (커밋 + PR 대기)
+
 ## 진행 중인 것
 
 없음
 
 ## 다음 할 것
 
-1. 8단계-2: 하네스 CI 봇 구현 (`docs/specs/08-2-harness-ci-bot.md` 스펙 기반)
-   - PR 자동 요약 워크플로우 (`pr-summarize.yml`)
-   - Auto-fix 봇 dry-run 모드 (`auto-fix-bot.yml`)
-   - 추가 sub-agent 6종 정의
-   - 보조 스크립트 3종 (`fetch-logs.mjs`, `check-attempts.mjs`, `run.mjs`)
-   - 운영 가이드 (`docs/harness-ops.md`)
-   - Dependabot + Gitleaks 설정
+1. 8-2 커밋 (파일 1~3개 단위 분할) + PR 생성
+2. PR 머지 후 GitHub Secrets/Variables 5개 등록 (ANTHROPIC_API_KEY_HARNESS, AUTO_FIX_BOT_TOKEN, AUTO_FIX_MODE, AUTO_FIX_DAILY_TOKEN_LIMIT, HARNESS_LLM_MODEL)
+3. 8-2 실제 동작 검증 (pr-summarize 트리거, auto-fix-bot dry-run 테스트)
+4. 9단계: 인증 + 비회원 로컬 + RLS 켜기
 
 ## 알려진 문제
 
@@ -383,3 +436,4 @@
 - verify 리포트의 Codex 리뷰 항목을 갱신할 때 원래 "문제" 설명을 지우지 말 것 → "문제 + 수정" 두 줄 구조 유지
 - `is_skippable` 같은 nested 필드는 `master_checklist_items.is_skippable` 경로로 추출해 progress util에 넘길 것 — 최상위로 가정 시 모두 undefined 처리되어 과대 계산
 - 모드 전환 배너의 dismissed 플래그는 모드 변경 시 반드시 리셋 (`setPreviousMode`에서 같이 처리)
+- CI 워크플로우에서 `execSync`로 사용자 제어 가능한 값(브랜치명 등)을 쉘 보간하지 말 것 → `execFileSync` + argument array 사용 (GH_TOKEN 환경에서 command injection 위험)
