@@ -73,7 +73,7 @@ jobs:
 
       - name: Checkout trusted tools (main)
         if: steps.proceed.outputs.ok == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: main
           path: tools
@@ -104,7 +104,7 @@ jobs:
 
       - name: Checkout failed commit as workspace
         if: steps.pr.outputs.ok == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ steps.pr.outputs.head_sha }}
           path: workspace
