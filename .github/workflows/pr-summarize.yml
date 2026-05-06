@@ -109,7 +109,7 @@ jobs:
 
       - name: Post comment to PR (read from file)
         if: ${{ steps.actor.outputs.skip != 'true' && steps.fork.outputs.skip != 'true' && steps.script.outputs.exists == 'true' }}
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const fs = require('fs');
