@@ -1,6 +1,6 @@
 # 공통 컴포넌트 디자인 스펙
 
-> 기반: docs/design-style-guide.md
+> 기반: docs/DESIGN.md
 > 위치: apps/web/src/shared/components/
 > cn 유틸리티: apps/web/src/lib/cn.ts (clsx + tailwind-merge)
 
@@ -36,18 +36,18 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 ### 스타일 상세
 
-| variant   | 배경                  | 텍스트      | 보더   | pressed            |
-| --------- | --------------------- | ----------- | ------ | ------------------ |
-| primary   | primary               | white       | 없음   | primary L-0.10     |
-| secondary | border                | secondary   | border | neutral            |
-| ghost     | transparent           | primary     | 없음   | tertiary           |
-| danger    | critical              | white       | 없음   | critical L-0.10    |
+| variant   | 배경        | 텍스트    | 보더   | pressed         |
+| --------- | ----------- | --------- | ------ | --------------- |
+| primary   | primary     | white     | 없음   | primary L-0.10  |
+| secondary | border      | secondary | border | neutral         |
+| ghost     | transparent | primary   | 없음   | tertiary        |
+| danger    | critical    | white     | 없음   | critical L-0.10 |
 
-| size | 높이  | 패딩     | 폰트            | radius |
-| ---- | ----- | -------- | --------------- | ------ |
-| sm   | 40px  | 0 16px   | 14px / 500      | 8px    |
-| md   | 48px  | 0 20px   | 15px / 600      | 12px   |
-| lg   | 52px  | 0 24px   | 16px / 600      | 12px   |
+| size | 높이 | 패딩   | 폰트       | radius |
+| ---- | ---- | ------ | ---------- | ------ |
+| sm   | 40px | 0 16px | 14px / 500 | 8px    |
+| md   | 48px | 0 20px | 15px / 600 | 12px   |
+| lg   | 52px | 0 24px | 16px / 600 | 12px   |
 
 ### 상태
 
@@ -61,11 +61,14 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 
 ```tsx
 <OnboardingFooter>
-  <Button variant="primary" size="lg">다음</Button>
+  <Button variant="primary" size="lg">
+    다음
+  </Button>
 </OnboardingFooter>
 ```
 
 `OnboardingFooter` 구조:
+
 - fixed bottom-0 + max-w-[430px] + z-10
 - 상단 블러 그라데이션: `bg-gradient-to-t from-neutral to-transparent` (콘텐츠가 자연스럽게 페이드)
 - 하단 bg-neutral + px-5 pb-10
@@ -94,13 +97,13 @@ interface CardProps {
 bg-surface rounded-2xl p-4 shadow-sm
 ```
 
-| 속성    | 값                                     |
-| ------- | -------------------------------------- |
-| 배경    | surface (#FFFFFF)                      |
-| radius  | 16px (rounded-2xl)                     |
-| 패딩    | 16px (p-4)                             |
-| 그림자  | `0 1px 2px rgba(0,0,0,0.04)`          |
-| 카드 간 | 12px (gap-3 또는 space-y-3)            |
+| 속성    | 값                           |
+| ------- | ---------------------------- |
+| 배경    | surface (#FFFFFF)            |
+| radius  | 16px (rounded-2xl)           |
+| 패딩    | 16px (p-4)                   |
+| 그림자  | `0 1px 2px rgba(0,0,0,0.04)` |
+| 카드 간 | 12px (gap-3 또는 space-y-3)  |
 
 - 보더는 선택적: 그림자와 보더 중 하나만 사용
 - 클릭 가능한 카드: `as="button"`, pressed 시 `bg-neutral` 전환
@@ -125,17 +128,17 @@ interface ChipProps {
 
 ### 스타일
 
-| 상태   | 배경      | 보더                      | 텍스트                |
-| ------ | --------- | ------------------------- | --------------------- |
-| 기본   | surface   | 1px solid border-input    | secondary, 14px / 400 |
-| 선택   | tertiary  | 1.5px solid primary       | primary, 14px / 600   |
+| 상태 | 배경     | 보더                   | 텍스트                |
+| ---- | -------- | ---------------------- | --------------------- |
+| 기본 | surface  | 1px solid border-input | secondary, 14px / 400 |
+| 선택 | tertiary | 1.5px solid primary    | primary, 14px / 600   |
 
-| 속성   | 값        |
-| ------ | --------- |
-| 높이   | 40px      |
-| 패딩   | 0 16px    |
-| radius | 8px       |
-| 전환   | 150ms     |
+| 속성   | 값     |
+| ------ | ------ |
+| 높이   | 40px   |
+| 패딩   | 0 16px |
+| radius | 8px    |
+| 전환   | 150ms  |
 
 - 아이콘 포함 시: 아이콘 20px + gap 8px + 라벨
 - 그리드 배치: 2열 (`grid grid-cols-2 gap-2`)
@@ -158,14 +161,14 @@ interface ProgressBarProps {
 
 ### 스타일
 
-| 속성         | 값                   |
-| ------------ | -------------------- |
-| 바 높이      | 4px                  |
-| radius       | 9999px (full)        |
-| 트랙         | border 색상          |
-| 채움         | primary              |
-| 세그먼트 간격 | 8px                 |
-| 채움 전환    | width 300ms ease-out |
+| 속성          | 값                   |
+| ------------- | -------------------- |
+| 바 높이       | 4px                  |
+| radius        | 9999px (full)        |
+| 트랙          | border 색상          |
+| 채움          | primary              |
+| 세그먼트 간격 | 8px                  |
+| 채움 전환     | width 300ms ease-out |
 
 - 세그먼트 방식 (step별 개별 바) 유지
 - 완료된 세그먼트: primary, 미완료: `bg-border`
@@ -188,18 +191,18 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 
 ### 스타일
 
-| 속성           | 값                              |
-| -------------- | ------------------------------- |
-| 높이           | 48px                            |
-| 패딩           | 0 16px                          |
-| radius         | 8px                             |
-| 배경           | surface                         |
-| 보더 (기본)    | 1px solid border-input          |
-| 보더 (포커스)  | 1.5px solid primary             |
-| 보더 (에러)    | 1.5px solid critical            |
-| placeholder    | placeholder 색상, 14px          |
-| 텍스트         | secondary, 16px                 |
-| 전환           | border-color 150ms              |
+| 속성          | 값                     |
+| ------------- | ---------------------- |
+| 높이          | 48px                   |
+| 패딩          | 0 16px                 |
+| radius        | 8px                    |
+| 배경          | surface                |
+| 보더 (기본)   | 1px solid border-input |
+| 보더 (포커스) | 1.5px solid primary    |
+| 보더 (에러)   | 1.5px solid critical   |
+| placeholder   | placeholder 색상, 14px |
+| 텍스트        | secondary, 16px        |
+| 전환          | border-color 150ms     |
 
 - label: 인풋 위, 14px / 500 / secondary
 - error: 인풋 아래, 12px / 400 / critical
@@ -223,18 +226,18 @@ interface BadgeProps {
 
 ### 스타일
 
-| variant  | 배경                              | 텍스트    |
-| -------- | --------------------------------- | --------- |
-| default  | tertiary                          | primary   |
-| warning  | `oklch(0.70 0.187 48 / 0.1)`     | warning   |
-| critical | `oklch(0.64 0.208 25 / 0.1)`     | critical  |
-| success  | `oklch(0.70 0.149 163 / 0.1)`    | success   |
+| variant  | 배경                          | 텍스트   |
+| -------- | ----------------------------- | -------- |
+| default  | tertiary                      | primary  |
+| warning  | `oklch(0.70 0.187 48 / 0.1)`  | warning  |
+| critical | `oklch(0.64 0.208 25 / 0.1)`  | critical |
+| success  | `oklch(0.70 0.149 163 / 0.1)` | success  |
 
-| 속성   | 값              |
-| ------ | --------------- |
-| 패딩   | 4px 8px         |
-| radius | 8px             |
-| 폰트   | 12px / 500      |
+| 속성   | 값         |
+| ------ | ---------- |
+| 패딩   | 4px 8px    |
+| radius | 8px        |
+| 폰트   | 12px / 500 |
 
 - 배경은 해당 컬러의 10% 불투명도 (OKLCH에서 / 0.1로 표현)
 
@@ -255,18 +258,18 @@ interface ToastProps {
 
 ### 스타일
 
-| 속성      | 값                                       |
-| --------- | ---------------------------------------- |
-| 위치      | 상단 중앙, 페이지 max-width 내           |
-| 패딩      | 12px 16px                                |
-| radius    | 12px                                     |
-| 배경      | secondary (어두운 토스트)                |
-| 텍스트    | white, 14px / 500                        |
-| 아이콘    | 좌측 16px, 해당 variant 색상             |
-| 그림자    | shadow-md                                |
-| 진입      | transform Y(-100%) → Y(0), 250ms        |
-| 퇴장      | opacity 1 → 0, 150ms                    |
-| 자동 닫힘 | 3초                                      |
+| 속성      | 값                               |
+| --------- | -------------------------------- |
+| 위치      | 상단 중앙, 페이지 max-width 내   |
+| 패딩      | 12px 16px                        |
+| radius    | 12px                             |
+| 배경      | secondary (어두운 토스트)        |
+| 텍스트    | white, 14px / 500                |
+| 아이콘    | 좌측 16px, 해당 variant 색상     |
+| 그림자    | shadow-md                        |
+| 진입      | transform Y(-100%) → Y(0), 250ms |
+| 퇴장      | opacity 1 → 0, 150ms             |
+| 자동 닫힘 | 3초                              |
 
 ---
 
@@ -280,14 +283,14 @@ interface ToastProps {
 
 ### 스타일
 
-| 속성   | 값                                  |
-| ------ | ----------------------------------- |
-| 배경   | `oklch(0.70 0.187 48 / 0.08)`      |
-| 텍스트 | warning, 13px                       |
-| 아이콘 | WifiOff 16px, warning               |
-| 패딩   | 14px 16px                           |
-| radius | 16px                                |
-| gap    | 10px (아이콘-텍스트)                |
+| 속성   | 값                            |
+| ------ | ----------------------------- |
+| 배경   | `oklch(0.70 0.187 48 / 0.08)` |
+| 텍스트 | warning, 13px                 |
+| 아이콘 | WifiOff 16px, warning         |
+| 패딩   | 14px 16px                     |
+| radius | 16px                          |
+| gap    | 10px (아이콘-텍스트)          |
 
 ---
 
@@ -306,11 +309,11 @@ interface SpinnerProps {
 
 ### 스타일
 
-| size | 값    | 용도             |
-| ---- | ----- | ---------------- |
-| sm   | 16px  | 버튼 내부        |
-| md   | 24px  | 인라인 로딩      |
-| lg   | 32px  | 전체 페이지 로딩 |
+| size | 값   | 용도             |
+| ---- | ---- | ---------------- |
+| sm   | 16px | 버튼 내부        |
+| md   | 24px | 인라인 로딩      |
+| lg   | 32px | 전체 페이지 로딩 |
 
 - 색상: 기본 primary, className으로 오버라이드 가능
 - 애니메이션: `animate-spin`
@@ -357,14 +360,14 @@ interface PageHeaderProps {
 
 ### 스타일
 
-| 속성      | 값                          |
-| --------- | --------------------------- |
-| 높이      | 56px                        |
-| 패딩      | 0 20px                      |
-| 배경      | neutral (페이지와 동일)     |
-| 제목      | 16px / 600 / secondary      |
-| 뒤로가기  | ChevronLeft 24px            |
-| 레이아웃  | flex, 제목 중앙 정렬        |
+| 속성     | 값                      |
+| -------- | ----------------------- |
+| 높이     | 56px                    |
+| 패딩     | 0 20px                  |
+| 배경     | neutral (페이지와 동일) |
+| 제목     | 16px / 600 / secondary  |
+| 뒤로가기 | ChevronLeft 24px        |
+| 레이아웃 | flex, 제목 중앙 정렬    |
 
 - 제목 없으면 뒤로가기만 표시
 - sticky top-0 + z-10
@@ -375,11 +378,11 @@ interface PageHeaderProps {
 
 다음 컴포넌트는 해당 단계에서 스펙 추가 후 구현:
 
-| 컴포넌트        | 예정 단계 | 설명                        |
-| --------------- | --------- | --------------------------- |
-| ChecklistItem   | 3단계     | 체크박스 + 제목 + 메타정보  |
-| BottomSheet     | 4단계     | 하단 모달                   |
-| Accordion       | 4단계     | AI 가이드 접힘/펼침         |
-| Skeleton        | 3단계     | 스켈레톤 로딩 UI            |
-| EmptyState      | 3단계     | 데이터 없을 때 안내         |
-| Modal           | 6단계     | 확인/취소 다이얼로그        |
+| 컴포넌트      | 예정 단계 | 설명                       |
+| ------------- | --------- | -------------------------- |
+| ChecklistItem | 3단계     | 체크박스 + 제목 + 메타정보 |
+| BottomSheet   | 4단계     | 하단 모달                  |
+| Accordion     | 4단계     | AI 가이드 접힘/펼침        |
+| Skeleton      | 3단계     | 스켈레톤 로딩 UI           |
+| EmptyState    | 3단계     | 데이터 없을 때 안내        |
+| Modal         | 6단계     | 확인/취소 다이얼로그       |

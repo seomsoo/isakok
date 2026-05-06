@@ -30,7 +30,7 @@
 
 - 깔끔하고 미니멀한 (토스 스타일 — 정보 중심, 여백 넉넉, 장식 최소)
 - ~~따뜻하고 친근한 (당근마켓/오늘의집 스타일)~~ → 2026-04-02 변경
-- 상세 기준: docs/design-style-guide.md 참조
+- 상세 기준: docs/DESIGN.md 참조
 
 ### 2-3. 컬러 시스템
 
@@ -46,7 +46,7 @@ System Critical: oklch(0.64 0.208 25)     #EF4444  Red — 필수 뱃지
 System Success:  oklch(0.70 0.149 163)    #10B981  Green — 완료 상태
 ```
 
-전체 컬러 시스템(확장 토큰, 파생색 규칙 포함): docs/design-style-guide.md 참조
+전체 컬러 시스템(확장 토큰, 파생색 규칙 포함): docs/DESIGN.md 참조
 
 ### 2-4. 네비게이션
 
@@ -628,3 +628,69 @@ type NativeToWeb =
   - 마이그레이션 00010: sort_order 오프셋 보정 (확정일자·도배장판 내용이 잘못된 행에 들어간 것 수정)
   - 마이그레이션 00011: `claim_ai_guide_generation` INSERT 성공 시 즉시 true 반환하도록 수정
 - 트레이드오프: 프롬프트 버전 변경 시 전체 캐시가 무효화되어 첫 요청에 API 호출이 발생한다. 하지만 조합 수가 제한적(최대 40개)이므로 비용 영향은 미미하다.
+
+### ADR-023: 정책 단일 출처
+
+- 결정: `.claude/policies/auto-fix-scope.md`를 단일 출처로 하고, L1(pre-commit)/L2(CI)/L3(봇) 모두 이 파일을 참조
+- 대안: (A) 각 시스템에 룰 복사 → 변경 시 동기화 누락 위험 / (B) 단일 출처 (채택) → 변경이 한 곳에서 끝남, 시스템마다 "정책 출처" 명시로 미참조 방지 / (C) 코드 상수 → .claude는 마크다운 위주 환경이라 부적합
+- 근거: 1인 운영 환경에서 룰 분기 관리는 불가능에 가깝다. 단일 출처가 현실적.
+
+### ADR-024: 거부 범위 가드는 코드, 의미 분석은 에이전트
+
+- 결정: 결정적 검증(거부 경로/패턴)은 `check-scope.ts`로, 의미 분석(보안/품질)은 sub-agent로 분리
+- 대안: (A) 모두 sub-agent → LLM의 비결정성으로 거부 범위 놓침 위험 / (B) 모두 코드 → 의미 분석 불가능 / (C) 코드 + 에이전트 분리 (채택) → 안전성 + 깊이 둘 다 확보
+- 근거: 보안/안전 가드는 결정적이어야 한다. LLM 판단은 의미 영역에서만 가치 있다.
+
+### ADR-025: pre-commit/pre-push 분리
+
+- 결정: pre-commit은 1초 미만 검증만(lint-staged), pre-push에서 typecheck + lint 전체 실행
+- 대안: (A) pre-commit에 모든 검증 → 사람이 `--no-verify`로 우회 시작 / (B) pre-push에 모든 검증 → 커밋 단계에서 잘못된 포맷 통과 / (C) 분리 (채택) → 빠른 피드백(commit) + 안전망(push) 균형
+- 근거: 1초 룰을 깨면 무력화된다. 실측 결과 lint-staged는 항상 1초 미만.
+
+### ADR-026: commitlint scope는 8단계에선 강제 안 함
+
+- 결정: type(feat/fix/refactor/...)과 subject 형식만 강제. scope 누락 허용
+- 대안: (A) scope 강제 → 1인 개발 시 작은 커밋에서 짜증, `--no-verify` 시작 / (B) scope 권장만 (채택) → 자유도 유지, MVP 출시 후 강제로 변경 검토
+- 근거: 강제 룰이 무력화되면 룰이 없는 것보다 나쁘다. 단계적 도입.
+
+### ADR-027: test-writer 에이전트 미도입
+
+- 결정: 자동 테스트 작성 에이전트(test-writer)를 만들지 않음
+- 대안: (A) test-writer 도입 → 트리비얼 테스트만 양산 + 코드에 맞춘 테스트(역방향 TDD) 위험 / (B) 미도입 (채택) → 테스트는 메인 세션 또는 사람이 직접 작성
+- 근거: 테스트는 "코드가 무엇을 보장하는가"의 정의. LLM이 코드 컨텍스트 없이 짜면 가짜 안전감만 생성.
+
+### ADR-028: pr-summarizer는 평가 금지, 사실 요약만
+
+- 결정: pr-summarizer 에이전트가 코드 평가/의견 표명 금지. 사실 기반 요약만
+- 대안: (A) 평가 포함 → "잘 짜졌습니다" 같은 무가치 칭찬 + LLM 추측 노출 / (B) 사실만 (채택) → 변경 통계, 영향 영역, 검증 권장 사항만
+- 근거: 평가는 다른 전담 에이전트의 역할. pr-summarizer는 "사람의 리뷰 시작점"을 제공.
+
+### ADR-029: web/native a11y 에이전트 분리
+
+- 결정: WCAG/ARIA(Web)와 RN accessibility props(Native)를 별도 에이전트로 분리
+- 대안: (A) 단일 에이전트 → 룰셋이 너무 달라 어느 쪽도 깊지 못함 / (B) 분리 (채택) → 도메인별 깊이 확보, native는 9단계까지 비활성
+- 근거: WCAG는 데스크탑/Web 중심, iOS HIG와 Material은 모바일 네이티브 중심. 같은 a11y라도 평가 기준 자체가 다름.
+
+### ADR-030: L3 봇은 dry-run 우선, 점진 전환
+
+- 결정: L3 자율 봇은 처음부터 apply 모드가 아닌 dry-run 모드로 시작
+- 대안: (A) 처음부터 apply → 잘못된 patch가 PR로 만들어짐, 학습 곡선 가팔라짐 / (B) 단계 전환 (채택) → 1주 dry-run → 평가 → apply
+- 근거: 시스템 신뢰는 점진적으로 구축됨. 처음 1주는 "어떤 식으로 동작하는지" 패턴 파악이 우선.
+
+### ADR-031: 자동 머지 절대 금지
+
+- 결정: 봇 PR은 사람이 직접 Approve + Merge. 자동 머지 규칙 절대 없음
+- 대안: (A) auto-merge enable → "테스트 약화로 통과시키는 가짜 수정"을 잡지 못함 / (B) 사람 승인 필수 (채택) → 봇은 제안, 사람은 결정
+- 근거: 봇이 모든 안전 가드를 통과해도, 진짜 의미 있는 수정인지는 사람만 판단 가능.
+
+### ADR-032: 시도 횟수 + fork 차단 + best-effort 관측 (defense in depth)
+
+- 결정: 6단계 가드 (CI 실패 / pull_request 한정 / 봇 actor / fork 차단 / 모드 / 시도 횟수 + 일일 사용량 best-effort 관측)
+- 대안: (A) 한 가드만 → 한 가드 깨지면 전체 무방비 / (B) 다층 (채택) → 한 가드 깨져도 다음 가드가 잡음 / (C) 일일 토큰 hard limit → runner stateless라 정확히 구현 불가능, best-effort 관측치로 대체하고 hard limit은 Anthropic Console에 위임
+- 근거: 비용 폭주, 무한 루프, 시크릿 탈취 같은 사고는 한 번 나면 복구 비용이 큼. 중복 비용보다 안전이 우선. hard limit이 어려운 영역은 정직하게 best-effort 표시, 진짜 hard limit은 외부 시스템에 위임.
+
+### ADR-033: budget-guard는 파일로 누적
+
+- 결정: 일일 토큰 사용량을 별도 DB 없이 `docs/auto-fix-log/budget-{date}.json`에 누적
+- 대안: (A) 외부 DB (Supabase 등) → 1인 사이드프로젝트엔 오버킬 / (B) GitHub Actions Cache → 만료 정책 복잡 / (C) 파일 (채택) → 단순, workflow_run에서 push 권한 필요
+- 근거: 단순함이 우선. 한도 추적이 정밀할 필요 없음 (대략 한도 안인지만 확인).
