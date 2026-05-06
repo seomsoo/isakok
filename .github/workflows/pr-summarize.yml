@@ -44,14 +44,14 @@ jobs:
 
       - name: Checkout trusted tools (main)
         if: ${{ steps.actor.outputs.skip != 'true' && steps.fork.outputs.skip != 'true' }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: main
           path: tools
 
       - name: Checkout PR workspace
         if: ${{ steps.actor.outputs.skip != 'true' && steps.fork.outputs.skip != 'true' }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           path: workspace
