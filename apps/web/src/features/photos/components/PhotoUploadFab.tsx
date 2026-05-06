@@ -8,11 +8,7 @@ interface PhotoUploadFabProps {
   disabled?: boolean
 }
 
-export function PhotoUploadFab({
-  onCapture,
-  onGallerySelect,
-  disabled,
-}: PhotoUploadFabProps) {
+export function PhotoUploadFab({ onCapture, onGallerySelect, disabled }: PhotoUploadFabProps) {
   const [isOpen, setIsOpen] = useState(false)
   const cameraRef = useRef<HTMLInputElement>(null)
   const galleryRef = useRef<HTMLInputElement>(null)
@@ -49,7 +45,16 @@ export function PhotoUploadFab({
       />
 
       {isOpen && (
-        <div className="fixed inset-0 z-30" onClick={() => setIsOpen(false)} />
+        <div
+          className="fixed inset-0 z-30"
+          role="button"
+          tabIndex={0}
+          aria-label="메뉴 닫기"
+          onClick={() => setIsOpen(false)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') setIsOpen(false)
+          }}
+        />
       )}
 
       <div className="fixed bottom-[calc(env(safe-area-inset-bottom)+20px)] right-5 z-40 flex flex-col items-end gap-3">
@@ -81,9 +86,7 @@ export function PhotoUploadFab({
           aria-label={isOpen ? '닫기' : '사진 추가'}
           className={cn(
             'flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-transform duration-200',
-            isOpen
-              ? 'rotate-45 bg-secondary text-white'
-              : 'bg-primary text-white',
+            isOpen ? 'rotate-45 bg-secondary text-white' : 'bg-primary text-white',
             'disabled:opacity-40',
           )}
         >

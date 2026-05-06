@@ -127,10 +127,16 @@ export function PhotoFullscreenViewer({ photo, signedUrl, onClose }: PhotoFullsc
 
       <div className="flex flex-1 flex-col items-center justify-center overflow-hidden -mt-30">
         <div
+          role="button"
+          tabIndex={0}
+          aria-label="사진 확대/축소"
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
           onDoubleClick={handleDoubleTap}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') handleDoubleTap()
+          }}
         >
           {signedUrl ? (
             <img

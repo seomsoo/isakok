@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Loader2, MoreHorizontal } from 'lucide-react'
 import { useDebouncedCallback } from 'use-debounce'
 import type { PropertyPhoto, PhotoType } from '@/services/photos'
@@ -50,10 +50,7 @@ export function PhotoGrid({
   const isTrashFull = deletedPhotos.length >= MAX_DELETED_PER_ROOM
 
   return (
-    <div
-      className="space-y-5 px-5 pb-24"
-      aria-busy={uploadingCount > 0 ? 'true' : undefined}
-    >
+    <div className="space-y-5 px-5 pb-24" aria-busy={uploadingCount > 0 ? 'true' : undefined}>
       {photos.map((p) => (
         <PhotoCard
           key={p.id}
@@ -136,6 +133,11 @@ function PhotoCard({
   const [isEditingMemo, setIsEditingMemo] = useState(false)
   const updateMemo = useUpdatePhotoMemo(moveId, photoType)
   const lastSavedRef = useRef(photo.memo ?? '')
+  const memoTextareaRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    if (isEditingMemo) memoTextareaRef.current?.focus()
+  }, [isEditingMemo])
 
   const saveMemo = (value: string) => {
     if (value === lastSavedRef.current) return
@@ -204,7 +206,16 @@ function PhotoCard({
         </button>
         {isMenuOpen && (
           <>
-            <div className="fixed inset-0 z-10" onClick={onMenuClose} />
+            <div
+              className="fixed inset-0 z-10"
+              role="button"
+              tabIndex={0}
+              aria-label="메뉴 닫기"
+              onClick={onMenuClose}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') onMenuClose()
+              }}
+            />
             <div className="absolute right-0 top-10 z-20 min-w-[120px] overflow-hidden rounded-xl bg-white shadow-lg">
               <button
                 type="button"
@@ -232,10 +243,10 @@ function PhotoCard({
         {isEditingMemo ? (
           <div className="relative">
             <textarea
+              ref={memoTextareaRef}
               value={memo}
               onChange={handleMemoChange}
               onBlur={handleMemoBlur}
-              autoFocus
               rows={2}
               maxLength={MEMO_MAX_LENGTH}
               placeholder="메모 입력..."
@@ -247,15 +258,9 @@ function PhotoCard({
             </span>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={() => setIsEditingMemo(true)}
-            className="w-full text-left"
-          >
+          <button type="button" onClick={() => setIsEditingMemo(true)} className="w-full text-left">
             {memo.trim() ? (
-              <p className="line-clamp-2 text-[13px] leading-relaxed text-muted">
-                {memo}
-              </p>
+              <p className="line-clamp-2 text-[13px] leading-relaxed text-muted">{memo}</p>
             ) : (
               <p className="text-[13px] text-placeholder">메모 추가</p>
             )}
