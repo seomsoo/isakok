@@ -19,7 +19,7 @@ tools: Read, Grep, Glob, Bash
 ## 출력 형식
 
 ```markdown
-## PR Summary
+## AI Summary
 
 **Spec:** `docs/specs/{N단계}.md` (매핑 실패 시 "N/A")
 **Scope:** {변경 영역 한 줄 — 예: "apps/web 대시보드 훅 + shared 유틸"}
