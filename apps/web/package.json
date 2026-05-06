@@ -33,7 +33,7 @@
     "@types/react": "^19.x",
     "@types/react-dom": "^19.x",
     "@vitejs/plugin-react": "^4.x",
-    "eslint": "^9.x",
+    "eslint": "^10.x",
     "eslint-plugin-react-hooks": "^5.x",
     "globals": "^15.x",
     "tailwindcss": "^4.x",
