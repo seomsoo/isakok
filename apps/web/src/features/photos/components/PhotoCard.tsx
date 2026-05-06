@@ -20,18 +20,12 @@ export function PhotoCard({ photo, signedUrl, onPress }: PhotoCardProps) {
   return (
     <button
       type="button"
-      role="button"
       aria-label={`사진, ${dateLabel}${hasMemo ? `, 메모: ${photo.memo}` : ''}`}
       onClick={onPress}
       className="relative aspect-square overflow-hidden rounded-lg bg-surface"
     >
       {signedUrl ? (
-        <img
-          src={signedUrl}
-          alt=""
-          loading="lazy"
-          className="h-full w-full object-cover"
-        />
+        <img src={signedUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
       ) : (
         <div className="flex h-full w-full items-center justify-center">
           <Loader2 size={16} className="animate-spin text-muted" />

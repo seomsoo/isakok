@@ -20,6 +20,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Save PR number (for downstream workflows)
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          mkdir -p ./pr-info
+          echo "${{ github.event.pull_request.number }}" > ./pr-info/pr_number
+          echo "${{ github.event.pull_request.head.sha }}" > ./pr-info/head_sha
+          echo "${{ github.event.pull_request.head.ref }}" > ./pr-info/head_ref
+
+      - name: Upload PR info artifact
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-info
+          path: pr-info/
+          retention-days: 1
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 

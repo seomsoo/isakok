@@ -95,12 +95,18 @@ function RestoreConfirmDialog({
       role="alertdialog"
       aria-modal="true"
       className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-6"
-      onClick={onClose}
     >
       <div
-        onClick={(e) => e.stopPropagation()}
-        className="w-full max-w-xs rounded-2xl bg-white p-5 text-center"
-      >
+        className="absolute inset-0"
+        role="button"
+        tabIndex={0}
+        aria-label="닫기"
+        onClick={onClose}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') onClose()
+        }}
+      />
+      <div className="relative w-full max-w-xs rounded-2xl bg-white p-5 text-center">
         <p className="text-body font-semibold text-secondary">이 사진을 복구할까요?</p>
         <p className="mt-1 text-body-sm text-muted">사진 목록에 다시 표시돼요</p>
         <div className="mt-4 flex gap-2">

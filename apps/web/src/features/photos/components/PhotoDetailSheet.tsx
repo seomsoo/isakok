@@ -126,12 +126,18 @@ export function PhotoDetailSheet({
         aria-modal="true"
         aria-label="사진 상세"
         className="fixed inset-0 z-50 flex items-end justify-center bg-black/50"
-        onClick={onClose}
       >
         <div
-          onClick={(e) => e.stopPropagation()}
-          className="w-full max-w-[430px] rounded-t-2xl bg-white pb-[calc(env(safe-area-inset-bottom)+16px)]"
-        >
+          className="absolute inset-0"
+          role="button"
+          tabIndex={0}
+          aria-label="닫기"
+          onClick={onClose}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') onClose()
+          }}
+        />
+        <div className="relative w-full max-w-[430px] rounded-t-2xl bg-white pb-[calc(env(safe-area-inset-bottom)+16px)]">
           <div className="flex justify-end p-2">
             <button
               type="button"
@@ -145,11 +151,7 @@ export function PhotoDetailSheet({
           <div className="px-5">
             <div className="flex max-h-[50vh] items-center justify-center overflow-hidden rounded-xl bg-black">
               {signedUrl ? (
-                <img
-                  src={signedUrl}
-                  alt=""
-                  className="max-h-[50vh] w-full object-contain"
-                />
+                <img src={signedUrl} alt="" className="max-h-[50vh] w-full object-contain" />
               ) : (
                 <Loader2 className="animate-spin text-white" />
               )}
