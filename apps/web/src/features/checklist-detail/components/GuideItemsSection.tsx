@@ -22,7 +22,7 @@ export function GuideItemsSection({ items }: GuideItemsSectionProps) {
   return (
     <section>
       <SectionTitle>미리 준비할 것</SectionTitle>
-      <ul role="list" className="flex flex-col">
+      <ul className="flex flex-col">
         {items.map((item, idx) => {
           const isPacked = packed.has(idx)
           return (
