@@ -88,3 +88,7 @@ body {
 .animate-check {
   animation: check-pop 0.25s ease-out;
 }
+
+body.native-webview #root {
+  padding-bottom: 0;
+}

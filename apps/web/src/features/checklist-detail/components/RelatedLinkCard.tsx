@@ -1,9 +1,16 @@
 import { ArrowUpRight, Globe } from 'lucide-react'
-import { getLinkMeta } from '@moving/shared'
+import { getLinkMeta, isNativeWebView, sendToNative } from '@moving/shared'
 import { SectionTitle } from './SectionTitle'
 
 interface RelatedLinkCardProps {
   url: string
+}
+
+function handleLinkClick(e: React.MouseEvent, url: string) {
+  if (isNativeWebView()) {
+    e.preventDefault()
+    sendToNative({ type: 'OPEN_EXTERNAL_LINK', payload: { url } })
+  }
 }
 
 export function RelatedLinkCard({ url }: RelatedLinkCardProps) {
@@ -17,6 +24,7 @@ export function RelatedLinkCard({ url }: RelatedLinkCardProps) {
         target="_blank"
         rel="noopener noreferrer"
         aria-label={`${meta.name} 열기`}
+        onClick={(e) => handleLinkClick(e, url)}
         className="flex items-center gap-3 rounded-xl bg-surface px-4 py-3 ring-1 ring-border transition-colors active:bg-neutral"
       >
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-tertiary/60">
