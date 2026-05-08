@@ -1,0 +1,40 @@
+{
+  "name": "@moving/mobile",
+  "version": "1.0.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "dev": "npx expo start --dev-client",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "build:dev": "eas build --profile development --platform all",
+    "build:preview": "eas build --profile preview --platform all"
+  },
+  "dependencies": {
+    "@expo/vector-icons": "^14.0.0",
+    "@moving/shared": "workspace:*",
+    "@react-native-community/netinfo": "~12.0.0",
+    "expo": "~53.0.0",
+    "expo-constants": "~17.1.0",
+    "expo-dev-client": "~5.1.0",
+    "expo-linking": "~7.1.0",
+    "expo-router": "~5.0.0",
+    "expo-splash-screen": "~0.30.0",
+    "expo-status-bar": "~2.2.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-native": "~0.79.2",
+    "react-native-safe-area-context": "~5.4.0",
+    "react-native-screens": "~4.11.0",
+    "react-native-webview": "^13.12.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.28.0",
+    "@types/react": "~19.0.0",
+    "babel-preset-expo": "~13.0.0",
+    "eslint": "^9.28.0",
+    "globals": "^16.1.0",
+    "typescript": "~5.8.0",
+    "typescript-eslint": "^8.32.1"
+  }
+}
