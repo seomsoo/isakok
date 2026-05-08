@@ -4,6 +4,7 @@
 > 이 단계가 끝나면: 대시보드 첫 마운트 직후 백그라운드에서 AI 가이드가 생성되어 `user_checklist_items.custom_guide`에 저장되고, 상세페이지에서 기존 TipCard 대신 `PersonalizedTipCard`가 조건 태그와 함께 표시되는 상태
 
 > **v2 변경 사항 (v1 → v2):**
+>
 > - 마이그레이션 번호 정정: `00007~00010` → `00007~00012` (실제 4·6단계 마이그레이션이 00005~00006 점유)
 > - `ai_guide_cache`/`custom_guide` 컬럼 마이그레이션을 ALTER로 변경 (ADR-017)
 > - Edge Function 요청 페이로드에서 `conditions`, `items` 제거 (ADR-018)
@@ -46,8 +47,8 @@
 
 ### 안 하는 것
 
-- 인증 (Supabase Auth) — 8단계
-- IndexedDB 분기 (회원/비회원) — 8단계 (현재는 user_id 단일 컬럼으로 운영, RLS 미활성)
+- 인증 (Supabase Auth) — 10단계
+- IndexedDB 분기 (회원/비회원) — 10단계 (현재는 user_id 단일 컬럼으로 운영, RLS 미활성)
 - IP rate limit (유저 0명, Free tier가 사실상 리밋)
 - 스트리밍 텍스트 UI
 - "AI 맞춤" 명시 뱃지 / 재생성 버튼 / "원본 보기" 토글
@@ -56,7 +57,7 @@
 - 전세사기 예방 신규 항목 10개 (별도 단계 — ADR-016)
 - PersonalizedTipCardSkeleton (ADR-020에서 제거 결정)
 - 대시보드 / 타임라인 UI 변경 (AI는 상세페이지 Note만 영향)
-- 네이티브 카메라 / 탭바 (9단계)
+- 네이티브 카메라 / 탭바 (9단계 Expo 셸)
 
 ---
 
@@ -199,6 +200,7 @@ GRANT EXECUTE ON FUNCTION public.apply_ai_guides TO service_role;
 ```
 
 **설계 판단:**
+
 - 1단계 `ai_guide_cache` 테이블 구조(id, cache_key, master_version, guides, created_at, updated_at)는 그대로. `generating_at` 컬럼만 추가.
 - `IF NOT EXISTS`로 멱등성 보장 (재실행해도 안전).
 - `claim_ai_guide_generation`은 ADR-019 참고. INSERT ON CONFLICT + 조건부 UPDATE 조합으로 TOCTOU race 방지.
@@ -235,6 +237,7 @@ USING (true);
 ```
 
 **설계 판단:**
+
 - `value`를 `integer`로 결정 (v1의 `text` + semver 확장은 `parseInt`와 모순). 향후 semver 필요해지면 별도 컬럼 추가하거나 마이그레이션으로 변경.
 - trigger 함수는 1단계의 `public.handle_updated_at()` 그대로 사용 (v1의 `set_updated_at()`은 존재하지 않는 함수였음).
 - INSERT는 `ON CONFLICT DO NOTHING`으로 멱등성 보장.
@@ -266,19 +269,20 @@ WHERE key = 'master_checklist_version';
 ```
 
 **설계 판단:**
+
 - `updated_at = now()`는 trigger가 자동 처리하므로 명시 안 함.
 - 1줄 추가 방식 → 마이그레이션 히스토리 가독성 + 프롬프트 입력량 미미한 증가.
 - 이 마이그레이션 적용 시 모든 캐시 자동 무효화. Edge Function이 다음 호출 때 재생성.
 
 ### 2-4. RLS 정리
 
-| 테이블 | SELECT | INSERT/UPDATE/DELETE |
-|---|---|---|
-| `ai_guide_cache` (1단계) | public (1단계 정책 그대로) | service_role only |
-| `system_config` (2-2 신규) | public | service_role only |
-| `user_checklist_items.custom_guide` | 1단계 RLS 그대로 (8단계에서 활성화) | 1단계 RLS 그대로 |
+| 테이블                              | SELECT                               | INSERT/UPDATE/DELETE |
+| ----------------------------------- | ------------------------------------ | -------------------- |
+| `ai_guide_cache` (1단계)            | public (1단계 정책 그대로)           | service_role only    |
+| `system_config` (2-2 신규)          | public                               | service_role only    |
+| `user_checklist_items.custom_guide` | 1단계 RLS 그대로 (10단계에서 활성화) | 1단계 RLS 그대로     |
 
-**중요:** 7단계 시점에는 1단계에서 RLS 정책만 정의돼 있고 `ENABLE ROW LEVEL SECURITY`는 8단계에서 활성화됨. 따라서 현재는 anon key로도 모든 테이블 접근 가능하지만, **Edge Function은 service_role 클라이언트를 일관 사용** (8단계 RLS 활성화 후에도 동일하게 동작하도록).
+**중요:** 7단계 시점에는 1단계에서 RLS 정책만 정의돼 있고 `ENABLE ROW LEVEL SECURITY`는 10단계에서 활성화됨. 따라서 현재는 anon key로도 모든 테이블 접근 가능하지만, **Edge Function은 service_role 클라이언트를 일관 사용** (10단계 RLS 활성화 후에도 동일하게 동작하도록).
 
 ---
 
@@ -329,23 +333,23 @@ GuideNoteSection 마운트
 
 ### 3-2. 4가지 상태와 전환
 
-| 상태 | 설명 | 표시 |
-|---|---|---|
-| **Hit** | 캐시 있음, custom_guide 저장됨 | PersonalizedTipCard |
+| 상태                 | 설명                                  | 표시                                                                        |
+| -------------------- | ------------------------------------- | --------------------------------------------------------------------------- |
+| **Hit**              | 캐시 있음, custom_guide 저장됨        | PersonalizedTipCard                                                         |
 | **Miss-in-progress** | Edge Function 호출 중, 아직 응답 없음 | TipCard(guide_note) — 다음 재진입에서 PersonalizedTipCard로 자연스럽게 전환 |
-| **Fallback** | API 실패/타임아웃/파싱 실패 | TipCard(guide_note), 로그만 남김 |
-| **No-note** | 해당 항목에 `guide_note`도 없음 | GuideNoteSection 미렌더 |
+| **Fallback**         | API 실패/타임아웃/파싱 실패           | TipCard(guide_note), 로그만 남김                                            |
+| **No-note**          | 해당 항목에 `guide_note`도 없음       | GuideNoteSection 미렌더                                                     |
 
 **Skeleton 상태 없음 (ADR-020):** v1의 PersonalizedTipCardSkeleton은 사실상 표시되지 않는 코드였음 (mutation 인스턴스 격리). 제거하고 일관된 "조용한 폴백" 사용.
 
 ### 3-3. 세션 내 스왑 금지 규칙의 범위
 
-| 범위 | 스왑 가능 여부 |
-|---|---|
-| 같은 ChecklistDetailPage 인스턴스(마운트 유지) | **금지** — useRef snapshot으로 첫 값 고정 |
-| 상세 → 대시보드 → 상세 재진입 | 허용 — 새 마운트, 새 ref → 최신 값 snapshot |
-| 대시보드 새로고침 | 허용 |
-| Edge Function 호출 완료 직후 | `onSuccess`에서 체크리스트 쿼리 일괄 invalidate — 다음 마운트에서 최신 데이터 fetch. 단, 이미 마운트된 상세페이지는 useRef snapshot으로 첫 값 고정 (ADR-020 유지) |
+| 범위                                           | 스왑 가능 여부                                                                                                                                                    |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 같은 ChecklistDetailPage 인스턴스(마운트 유지) | **금지** — useRef snapshot으로 첫 값 고정                                                                                                                         |
+| 상세 → 대시보드 → 상세 재진입                  | 허용 — 새 마운트, 새 ref → 최신 값 snapshot                                                                                                                       |
+| 대시보드 새로고침                              | 허용                                                                                                                                                              |
+| Edge Function 호출 완료 직후                   | `onSuccess`에서 체크리스트 쿼리 일괄 invalidate — 다음 마운트에서 최신 데이터 fetch. 단, 이미 마운트된 상세페이지는 useRef snapshot으로 첫 값 고정 (ADR-020 유지) |
 
 **근거:** ADR-020 참고. `onSuccess`에서 체크리스트 쿼리를 invalidate하여 데이터 신선도를 확보하되, 이미 마운트된 상세페이지는 useRef snapshot으로 첫 값을 고정해 읽는 중 텍스트 스왑을 방지. 두 메커니즘이 병행하여 "빠른 반영 + 스왑 방지"를 모두 충족.
 
@@ -359,29 +363,30 @@ GuideNoteSection 마운트
 // packages/shared/src/types/aiGuide.ts
 
 export type AiGuideConditions = {
-  housing_type: '원룸' | '오피스텔' | '빌라' | '아파트' | '투룸+';
-  contract_type: '월세' | '전세';
-  move_type: '용달' | '반포장' | '포장' | '자가용';
-};
+  housing_type: '원룸' | '오피스텔' | '빌라' | '아파트' | '투룸+'
+  contract_type: '월세' | '전세'
+  move_type: '용달' | '반포장' | '포장' | '자가용'
+}
 
 // 요청: moveId만 받음
 export type GenerateAiGuideRequest = {
-  moveId: string;
-};
+  moveId: string
+}
 
 // 응답
 export type GenerateAiGuideResponse =
   | { status: 'ok'; source: 'cache_hit' | 'generated'; updated: number }
-  | { status: 'error'; code: 'TIMEOUT' | 'PARSE_FAIL' | 'API_FAIL' | 'INVALID_INPUT' | 'NOT_FOUND' };
+  | { status: 'error'; code: 'TIMEOUT' | 'PARSE_FAIL' | 'API_FAIL' | 'INVALID_INPUT' | 'NOT_FOUND' }
 
 // 도메인 타입
 export type AiGeneratedGuide = {
-  master_item_id: string;
-  custom_guide: string;
-};
+  master_item_id: string
+  custom_guide: string
+}
 ```
 
 **v1 → v2 변경:**
+
 - 요청에서 `conditions`, `items` 제거 → `moveId`만
 - 응답 타입에 `updated` 필드 추가 (몇 개 항목이 반영됐는지, 디버깅용)
 - 도메인 타입의 `id` → `master_item_id`로 명시화
@@ -391,35 +396,35 @@ export type AiGeneratedGuide = {
 ```typescript
 // supabase/functions/generate-ai-guide/index.ts
 
-import { serve } from 'std/http/server.ts';
-import { corsHeaders } from '../_shared/cors.ts';
-import { callAnthropic } from '../_shared/anthropic.ts';
-import { buildCacheKey } from '../_shared/cacheKey.ts';
-import { supabaseAdmin } from '../_shared/supabaseAdmin.ts';
-import { log } from '../_shared/logger.ts';
-import { isValidConditions } from '../_shared/conditionsValidator.ts';
+import { serve } from 'std/http/server.ts'
+import { corsHeaders } from '../_shared/cors.ts'
+import { callAnthropic } from '../_shared/anthropic.ts'
+import { buildCacheKey } from '../_shared/cacheKey.ts'
+import { supabaseAdmin } from '../_shared/supabaseAdmin.ts'
+import { log } from '../_shared/logger.ts'
+import { isValidConditions } from '../_shared/conditionsValidator.ts'
 import {
   CHECKLIST_GUIDE_PROMPT_VERSION,
   buildChecklistGuidePrompt,
   parseResponse,
   normalizeGuides,
-} from '../_shared/prompts/checklist-guide.ts';
+} from '../_shared/prompts/checklist-guide.ts'
 
 serve(async (req) => {
   // CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders })
   }
 
-  const startedAt = Date.now();
-  let cacheKey: string | undefined;
+  const startedAt = Date.now()
+  let cacheKey: string | undefined
 
   try {
-    const { moveId } = await req.json();
+    const { moveId } = await req.json()
 
     // 1. moveId 형식 검증
     if (!moveId || typeof moveId !== 'string' || !isUuid(moveId)) {
-      return json({ status: 'error', code: 'INVALID_INPUT' }, 400);
+      return json({ status: 'error', code: 'INVALID_INPUT' }, 400)
     }
 
     // 2. moves 조회 → 조건 획득 (서버가 source of truth)
@@ -428,27 +433,29 @@ serve(async (req) => {
       .select('housing_type, contract_type, move_type')
       .eq('id', moveId)
       .is('deleted_at', null)
-      .maybeSingle();
+      .maybeSingle()
 
     if (moveErr || !move) {
-      return json({ status: 'error', code: 'NOT_FOUND' }, 404);
+      return json({ status: 'error', code: 'NOT_FOUND' }, 404)
     }
 
     if (!isValidConditions(move)) {
-      return json({ status: 'error', code: 'INVALID_INPUT' }, 400);
+      return json({ status: 'error', code: 'INVALID_INPUT' }, 400)
     }
 
     // 3. user_checklist_items + master JOIN
     const { data: items, error: itemsErr } = await supabaseAdmin
       .from('user_checklist_items')
-      .select(`
+      .select(
+        `
         master_item_id,
         master_checklist_items ( title, guide_content )
-      `)
-      .eq('move_id', moveId);
+      `,
+      )
+      .eq('move_id', moveId)
 
     if (itemsErr || !items || items.length === 0) {
-      return json({ status: 'error', code: 'NOT_FOUND' }, 404);
+      return json({ status: 'error', code: 'NOT_FOUND' }, 404)
     }
 
     // 4. 마스터 버전 조회
@@ -456,8 +463,8 @@ serve(async (req) => {
       .from('system_config')
       .select('value')
       .eq('key', 'master_checklist_version')
-      .single();
-    const currentVersion = versionRow!.value as number;
+      .single()
+    const currentVersion = versionRow!.value as number
 
     // 5. cache_key 생성 (prompt_version 포함 — 프롬프트 수정 시 캐시 자동 무효화)
     cacheKey = buildCacheKey({
@@ -465,77 +472,81 @@ serve(async (req) => {
       contract_type: move.contract_type,
       move_type: move.move_type,
       prompt_version: CHECKLIST_GUIDE_PROMPT_VERSION,
-    });
+    })
 
     // 6. 캐시 조회
     const { data: cached } = await supabaseAdmin
       .from('ai_guide_cache')
       .select('guides, master_version, generating_at')
       .eq('cache_key', cacheKey)
-      .maybeSingle();
+      .maybeSingle()
 
-    let guides: AiGeneratedGuide[];
-    let source: 'cache_hit' | 'generated';
+    let guides: AiGeneratedGuide[]
+    let source: 'cache_hit' | 'generated'
 
-    if (cached
-        && cached.master_version === currentVersion
-        && cached.generating_at === null
-        && Array.isArray(cached.guides)
-        && cached.guides.length > 0) {
+    if (
+      cached &&
+      cached.master_version === currentVersion &&
+      cached.generating_at === null &&
+      Array.isArray(cached.guides) &&
+      cached.guides.length > 0
+    ) {
       // 캐시 히트
-      guides = cached.guides as AiGeneratedGuide[];
-      source = 'cache_hit';
+      guides = cached.guides as AiGeneratedGuide[]
+      source = 'cache_hit'
     } else {
       // 7. lock 획득 시도 (RPC, 원자적)
       const { data: claimed } = await supabaseAdmin.rpc('claim_ai_guide_generation', {
         p_cache_key: cacheKey,
         p_master_version: currentVersion,
-      });
+      })
 
       if (!claimed) {
         // 다른 요청이 생성 중 → 5초 대기 후 재조회
-        await sleep(5000);
+        await sleep(5000)
         const { data: retried } = await supabaseAdmin
           .from('ai_guide_cache')
           .select('guides, master_version, generating_at')
           .eq('cache_key', cacheKey)
-          .single();
+          .single()
 
-        if (retried
-            && retried.master_version === currentVersion
-            && retried.generating_at === null
-            && Array.isArray(retried.guides)
-            && retried.guides.length > 0) {
-          guides = retried.guides as AiGeneratedGuide[];
-          source = 'cache_hit';
+        if (
+          retried &&
+          retried.master_version === currentVersion &&
+          retried.generating_at === null &&
+          Array.isArray(retried.guides) &&
+          retried.guides.length > 0
+        ) {
+          guides = retried.guides as AiGeneratedGuide[]
+          source = 'cache_hit'
         } else {
-          log({ cacheKey, status: 'inflight_timeout', duration_ms: Date.now() - startedAt });
-          return json({ status: 'error', code: 'TIMEOUT' }, 504);
+          log({ cacheKey, status: 'inflight_timeout', duration_ms: Date.now() - startedAt })
+          return json({ status: 'error', code: 'TIMEOUT' }, 504)
         }
       } else {
         // 8. lock 획득 성공 → Claude API 호출
-        const promptItems = items.map(i => ({
+        const promptItems = items.map((i) => ({
           master_item_id: i.master_item_id,
           title: i.master_checklist_items.title,
           guide_content: i.master_checklist_items.guide_content,
-        }));
+        }))
 
         const prompt = buildChecklistGuidePrompt({
           conditions: move,
           items: promptItems,
-        });
+        })
 
         const apiResponse = await callAnthropic({
           model: Deno.env.get('ANTHROPIC_MODEL') ?? 'claude-haiku-4-5-20251001',
           messages: [{ role: 'user', content: prompt }],
           max_tokens: 16384,
           timeoutMs: 120000,
-        });
+        })
 
         // 9. 응답 검증/정규화
-        const expectedIds = new Set(promptItems.map(i => i.master_item_id));
-        const parsed = parseResponse(apiResponse.content);
-        guides = normalizeGuides(parsed, expectedIds);
+        const expectedIds = new Set(promptItems.map((i) => i.master_item_id))
+        const parsed = parseResponse(apiResponse.content)
+        guides = normalizeGuides(parsed, expectedIds)
 
         // 10. 캐시 저장 + lock 해제
         await supabaseAdmin
@@ -545,9 +556,9 @@ serve(async (req) => {
             guides,
             generating_at: null,
           })
-          .eq('cache_key', cacheKey);
+          .eq('cache_key', cacheKey)
 
-        source = 'generated';
+        source = 'generated'
 
         log({
           cacheKey,
@@ -557,7 +568,7 @@ serve(async (req) => {
           tokens_used: apiResponse.usage.output_tokens,
           generated_count: guides.length,
           expected_count: expectedIds.size,
-        });
+        })
       }
     }
 
@@ -565,12 +576,11 @@ serve(async (req) => {
     const { data: updated } = await supabaseAdmin.rpc('apply_ai_guides', {
       p_move_id: moveId,
       p_guides: guides,
-    });
+    })
 
-    return json({ status: 'ok', source, updated: updated ?? 0 }, 200);
-
+    return json({ status: 'ok', source, updated: updated ?? 0 }, 200)
   } catch (err) {
-    log({ status: 'error', cacheKey, error: String(err), duration_ms: Date.now() - startedAt });
+    log({ status: 'error', cacheKey, error: String(err), duration_ms: Date.now() - startedAt })
 
     // best effort: lock 해제 + master_version 무효화 (예외 시)
     if (cacheKey) {
@@ -578,19 +588,19 @@ serve(async (req) => {
         await supabaseAdmin
           .from('ai_guide_cache')
           .update({ generating_at: null, master_version: 0 })
-          .eq('cache_key', cacheKey);
+          .eq('cache_key', cacheKey)
       } catch {}
     }
 
     if (err.name === 'TimeoutError') {
-      return json({ status: 'error', code: 'TIMEOUT' }, 504);
+      return json({ status: 'error', code: 'TIMEOUT' }, 504)
     } else if (err.name === 'ParseError') {
-      return json({ status: 'error', code: 'PARSE_FAIL' }, 500);
+      return json({ status: 'error', code: 'PARSE_FAIL' }, 500)
     } else {
-      return json({ status: 'error', code: 'API_FAIL' }, 500);
+      return json({ status: 'error', code: 'API_FAIL' }, 500)
     }
   }
-});
+})
 ```
 
 ### 4-3. In-flight lock 상세
@@ -614,16 +624,16 @@ export async function callAnthropic({
   max_tokens,
   timeoutMs,
 }: {
-  model: string;
-  messages: Array<{ role: 'user' | 'assistant'; content: string }>;
-  max_tokens: number;
-  timeoutMs: number;
+  model: string
+  messages: Array<{ role: 'user' | 'assistant'; content: string }>
+  max_tokens: number
+  timeoutMs: number
 }): Promise<{ content: string; usage: { input_tokens: number; output_tokens: number } }> {
-  const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
-  if (!apiKey) throw new Error('ANTHROPIC_API_KEY not set');
+  const apiKey = Deno.env.get('ANTHROPIC_API_KEY')
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY not set')
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
 
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -635,31 +645,32 @@ export async function callAnthropic({
       },
       body: JSON.stringify({ model, messages, max_tokens }),
       signal: controller.signal,
-    });
+    })
 
     if (!res.ok) {
-      throw new Error(`Anthropic API ${res.status}: ${await res.text()}`);
+      throw new Error(`Anthropic API ${res.status}: ${await res.text()}`)
     }
 
-    const data = await res.json();
+    const data = await res.json()
     return {
       content: data.content[0].text,
       usage: data.usage,
-    };
+    }
   } catch (err) {
     if (err.name === 'AbortError') {
-      const e = new Error('Anthropic API timeout');
-      e.name = 'TimeoutError';
-      throw e;
+      const e = new Error('Anthropic API timeout')
+      e.name = 'TimeoutError'
+      throw e
     }
-    throw err;
+    throw err
   } finally {
-    clearTimeout(timer);
+    clearTimeout(timer)
   }
 }
 ```
 
 **설정값 근거:**
+
 - `model: ANTHROPIC_MODEL env (default: claude-haiku-4-5-20251001)` — Sonnet 대비 2배 빠른 응답 (ADR-021)
 - `max_tokens: 16384` — 37개 항목 × 2~4문장 × 한국어 토큰 (실측 ~6,300 output tokens)
 - `timeoutMs: 120000` — Haiku 실측 ~60초, Sonnet ~120초 대응
@@ -677,11 +688,12 @@ export async function callAnthropic({
 // supabase/functions/_shared/logger.ts
 
 export function log(data: Record<string, unknown>) {
-  console.log(JSON.stringify({ ts: new Date().toISOString(), ...data }));
+  console.log(JSON.stringify({ ts: new Date().toISOString(), ...data }))
 }
 ```
 
 **기록 필드:**
+
 - `cacheKey`: 조합 식별
 - `status`: `'success' | 'error' | 'inflight_timeout'`
 - `source`: `'cache_hit' | 'generated'`
@@ -729,6 +741,7 @@ supabase secrets list
 ```
 
 **금지 사항:**
+
 - 클라이언트 코드에 API 키 하드코딩
 - `.env` 파일을 Git에 커밋
 - `VITE_*` prefix로 키 노출
@@ -751,6 +764,7 @@ curl -X POST http://localhost:54321/functions/v1/generate-ai-guide \
 ```
 
 **로컬 검증 시나리오:**
+
 1. 캐시 없는 상태로 호출 → `source: 'generated'` 확인
 2. 같은 moveId 재호출 → `source: 'cache_hit'` 확인
 3. 다른 moveId(같은 조건) 호출 → `source: 'cache_hit'` (조합 단위 캐시 검증)
@@ -766,6 +780,7 @@ curl -X POST http://localhost:54321/functions/v1/generate-ai-guide \
 ### 5-1. 프롬프트 인터페이스
 
 **입력 구조 (Edge Function 내부에서 구성):**
+
 ```typescript
 {
   conditions: {
@@ -785,15 +800,15 @@ curl -X POST http://localhost:54321/functions/v1/generate-ai-guide \
 ```
 
 **출력 구조 (Claude가 반환):**
+
 ```json
 {
-  "guides": [
-    { "master_item_id": "uuid-1", "custom_guide": "원룸 월세 구조상..." }
-  ]
+  "guides": [{ "master_item_id": "uuid-1", "custom_guide": "원룸 월세 구조상..." }]
 }
 ```
 
 **출력 규칙 (프롬프트에 포함):**
+
 1. 각 `custom_guide`는 한국어 2~4문장
 2. 원본 `guide_content`의 금액·법조문·기관명·전화번호·URL을 임의로 변경 금지 (인용도 그대로)
 3. 조건과 무관한 항목은 원본 요약 수준 (무리한 개인화 금지)
@@ -803,23 +818,23 @@ curl -X POST http://localhost:54321/functions/v1/generate-ai-guide \
 
 ### 5-2. 프롬프트 파일 관리
 
-```typescript
+````typescript
 // supabase/functions/_shared/prompts/checklist-guide.ts
 
-export const CHECKLIST_GUIDE_PROMPT_VERSION = '1.0.1';
+export const CHECKLIST_GUIDE_PROMPT_VERSION = '1.0.1'
 
 type PromptItem = {
-  master_item_id: string;
-  title: string;
-  guide_content: string;
-};
+  master_item_id: string
+  title: string
+  guide_content: string
+}
 
 export function buildChecklistGuidePrompt({
   conditions,
   items,
 }: {
-  conditions: AiGuideConditions;
-  items: PromptItem[];
+  conditions: AiGuideConditions
+  items: PromptItem[]
 }): string {
   return `당신은 한국 이사 도우미 앱 "이사콕"의 가이드 작성자입니다.
 아래 유저 조건과 체크리스트 항목들을 바탕으로, 각 항목의 기존 가이드를 유저 상황에 맞게 재작성해주세요.
@@ -841,63 +856,61 @@ export function buildChecklistGuidePrompt({
 9. 문장 톤: "~해요", "~하세요" 같은 간결한 존댓말.
 
 ## 항목 목록
-${items.map(i => `- master_item_id: ${i.master_item_id}\n  title: ${i.title}\n  guide: ${i.guide_content}`).join('\n\n')}
+${items.map((i) => `- master_item_id: ${i.master_item_id}\n  title: ${i.title}\n  guide: ${i.guide_content}`).join('\n\n')}
 
 ## 출력 형식 (이 JSON만 반환)
 {"guides": [{"master_item_id": "...", "custom_guide": "..."}]}
-`;
+`
 }
 
 // 응답 파싱
 export function parseResponse(content: string): unknown {
   try {
-    const cleaned = content.trim().replace(/^```json\n?|\n?```$/g, '');
-    return JSON.parse(cleaned);
+    const cleaned = content.trim().replace(/^```json\n?|\n?```$/g, '')
+    return JSON.parse(cleaned)
   } catch (err) {
-    const e = new Error(`Parse failed: ${(err as Error).message}`);
-    e.name = 'ParseError';
-    throw e;
+    const e = new Error(`Parse failed: ${(err as Error).message}`)
+    e.name = 'ParseError'
+    throw e
   }
 }
 
 // 검증 + 정규화 + 누락 보고
-export function normalizeGuides(
-  parsed: unknown,
-  expectedIds: Set<string>
-): AiGeneratedGuide[] {
+export function normalizeGuides(parsed: unknown, expectedIds: Set<string>): AiGeneratedGuide[] {
   if (!parsed || typeof parsed !== 'object') {
-    const e = new Error('Response root is not object');
-    e.name = 'ParseError';
-    throw e;
+    const e = new Error('Response root is not object')
+    e.name = 'ParseError'
+    throw e
   }
-  const guides = (parsed as { guides?: unknown }).guides;
+  const guides = (parsed as { guides?: unknown }).guides
   if (!Array.isArray(guides)) {
-    const e = new Error('guides is not array');
-    e.name = 'ParseError';
-    throw e;
+    const e = new Error('guides is not array')
+    e.name = 'ParseError'
+    throw e
   }
 
-  const result: AiGeneratedGuide[] = [];
-  const seen = new Set<string>();
+  const result: AiGeneratedGuide[] = []
+  const seen = new Set<string>()
 
   for (const g of guides) {
-    if (!g || typeof g !== 'object') continue;
-    const id = (g as any).master_item_id;
-    const text = (g as any).custom_guide;
-    if (typeof id !== 'string') continue;
-    if (typeof text !== 'string') continue;
-    if (!expectedIds.has(id)) continue;       // 입력 외 id 무시 (오염 방지)
-    if (seen.has(id)) continue;               // 중복 무시 (첫 등장만)
-    if (text.length === 0 || text.length > 1000) continue;  // 비정상 길이 무시
-    seen.add(id);
-    result.push({ master_item_id: id, custom_guide: text });
+    if (!g || typeof g !== 'object') continue
+    const id = (g as any).master_item_id
+    const text = (g as any).custom_guide
+    if (typeof id !== 'string') continue
+    if (typeof text !== 'string') continue
+    if (!expectedIds.has(id)) continue // 입력 외 id 무시 (오염 방지)
+    if (seen.has(id)) continue // 중복 무시 (첫 등장만)
+    if (text.length === 0 || text.length > 1000) continue // 비정상 길이 무시
+    seen.add(id)
+    result.push({ master_item_id: id, custom_guide: text })
   }
 
-  return result;
+  return result
 }
-```
+````
 
 **`normalizeGuides`의 가드:**
+
 1. JSON root 객체 검증
 2. `guides` 배열 검증
 3. 각 항목의 `master_item_id`/`custom_guide` 타입 검증
@@ -909,13 +922,13 @@ export function normalizeGuides(
 
 ### 5-3. 할루시네이션 가드
 
-| 단계 | 가드 |
-|---|---|
-| 1차 | 프롬프트 규칙 — 원본 금액·법조문·기관명 변경 금지 |
-| 2차 | parseResponse JSON 파싱 실패 → ParseError → 폴백 |
-| 3차 | normalizeGuides 검증 — 입력 외 id 차단, 중복 제거, 길이 제한 |
-| 4차 | 개별 항목 누락 — 해당 항목만 폴백, 다른 항목은 정상 |
-| 5차 | 전역 면책 — 앱 내 "정확한 절차는 관련 기관에 직접 확인" 상시 노출 |
+| 단계 | 가드                                                              |
+| ---- | ----------------------------------------------------------------- |
+| 1차  | 프롬프트 규칙 — 원본 금액·법조문·기관명 변경 금지                 |
+| 2차  | parseResponse JSON 파싱 실패 → ParseError → 폴백                  |
+| 3차  | normalizeGuides 검증 — 입력 외 id 차단, 중복 제거, 길이 제한      |
+| 4차  | 개별 항목 누락 — 해당 항목만 폴백, 다른 항목은 정상               |
+| 5차  | 전역 면책 — 앱 내 "정확한 절차는 관련 기관에 직접 확인" 상시 노출 |
 
 **검증:** 개발 중 5개 샘플 조합으로 생성 → 금액/기관명/URL 육안 검증.
 
@@ -935,21 +948,21 @@ export function normalizeGuides(
 ```typescript
 // apps/web/src/features/ai-guide/services/aiGuide.ts
 
-import { supabase } from '@/lib/supabase';
-import type { GenerateAiGuideRequest, GenerateAiGuideResponse } from '@isakok/shared';
+import { supabase } from '@/lib/supabase'
+import type { GenerateAiGuideRequest, GenerateAiGuideResponse } from '@isakok/shared'
 
 export async function invokeGenerateAiGuide(
-  payload: GenerateAiGuideRequest
+  payload: GenerateAiGuideRequest,
 ): Promise<GenerateAiGuideResponse> {
   const { data, error } = await supabase.functions.invoke('generate-ai-guide', {
     body: payload,
-  });
+  })
 
   if (error) {
-    throw new Error(`Edge Function invocation failed: ${error.message}`);
+    throw new Error(`Edge Function invocation failed: ${error.message}`)
   }
 
-  return data as GenerateAiGuideResponse;
+  return data as GenerateAiGuideResponse
 }
 ```
 
@@ -960,21 +973,21 @@ export async function invokeGenerateAiGuide(
 ```typescript
 // apps/web/src/features/ai-guide/hooks/useGenerateAiGuide.ts
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { invokeGenerateAiGuide } from '../services/aiGuide';
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { invokeGenerateAiGuide } from '../services/aiGuide'
 
 export function useGenerateAiGuide() {
-  const queryClient = useQueryClient();
+  const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: invokeGenerateAiGuide,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['checklist'] });
+      queryClient.invalidateQueries({ queryKey: ['checklist'] })
     },
     onError: (err) => {
-      console.error('[ai-guide] background generation failed', err);
+      console.error('[ai-guide] background generation failed', err)
     },
-  });
+  })
 }
 ```
 
@@ -986,11 +999,11 @@ export function useGenerateAiGuide() {
 
 ```tsx
 // GuideNoteSection 내부 (자세한 코드는 8-1)
-const snapshotRef = useRef<string | null | undefined>(undefined);
+const snapshotRef = useRef<string | null | undefined>(undefined)
 if (snapshotRef.current === undefined && item) {
-  snapshotRef.current = item.custom_guide ?? null;
+  snapshotRef.current = item.custom_guide ?? null
 }
-const customGuide = snapshotRef.current;
+const customGuide = snapshotRef.current
 ```
 
 ### 6-4. 기존 `useChecklistItemDetail` 확장
@@ -1013,66 +1026,73 @@ const customGuide = snapshotRef.current;
 
 ### 7-1. 시각 규칙
 
-| 요소 | 기존 TipCard | PersonalizedTipCard |
-|---|---|---|
-| 배경 | `bg-tertiary/50` | **동일** |
-| 좌측 bar | `primary` 4px | **동일** |
-| 아이콘 | `Lightbulb` (20px, primary) | `Sparkles` (20px, primary) |
-| 라벨 | "Tip" | "맞춤 팁" |
-| 본문 | `text-body` (secondary) | **동일** |
-| 패딩 | 16px | **동일** |
-| radius | 16px | **동일** |
-| **조건 태그 행** | 없음 | **본문 위에 1~3개 chip** |
+| 요소             | 기존 TipCard                | PersonalizedTipCard        |
+| ---------------- | --------------------------- | -------------------------- |
+| 배경             | `bg-tertiary/50`            | **동일**                   |
+| 좌측 bar         | `primary` 4px               | **동일**                   |
+| 아이콘           | `Lightbulb` (20px, primary) | `Sparkles` (20px, primary) |
+| 라벨             | "Tip"                       | "맞춤 팁"                  |
+| 본문             | `text-body` (secondary)     | **동일**                   |
+| 패딩             | 16px                        | **동일**                   |
+| radius           | 16px                        | **동일**                   |
+| **조건 태그 행** | 없음                        | **본문 위에 1~3개 chip**   |
 
 ### 7-2. 조건 태그 계산 로직 (전체조건 제외 분기 명시)
 
 ```typescript
 // packages/shared/src/utils/conditionTags.ts
 
-import type { AiGuideConditions } from '../types/aiGuide';
+import type { AiGuideConditions } from '../types/aiGuide'
 
-const ALL_HOUSING = ['원룸', '오피스텔', '빌라', '아파트', '투룸+'] as const;
-const ALL_CONTRACT = ['월세', '전세'] as const;
-const ALL_MOVE = ['용달', '반포장', '포장', '자가용'] as const;
+const ALL_HOUSING = ['원룸', '오피스텔', '빌라', '아파트', '투룸+'] as const
+const ALL_CONTRACT = ['월세', '전세'] as const
+const ALL_MOVE = ['용달', '반포장', '포장', '자가용'] as const
 
 function isAllSet(values: string[], allValues: readonly string[]): boolean {
-  if (values.length < allValues.length) return false;
-  const set = new Set(values);
-  return allValues.every(v => set.has(v));
+  if (values.length < allValues.length) return false
+  const set = new Set(values)
+  return allValues.every((v) => set.has(v))
 }
 
 export function getConditionTags({
   userConditions,
   itemConditions,
 }: {
-  userConditions: AiGuideConditions;
+  userConditions: AiGuideConditions
   itemConditions: {
-    housing_types: string[];
-    contract_types: string[];
-    move_types: string[];
-  };
+    housing_types: string[]
+    contract_types: string[]
+    move_types: string[]
+  }
 }): string[] {
-  const tags: string[] = [];
+  const tags: string[] = []
 
   // 항목이 "전체 주거유형"에 해당하면 태그 미노출 (특정 강조 의미 없음)
-  if (!isAllSet(itemConditions.housing_types, ALL_HOUSING) &&
-      itemConditions.housing_types.includes(userConditions.housing_type)) {
-    tags.push(userConditions.housing_type);
+  if (
+    !isAllSet(itemConditions.housing_types, ALL_HOUSING) &&
+    itemConditions.housing_types.includes(userConditions.housing_type)
+  ) {
+    tags.push(userConditions.housing_type)
   }
-  if (!isAllSet(itemConditions.contract_types, ALL_CONTRACT) &&
-      itemConditions.contract_types.includes(userConditions.contract_type)) {
-    tags.push(userConditions.contract_type);
+  if (
+    !isAllSet(itemConditions.contract_types, ALL_CONTRACT) &&
+    itemConditions.contract_types.includes(userConditions.contract_type)
+  ) {
+    tags.push(userConditions.contract_type)
   }
-  if (!isAllSet(itemConditions.move_types, ALL_MOVE) &&
-      itemConditions.move_types.includes(userConditions.move_type)) {
-    tags.push(userConditions.move_type);
+  if (
+    !isAllSet(itemConditions.move_types, ALL_MOVE) &&
+    itemConditions.move_types.includes(userConditions.move_type)
+  ) {
+    tags.push(userConditions.move_type)
   }
 
-  return tags;  // 0~3개
+  return tags // 0~3개
 }
 ```
 
 **규칙:**
+
 - 항목 조건이 "전체"면 그 차원은 강조 가치 없으므로 태그 제외
 - 결과 0개면 태그 행 자체 미렌더 (PersonalizedTipCard에서 length 체크)
 
@@ -1081,14 +1101,14 @@ export function getConditionTags({
 ```tsx
 // apps/web/src/features/checklist-detail/components/PersonalizedTipCard.tsx
 
-import { Sparkles } from 'lucide-react';
-import { cn } from '@/shared/utils/cn';
+import { Sparkles } from 'lucide-react'
+import { cn } from '@/shared/utils/cn'
 
 type Props = {
-  tags: string[];           // 0~3개
-  text: string;
-  className?: string;
-};
+  tags: string[] // 0~3개
+  text: string
+  className?: string
+}
 
 export function PersonalizedTipCard({ tags, text, className }: Props) {
   return (
@@ -1098,7 +1118,7 @@ export function PersonalizedTipCard({ tags, text, className }: Props) {
         'relative rounded-2xl bg-tertiary/50 pl-5 pr-4 py-4',
         'before:absolute before:left-0 before:top-0 before:bottom-0',
         'before:w-1 before:bg-primary before:rounded-l-2xl',
-        className
+        className,
       )}
     >
       {tags.length > 0 && (
@@ -1109,7 +1129,9 @@ export function PersonalizedTipCard({ tags, text, className }: Props) {
                 {tag}
               </span>
               {i < tags.length - 1 && (
-                <span className="mx-1 text-secondary/40" aria-hidden>·</span>
+                <span className="mx-1 text-secondary/40" aria-hidden>
+                  ·
+                </span>
               )}
             </span>
           ))}
@@ -1121,7 +1143,7 @@ export function PersonalizedTipCard({ tags, text, className }: Props) {
       </div>
       <p className="text-body text-secondary whitespace-pre-line">{text}</p>
     </div>
-  );
+  )
 }
 ```
 
@@ -1164,31 +1186,31 @@ v1에서 PersonalizedTipCardSkeleton을 두려 했으나, 현실적으로 표시
 ```tsx
 // apps/web/src/features/checklist-detail/components/GuideNoteSection.tsx
 
-import { useRef } from 'react';
-import { getConditionTags } from '@isakok/shared';
-import { PersonalizedTipCard } from './PersonalizedTipCard';
-import { TipCard } from '@/shared/components/TipCard';
+import { useRef } from 'react'
+import { getConditionTags } from '@isakok/shared'
+import { PersonalizedTipCard } from './PersonalizedTipCard'
+import { TipCard } from '@/shared/components/TipCard'
 
 type Props = {
   item: {
-    custom_guide: string | null;
-  };
+    custom_guide: string | null
+  }
   masterItem: {
-    guide_note: string | null;
-    housing_types: string[];
-    contract_types: string[];
-    move_types: string[];
-  };
-  userConditions: AiGuideConditions;
-};
+    guide_note: string | null
+    housing_types: string[]
+    contract_types: string[]
+    move_types: string[]
+  }
+  userConditions: AiGuideConditions
+}
 
 export function GuideNoteSection({ item, masterItem, userConditions }: Props) {
   // 마운트 시점 custom_guide 값으로 영원히 고정 (ADR-020)
-  const snapshotRef = useRef<string | null | undefined>(undefined);
+  const snapshotRef = useRef<string | null | undefined>(undefined)
   if (snapshotRef.current === undefined) {
-    snapshotRef.current = item.custom_guide ?? null;
+    snapshotRef.current = item.custom_guide ?? null
   }
-  const customGuide = snapshotRef.current;
+  const customGuide = snapshotRef.current
 
   // 분기
   // 1) 마운트 시점에 custom_guide 있음 → PersonalizedTipCard
@@ -1200,13 +1222,13 @@ export function GuideNoteSection({ item, masterItem, userConditions }: Props) {
         contract_types: masterItem.contract_types,
         move_types: masterItem.move_types,
       },
-    });
+    })
     return (
       <section>
         <SectionTitle>참고하면 좋아요</SectionTitle>
         <PersonalizedTipCard tags={tags} text={customGuide} />
       </section>
-    );
+    )
   }
 
   // 2) 폴백: guide_note 있으면 기존 TipCard
@@ -1216,15 +1238,16 @@ export function GuideNoteSection({ item, masterItem, userConditions }: Props) {
         <SectionTitle>참고하면 좋아요</SectionTitle>
         <TipCard>{masterItem.guide_note}</TipCard>
       </section>
-    );
+    )
   }
 
   // 3) 둘 다 없으면 섹션 미렌더
-  return null;
+  return null
 }
 ```
 
 **핵심:**
+
 - `snapshotRef.current === undefined`로만 첫 할당 판별. `null`도 정상값이므로 `null` 체크하면 안 됨.
 - 백그라운드에서 `item.custom_guide`가 NULL → 값으로 변해도 ref는 안 바뀜
 - 컴포넌트 unmount → 다음 마운트에서 새 ref → 자동으로 최신값 snapshot
@@ -1248,6 +1271,7 @@ export function GuideNoteSection({ item, masterItem, userConditions }: Props) {
 DashboardPage 마운트 시점.
 
 근거:
+
 - 온보딩 완료 후 100% 통과하는 화면
 - 유저가 대시보드 둘러보는 동안(보통 5~30초) 백그라운드 생성 완료 → 첫 상세 진입 시 캐시 히트 가능
 - Settings에서 이사 정보 변경 후 재생성 필요 시 대시보드 재진입으로 자연스럽게 트리거
@@ -1257,38 +1281,39 @@ DashboardPage 마운트 시점.
 ```typescript
 // apps/web/src/stores/aiGuideStore.ts
 
-import { create } from 'zustand';
+import { create } from 'zustand'
 
 type AiGuideState = {
-  triggeredByMoveId: Record<string, boolean>;
-  markTriggered: (moveId: string) => void;
-  hasTriggered: (moveId: string) => boolean;
-};
+  triggeredByMoveId: Record<string, boolean>
+  markTriggered: (moveId: string) => void
+  hasTriggered: (moveId: string) => boolean
+}
 
 export const useAiGuideStore = create<AiGuideState>((set, get) => ({
   triggeredByMoveId: {},
-  markTriggered: (moveId) => set((s) => ({
-    triggeredByMoveId: { ...s.triggeredByMoveId, [moveId]: true },
-  })),
+  markTriggered: (moveId) =>
+    set((s) => ({
+      triggeredByMoveId: { ...s.triggeredByMoveId, [moveId]: true },
+    })),
   hasTriggered: (moveId) => !!get().triggeredByMoveId[moveId],
-}));
+}))
 ```
 
 ```tsx
 // DashboardPage.tsx 내
 
-const { data: move } = useCurrentMove();
-const generate = useGenerateAiGuide();
-const { hasTriggered, markTriggered } = useAiGuideStore();
+const { data: move } = useCurrentMove()
+const generate = useGenerateAiGuide()
+const { hasTriggered, markTriggered } = useAiGuideStore()
 
 useEffect(() => {
-  if (!move) return;
-  if (hasTriggered(move.id)) return;
-  if (generate.isPending || generate.isSuccess) return;
+  if (!move) return
+  if (hasTriggered(move.id)) return
+  if (generate.isPending || generate.isSuccess) return
 
-  markTriggered(move.id);
-  generate.mutate({ moveId: move.id });   // 페이로드는 moveId만
-}, [move?.id]);
+  markTriggered(move.id)
+  generate.mutate({ moveId: move.id }) // 페이로드는 moveId만
+}, [move?.id])
 ```
 
 **v1 → v2:** 클라이언트는 더 이상 `conditions`/`items`를 만들 필요 없음. moveId만 보내면 Edge Function이 DB에서 직접 조회 (ADR-018).
@@ -1313,22 +1338,22 @@ Edge Function 호출 1회 = Claude API 호출 1회 = 모든 항목 일괄 생성
 
 ## 10. 에러/폴백 규칙
 
-| 시나리오 | Edge Function 응답 | 클라이언트 동작 | UI |
-|---|---|---|---|
-| moveId 형식 오류 | `INVALID_INPUT` 400 | mutation isError | 폴백 (다음 세션 재시도) |
-| moveId 미존재 | `NOT_FOUND` 404 | 위와 동일 | 위와 동일 |
-| 조건 화이트리스트 위반 | `INVALID_INPUT` 400 | 위와 동일 | 위와 동일 |
-| user_checklist_items 없음 | `NOT_FOUND` 404 | 위와 동일 | 위와 동일 |
-| Claude API 5xx/429 | `API_FAIL` 500 | 위와 동일 | 위와 동일 |
-| Claude API 타임아웃 10초 | `TIMEOUT` 504 | 위와 동일 | 위와 동일 |
-| JSON 파싱 실패 | `PARSE_FAIL` 500 | 위와 동일 | 위와 동일 |
-| 응답에 특정 id 누락 | `ok` 부분 성공 | 정상 | 누락 항목만 `guide_note` 폴백 |
-| 응답에 환각 id 포함 | `ok` (normalize에서 무시) | 정상 | 환각 id 무시되어 영향 없음 |
-| 캐시-마스터 버전 불일치 | `ok generated` | 정상 | 새 custom_guide 적용 |
-| 동시 호출 (lock 점유) | 5초 내 완료 시 `ok cache_hit` | 정상 | |
-| 동시 호출 (lock 5초 초과) | `TIMEOUT` 504 | 폴백 | |
-| 네트워크 오프라인 | invoke 실패 | mutation isError | 폴백 |
-| `aiGuideStore.triggered=true` | 호출 안 함 | - | 기존 custom_guide 유지 |
+| 시나리오                      | Edge Function 응답            | 클라이언트 동작  | UI                            |
+| ----------------------------- | ----------------------------- | ---------------- | ----------------------------- |
+| moveId 형식 오류              | `INVALID_INPUT` 400           | mutation isError | 폴백 (다음 세션 재시도)       |
+| moveId 미존재                 | `NOT_FOUND` 404               | 위와 동일        | 위와 동일                     |
+| 조건 화이트리스트 위반        | `INVALID_INPUT` 400           | 위와 동일        | 위와 동일                     |
+| user_checklist_items 없음     | `NOT_FOUND` 404               | 위와 동일        | 위와 동일                     |
+| Claude API 5xx/429            | `API_FAIL` 500                | 위와 동일        | 위와 동일                     |
+| Claude API 타임아웃 10초      | `TIMEOUT` 504                 | 위와 동일        | 위와 동일                     |
+| JSON 파싱 실패                | `PARSE_FAIL` 500              | 위와 동일        | 위와 동일                     |
+| 응답에 특정 id 누락           | `ok` 부분 성공                | 정상             | 누락 항목만 `guide_note` 폴백 |
+| 응답에 환각 id 포함           | `ok` (normalize에서 무시)     | 정상             | 환각 id 무시되어 영향 없음    |
+| 캐시-마스터 버전 불일치       | `ok generated`                | 정상             | 새 custom_guide 적용          |
+| 동시 호출 (lock 점유)         | 5초 내 완료 시 `ok cache_hit` | 정상             |                               |
+| 동시 호출 (lock 5초 초과)     | `TIMEOUT` 504                 | 폴백             |                               |
+| 네트워크 오프라인             | invoke 실패                   | mutation isError | 폴백                          |
+| `aiGuideStore.triggered=true` | 호출 안 함                    | -                | 기존 custom_guide 유지        |
 
 **원칙:** 유저에게 에러 노출 금지. 모든 실패는 guide_note 폴백으로 자연스럽게 흡수.
 
@@ -1351,16 +1376,18 @@ Edge Function 호출 1회 = Claude API 호출 1회 = 모든 항목 일괄 생성
 
 - service_role 사용으로 RLS 우회되지만, **요청자가 다른 유저의 moveId로 호출해도 영향이 없음**
 - Edge Function이 해당 moveId의 user_checklist_items만 업데이트하므로, 공격자가 자기 user_checklist_items를 변경하지 못함
-- 8단계 RLS 활성화 후엔 추가로 JWT 검증을 Edge Function에 도입 검토
+- 10단계 RLS 활성화 후엔 추가로 JWT 검증을 Edge Function에 도입 검토
 
 ### 11-4. 개인정보 최소화
 
 Claude API 요청에 포함:
+
 - ✅ 조건 태그 (`housing_type`, `contract_type`, `move_type`)
 - ✅ master_checklist_items.title, guide_content (공개 데이터)
 - ✅ master_item_id (UUID, 유저 식별 불가)
 
 요청에 미포함:
+
 - ❌ user_id, move_id
 - ❌ moving_date
 - ❌ memo, from_address, to_address
@@ -1370,28 +1397,30 @@ Claude API 요청에 포함:
 ```typescript
 // supabase/functions/_shared/conditionsValidator.ts
 
-const VALID_HOUSING = ['원룸', '오피스텔', '빌라', '아파트', '투룸+'];
-const VALID_CONTRACT = ['월세', '전세'];
-const VALID_MOVE = ['용달', '반포장', '포장', '자가용'];
+const VALID_HOUSING = ['원룸', '오피스텔', '빌라', '아파트', '투룸+']
+const VALID_CONTRACT = ['월세', '전세']
+const VALID_MOVE = ['용달', '반포장', '포장', '자가용']
 
 export function isValidConditions(c: any): boolean {
-  return VALID_HOUSING.includes(c?.housing_type)
-      && VALID_CONTRACT.includes(c?.contract_type)
-      && VALID_MOVE.includes(c?.move_type);
+  return (
+    VALID_HOUSING.includes(c?.housing_type) &&
+    VALID_CONTRACT.includes(c?.contract_type) &&
+    VALID_MOVE.includes(c?.move_type)
+  )
 }
 
 export function isUuid(s: string): boolean {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s)
 }
 ```
 
 ### 11-6. RLS 정책
 
-| 테이블 | 정책 |
-|---|---|
-| `ai_guide_cache` | 1단계 정의 그대로 (SELECT public, 쓰기 service_role only) |
-| `system_config` | SELECT public, 쓰기 service_role only |
-| `user_checklist_items.custom_guide` | 1단계 정책 그대로 (8단계에서 활성화) |
+| 테이블                              | 정책                                                      |
+| ----------------------------------- | --------------------------------------------------------- |
+| `ai_guide_cache`                    | 1단계 정의 그대로 (SELECT public, 쓰기 service_role only) |
+| `system_config`                     | SELECT public, 쓰기 service_role only                     |
+| `user_checklist_items.custom_guide` | 1단계 정책 그대로 (8단계에서 활성화)                      |
 
 ---
 
@@ -1402,6 +1431,7 @@ export function isUuid(s: string): boolean {
 **조합 수:** 5(주거) × 2(계약) × 4(이사방법) = **40개**
 
 **조합당 비용 (실측 기준):**
+
 - 입력 토큰: 실측 ~5,700 토큰 (37개 항목 기준)
 - 출력 토큰: 실측 ~6,300 토큰 (37개 항목 × 2~4문장 한국어)
 - Claude Haiku 가격(2026-04 기준): $0.80/MTok 입력, $4/MTok 출력
@@ -1428,14 +1458,14 @@ export function isUuid(s: string): boolean {
 
 ### 12-4. 로그 활용
 
-| 지표 | 쿼리 | 용도 |
-|---|---|---|
-| 캐시 히트율 | `source=='cache_hit'` / 전체 | 캐시 워밍 진행 |
-| 평균 응답 시간 | AVG(duration_ms) | 성능 모니터링 |
-| 토큰 사용량 | SUM(tokens_used) | 비용 검증 |
-| 누락률 | (expected_count - generated_count) / expected_count | 프롬프트 품질 |
-| 환각 발생 | normalizeGuides에서 제거된 id 수 | (별도 로깅 필요 시 추가) |
-| 에러율 | status != 'success' / 전체 | 안정성 |
+| 지표           | 쿼리                                                | 용도                     |
+| -------------- | --------------------------------------------------- | ------------------------ |
+| 캐시 히트율    | `source=='cache_hit'` / 전체                        | 캐시 워밍 진행           |
+| 평균 응답 시간 | AVG(duration_ms)                                    | 성능 모니터링            |
+| 토큰 사용량    | SUM(tokens_used)                                    | 비용 검증                |
+| 누락률         | (expected_count - generated_count) / expected_count | 프롬프트 품질            |
+| 환각 발생      | normalizeGuides에서 제거된 id 수                    | (별도 로깅 필요 시 추가) |
+| 에러율         | status != 'success' / 전체                          | 안정성                   |
 
 ---
 
@@ -1444,49 +1474,58 @@ export function isUuid(s: string): boolean {
 (상세 verify는 `07-verify.md`에서. 여기선 체크리스트.)
 
 ### 13-1. 캐시 워밍 (신규 조합)
+
 - [ ] 새 조합으로 온보딩 → 대시보드 진입 → 10초 내 `ai_guide_cache` 신규 row 생성
 - [ ] `user_checklist_items.custom_guide` 전체 항목 NULL → 값 채워짐
 - [ ] 상세페이지 진입 → `PersonalizedTipCard` 렌더, 조건 태그 0~3개 적절히 표시
 
 ### 13-2. 캐시 히트
+
 - [ ] 캐시 존재 조합으로 새 이사 생성 → Edge Function 로그 `source: 'cache_hit'`
 - [ ] Claude API 호출 로그 없음 (비용 0)
 - [ ] custom_guide 즉시 채워짐 (1초 이내)
 
 ### 13-3. 세션 내 스왑 금지
+
 - [ ] 캐시 미스 상태에서 상세 진입 → `TipCard(guide_note)`
 - [ ] 같은 페이지에 머무는 동안 백그라운드 생성 완료돼도 **UI 변화 없음**
 - [ ] 대시보드 → 상세 재진입 → `PersonalizedTipCard`로 자연 전환
 
 ### 13-4. 폴백
+
 - [ ] `ANTHROPIC_API_KEY` 잘못된 값 → Edge Function `API_FAIL`
 - [ ] 클라이언트는 에러 토스트 없음, 모든 상세페이지 `guide_note` 정상 표시
 - [ ] Edge Function 타임아웃 시뮬레이션 → 동일하게 폴백
 
 ### 13-5. 버전 bump
+
 - [ ] `UPDATE system_config SET value=99` 실행
 - [ ] 다음 호출에서 `source: 'generated'` (재생성)
 - [ ] `ai_guide_cache.master_version=99` 업데이트
 - [ ] 버전 복원 후 다시 호출 → 다시 재생성 (왕복 정상)
 
 ### 13-6. UI
+
 - [ ] 조건 태그 0개 (전체조건 항목) → 태그 행 미렌더
 - [ ] 조건 태그 1개 → chip 1개만
 - [ ] 조건 태그 3개 → chip 3개 + · 구분자 2개
 - [ ] 접근성: VoiceOver "원룸 월세 용달 맞춤 팁" 읽힘
 
 ### 13-7. In-flight lock (RPC)
+
 - [ ] 같은 조합으로 Edge Function 동시 2회 호출 (curl 병렬)
 - [ ] 하나는 `source: 'generated'`, 다른 하나는 5초 대기 후 `source: 'cache_hit'`
 - [ ] Claude API 호출 1회만 발생
 - [ ] stale lock 시뮬레이션: `UPDATE ai_guide_cache SET generating_at='2020-01-01'` → 다음 호출이 락 재획득
 
 ### 13-8. 캐시 오염 방어
+
 - [ ] curl로 `{moveId, conditions:{...}, items:[조작]}` 전송 → conditions/items 무시되고 정상 처리
 - [ ] 다른 유저의 moveId로 호출 → 자기 user_checklist_items는 변경 안 됨
 - [ ] Claude 응답에 입력 외 master_item_id 포함 시 normalizeGuides에서 무시
 
 ### 13-9. 누락/환각 보호
+
 - [ ] Claude 응답에 일부 항목 누락 시 → 그 항목만 NULL, 다른 항목은 정상
 - [ ] Claude 응답에 중복 id 포함 시 → 첫 등장만 채택
 - [ ] custom_guide 길이 1000자 초과 → 무시되어 NULL
@@ -1549,18 +1588,21 @@ export function isUuid(s: string): boolean {
 
 ## 15. 다음 단계 연결
 
-- **8단계: 인증(RLS) + 로컬 저장소**
+- **10단계: 인증(RLS) + 로컬 저장소**
   - Supabase Auth (Apple/카카오/Google)
   - 익명 → 회원 마이그레이션
   - IndexedDB 기반 오프라인 저장 + 동기화 큐
   - Edge Function에 JWT 검증 추가
   - `ai_guide_cache` SELECT 정책 재검토 (현재 public → service_role only로 좁힐지)
 
-- **9단계: Expo 네이티브 셸**
+- **9단계: Expo 셸 + WebView 래핑**
   - DevTabBar → 네이티브 탭바
   - 카메라 권한 / 사진 촬영 네이티브 처리
 
-- **10단계 (가칭): 계약 단계 + 전세사기 예방**
+- **10단계: 인증 + 비회원 로컬 + RLS 켜기**
+  - Supabase Auth, RLS 활성화, 비회원→회원 마이그레이션
+
+- **향후: 계약 단계 + 전세사기 예방**
   - ADR-016 참고
   - 새 카테고리 + 항목 ~10개
   - master_version bump → 7단계 캐시 자동 무효화
@@ -1571,7 +1613,7 @@ export function isUuid(s: string): boolean {
 
 `supabase/functions/_shared/prompts/checklist-guide.ts`의 실제 프롬프트.
 
-```
+````
 당신은 한국 이사 도우미 앱 "이사콕"의 가이드 작성자입니다.
 아래 유저 조건과 체크리스트 항목들을 바탕으로, 각 항목의 기존 가이드를 유저 상황에 맞게 재작성해주세요.
 
@@ -1594,9 +1636,10 @@ export function isUuid(s: string): boolean {
 
 ## 출력 형식 (이 JSON만 반환)
 {"guides": [{"master_item_id": "...", "custom_guide": "..."}]}
-```
+````
 
 **예시 입력:**
+
 ```json
 {
   "conditions": { "housing_type": "원룸", "contract_type": "월세", "move_type": "용달" },
@@ -1611,6 +1654,7 @@ export function isUuid(s: string): boolean {
 ```
 
 **기대 출력:**
+
 ```json
 {
   "guides": [
@@ -1623,6 +1667,7 @@ export function isUuid(s: string): boolean {
 ```
 
 **검증:**
+
 - 개발 중 5개 조합으로 생성 → 각 10~15개 항목 육안 검증
 - 금액·기관명·URL이 원본과 일치하는지 확인
 - 조건 무관 항목(예: #31 한전ON 앱)이 과도하게 개인화되지 않았는지 확인
@@ -1635,16 +1680,19 @@ export function isUuid(s: string): boolean {
 마이그레이션 `00009_enhance_guide_content.sql`의 3건:
 
 ### #11 원상복구 범위 확인
+
 **추가:** "통화는 녹음 시작 안내 후 녹음하고, 집주인 답변은 카톡 스크린샷으로 저장. 나중에 '그런 말 한 적 없다'는 주장을 막을 수 있음."
 
 **근거:** 퇴실 시 분쟁의 1번 원인이 "구두 합의의 뒤집힘". 증거 확보가 핵심.
 
 ### #41 전입신고 + 확정일자
+
 **추가:** "확정일자 받은 당일 인터넷등기소(www.iros.go.kr)에서 등기부등본 재확인 필수 — 당일 근저당이 새로 설정되면 보증금 순위가 밀릴 수 있음."
 
 **근거:** 악질 집주인이 확정일자 당일 근저당 설정 치는 사례 발생. 하루 시차로 보증금 우선순위가 바뀜.
 
 ### #42 새 집 사진 (입주 기록)
+
 **추가:** "도배·장판을 새로 하지 않은 집은 기존 하자를 특히 꼼꼼히 촬영. 퇴실 시 '이거 네가 낸 자국'이라는 뒤집어쓰기를 막는 유일한 증거."
 
 **근거:** 원상복구비 공제 분쟁 1위 원인이 "기존 하자의 세입자 책임 전가". 입주 사진이 유일한 방어 수단.
@@ -1669,20 +1717,20 @@ export function isUuid(s: string): boolean {
 
 ## 부록 D: v1 → v2 변경 요약
 
-| 영역 | v1 | v2 |
-|---|---|---|
-| 마이그레이션 번호 | 00007~00010 | 00007~00012 (4·6단계 마이그레이션이 00005~00006 점유) |
-| ai_guide_cache | CREATE TABLE | ALTER TABLE (generating_at 컬럼만 추가) |
-| custom_guide 컬럼 | 7단계에서 ADD COLUMN | **삭제 — 1단계에 이미 있음** |
-| trigger 함수명 | set_updated_at | public.handle_updated_at (1단계 정의) |
-| Edge Function 페이로드 | {moveId, conditions, items} | {moveId} only |
-| id 의미 | 혼재 | master_item_id로 통일 |
-| In-flight lock | SELECT then UPDATE | RPC claim_ai_guide_generation |
-| custom_guide 반영 | for-loop UPDATE | RPC apply_ai_guides batch |
-| useCustomGuide 훅 | staleTime: Infinity | **삭제** — useRef snapshot으로 대체 |
-| Skeleton | PersonalizedTipCardSkeleton 컴포넌트 | **삭제** — 조용한 폴백으로 통일 |
-| system_config.value | text (semver 가능) | integer |
-| 모델명 | 코드 하드코딩 | ANTHROPIC_MODEL 환경변수 |
-| parseResponse | JSON 파싱만 | parseResponse + normalizeGuides 분리, 환각/누락/길이 검증 |
-| 조건 태그 | "전체" 분기 미명시 | isAllSet 함수로 명시 |
-| guest_id 표현 | "전부 guest_id 기반" | 제거 — user_id 단일 컬럼 운영 명시 |
+| 영역                   | v1                                   | v2                                                        |
+| ---------------------- | ------------------------------------ | --------------------------------------------------------- |
+| 마이그레이션 번호      | 00007~00010                          | 00007~00012 (4·6단계 마이그레이션이 00005~00006 점유)     |
+| ai_guide_cache         | CREATE TABLE                         | ALTER TABLE (generating_at 컬럼만 추가)                   |
+| custom_guide 컬럼      | 7단계에서 ADD COLUMN                 | **삭제 — 1단계에 이미 있음**                              |
+| trigger 함수명         | set_updated_at                       | public.handle_updated_at (1단계 정의)                     |
+| Edge Function 페이로드 | {moveId, conditions, items}          | {moveId} only                                             |
+| id 의미                | 혼재                                 | master_item_id로 통일                                     |
+| In-flight lock         | SELECT then UPDATE                   | RPC claim_ai_guide_generation                             |
+| custom_guide 반영      | for-loop UPDATE                      | RPC apply_ai_guides batch                                 |
+| useCustomGuide 훅      | staleTime: Infinity                  | **삭제** — useRef snapshot으로 대체                       |
+| Skeleton               | PersonalizedTipCardSkeleton 컴포넌트 | **삭제** — 조용한 폴백으로 통일                           |
+| system_config.value    | text (semver 가능)                   | integer                                                   |
+| 모델명                 | 코드 하드코딩                        | ANTHROPIC_MODEL 환경변수                                  |
+| parseResponse          | JSON 파싱만                          | parseResponse + normalizeGuides 분리, 환각/누락/길이 검증 |
+| 조건 태그              | "전체" 분기 미명시                   | isAllSet 함수로 명시                                      |
+| guest_id 표현          | "전부 guest_id 기반"                 | 제거 — user_id 단일 컬럼 운영 명시                        |
