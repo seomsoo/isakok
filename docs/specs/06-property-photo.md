@@ -27,12 +27,12 @@
 ### 안 하는 것
 
 - AI 맞춤 가이드 (7단계)
-- 가입 유도 팝업 (8단계 — `console.log('TODO: 가입 유도')` placeholder만)
+- 가입 유도 팝업 (10단계 — `console.log('TODO: 가입 유도')` placeholder만)
 - 입주/퇴실 비교 뷰어 (v1.1 — F5)
 - PDF 리포트 생성 (v1.1)
 - 이메일 전송 (v1.1)
-- 네이티브 카메라 (9단계 — Expo 셸에서 풀 EXIF + 네이티브 카메라 API)
-- 오프라인 촬영 + 동기화 큐 (8단계 이후 — IndexedDB 큐 구현은 인증 완료 후)
+- 네이티브 카메라 (9단계 Expo 셸에서 풀 EXIF + 네이티브 카메라 API)
+- 오프라인 촬영 + 동기화 큐 (10단계 이후 — IndexedDB 큐 구현은 인증 완료 후)
 - 사진 편집/크롭 (앱 스코프 밖)
 
 ---
@@ -105,7 +105,7 @@ pnpm add exifreader    # EXIF 메타데이터 추출 (웹 환경)
 
 > **왜 exifreader인가?**: 번들 사이즈가 작고(~25KB gzipped), TypeScript 지원이 좋고,
 > 브라우저 File/ArrayBuffer에서 바로 EXIF 파싱 가능. `exif-js`는 유지보수가 중단됨.
-> 9단계에서 Expo 네이티브 카메라로 전환하면 네이티브 EXIF API를 쓰게 되고,
+> 9단계(Expo 셸)에서 네이티브 카메라로 전환하면 네이티브 EXIF API를 쓰게 되고,
 > exifreader는 웹 전용 fallback으로 남김.
 
 ---
@@ -340,9 +340,9 @@ export async function getSignedUrl(storagePath: string): Promise<string> {
  * - room + timestamp로 유니크 파일명
  *
  * 왜 userId가 아니라 moveId 기반인가?
- * - 현재 8단계 전이라 Supabase Auth 미도입 (guest_id 기반)
- * - userId를 경로에 쓰면 8단계 인증 도입 시 경로 마이그레이션 필요
- * - moveId는 이미 유니크하고, RLS 활성화(8단계) 시 move_id → user_id 검증 가능
+ * - 현재 10단계 전이라 Supabase Auth 미도입 (guest_id 기반)
+ * - userId를 경로에 쓰면 10단계 인증 도입 시 경로 마이그레이션 필요
+ * - moveId는 이미 유니크하고, RLS 활성화(10단계) 시 move_id → user_id 검증 가능
  */
 export interface UploadPhotoParams {
   moveId: string
@@ -1310,7 +1310,7 @@ async function handleGallerySelect(files: File[]) {
 
 - 오프라인 시: 업로드 버튼 disabled + OfflineBanner
 - 이미 로드된 signed URL 이미지는 캐시로 표시 가능
-- 오프라인 촬영 + 큐잉은 8단계 이후 (IndexedDB + 인증 필요)
+- 오프라인 촬영 + 큐잉은 10단계 이후 (IndexedDB + 인증 필요)
 
 ### 삭제 복구
 

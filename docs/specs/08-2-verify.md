@@ -25,7 +25,7 @@
 - [x] `.claude/agents/pr-summarizer.md` 존재 + 평가 금지 명시 + prompt injection 방어 문구
 - [x] `.claude/agents/ux-state-reviewer.md` 존재 + 4상태 항목 + prompt injection 방어 문구
 - [x] `.claude/agents/web-a11y-reviewer.md` 존재 + WCAG 기준 (24×24/44×44) 명시 + prompt injection 방어 문구
-- [x] `.claude/agents/native-a11y-reviewer.md` 존재 + 9단계 활성 표시 + prompt injection 방어 문구
+- [x] `.claude/agents/native-a11y-reviewer.md` 존재 + 9단계(Expo 셸) 활성 표시 + prompt injection 방어 문구
 - [x] `.claude/agents/perf-budget-reviewer.md` 존재 + 카테고리 6개 + prompt injection 방어 문구
 
 ### CI 워크플로우
@@ -126,4 +126,4 @@
 ### 비차단 참고 사항
 
 - fork/시도횟수/예산 가드는 코드 확인만 완료 (실환경 테스트 미수행 — 1인 리포 + 비용 제약)
-- apply 모드 전환은 9단계 dry-run 경험 축적 후 결정
+- apply 모드 전환은 dry-run 경험 축적 후 결정

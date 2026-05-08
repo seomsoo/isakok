@@ -32,7 +32,7 @@
 - `spec-reviewer` — 스펙 <-> 구현 일치 + 컴포넌트 설계
 - `ux-state-reviewer` — loading/empty/error/success 4상태
 - `web-a11y-reviewer` — WCAG 2.1/2.2 의미 분석
-- `native-a11y-reviewer` — RN accessibility (9단계 활성)
+- `native-a11y-reviewer` — RN accessibility (9단계 활성 중)
 - `perf-budget-reviewer` — 번들/렌더링/이미지
 
 협업 도구:

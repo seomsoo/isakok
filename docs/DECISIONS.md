@@ -668,7 +668,7 @@ type NativeToWeb =
 ### ADR-029: web/native a11y 에이전트 분리
 
 - 결정: WCAG/ARIA(Web)와 RN accessibility props(Native)를 별도 에이전트로 분리
-- 대안: (A) 단일 에이전트 → 룰셋이 너무 달라 어느 쪽도 깊지 못함 / (B) 분리 (채택) → 도메인별 깊이 확보, native는 9단계까지 비활성
+- 대안: (A) 단일 에이전트 → 룰셋이 너무 달라 어느 쪽도 깊지 못함 / (B) 분리 (채택) → 도메인별 깊이 확보, native는 9단계(Expo 셸)부터 활성
 - 근거: WCAG는 데스크탑/Web 중심, iOS HIG와 Material은 모바일 네이티브 중심. 같은 a11y라도 평가 기준 자체가 다름.
 
 ### ADR-030: L3 봇은 dry-run 우선, 점진 전환

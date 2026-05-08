@@ -286,8 +286,8 @@ import { TodayTasks } from '@/features/dashboard/components/TodayTasks'
 | ------------------------------------- | --------- | ------------------------------- |
 | DevTabBar (웹 임시 탭바)              | 9단계     | Expo 네이티브 탭바              |
 | 파일 선택 input                       | 9단계     | Expo 네이티브 카메라            |
-| anon key + RLS 끔 (모든 행 접근 가능) | 8단계     | anon key + RLS 켜기 + 유저 인증 |
-| 하드코딩 user_id                      | 8단계     | auth.uid()                      |
+| anon key + RLS 끔 (모든 행 접근 가능) | 10단계    | anon key + RLS 켜기 + 유저 인증 |
+| 하드코딩 user_id                      | 10단계    | auth.uid()                      |
 | guide_content 직접 표시               | 7단계     | AI custom_guide 우선            |
 
 > ⚠️ service_role key는 임시 개발 중에도 클라이언트(Vite 번들)에 절대 넣지 않음.

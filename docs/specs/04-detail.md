@@ -628,7 +628,7 @@ interface RelatedLinkCardProps {
 **동작:**
 
 - 클릭 시 `window.open(url, '_blank')` — 외부 브라우저에서 열기
-- 9단계 Expo에서는 `Linking.openURL(url)` 또는 네이티브 브릿지로 전환
+- 9단계(Expo 셸)에서는 `Linking.openURL(url)` 또는 네이티브 브릿지로 전환
 
 **사이트 정보 매핑:**
 guide_url이 있는 항목이 4~5개뿐이므로 하드코딩 매핑:

@@ -43,7 +43,7 @@
 
 1. **Button danger variant** — 스펙은 primary/secondary/ghost 3개만 명시. 디자인 리팩토링에서 추가. 해롭지 않은 확장이나 현재 미사용.
 2. **OnboardingFooter 공통 컴포넌트** — 스펙에는 없으나 하단 CTA 패턴을 공통화 + 블러 그라데이션. 합리적 추출.
-3. **services/move.ts에 `p_user_id` 하드코딩** — 스펙 코드에는 없으나, RPC 시그니처가 요구하므로 임시 처리 (`'00000000-...'`). STATUS.md에 "8단계에서 auth.uid()로 교체" 기록됨.
+3. **services/move.ts에 `p_user_id` 하드코딩** — 스펙 코드에는 없으나, RPC 시그니처가 요구하므로 임시 처리 (`'00000000-...'`). STATUS.md에 "10단계에서 auth.uid()로 교체" 기록됨.
 4. **디자인 시스템 타이포 토큰** — `@theme`에 `--text-h1`~`--text-caption` 등록, 임의값 대신 토큰 사용.
 5. **칩에 아이콘 추가** — 계약유형(CreditCard/House), 이사방법(Truck/PackageOpen/PackageCheck/Car).
 
@@ -73,7 +73,7 @@
     user_id mismatch, so the final onboarding submit cannot succeed. This should use
     the current Supabase auth user ID (or the RPC should derive it server-side)
     instead of a hardcoded value.
-  - **대응**: 8단계(인증)에서 해결 예정. 현재는 RLS OFF + 하드코딩 user_id로 임시 동작.
+  - **대응**: 10단계(인증)에서 해결 예정. 현재는 RLS OFF + 하드코딩 user_id로 임시 동작.
 
 ---
 
@@ -82,4 +82,4 @@
 **✅ 통과** (21/21)
 
 스펙 대비 구현 완료. CalendarPicker 범위 변경은 스펙에 반영 완료.
-Codex P1 (하드코딩 user_id)은 8단계 인증에서 해결 예정.
+Codex P1 (하드코딩 user_id)은 10단계 인증에서 해결 예정.

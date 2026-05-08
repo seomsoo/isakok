@@ -63,8 +63,8 @@
 - **추가 sub-agent 6종**(security-auditor, pr-summarizer, ux-state-reviewer, web-a11y-reviewer, native-a11y-reviewer, perf-budget-reviewer) — 8-2
 - **Dependabot, Gitleaks, eslint-plugin-jsx-a11y** — 8-2
 - **Claude API 직접 호출 / GitHub Actions에서 LLM 호출** — 8-2
-- **Vercel Preview 배포 자동화** — 이미 GitHub 연동 시 자동 작동. 명시적 정의는 9단계
-- **PR 미리보기 환경 분리(staging Supabase)** — 9단계
+- **Vercel Preview 배포 자동화** — 이미 GitHub 연동 시 자동 작동. 명시적 정의는 9단계(Expo 셸)
+- **PR 미리보기 환경 분리(staging Supabase)** — 10단계
 - **테스트 작성 자체** (커버리지 룰만 정의, 신규 테스트 추가는 각 단계에서 처리)
 - **Renovate** (Dependabot으로 시작, 향후 마이그레이션 가능)
 - **Lighthouse CI, Bundlewatch** — MVP 출시 후
@@ -140,7 +140,7 @@ docs/
 사람이 명시적으로 수행하는 스펙 구현 작업에는 적용하지 않는다. 즉:
 
 - 8-1 구현 과정에서 사람이 `package.json`, `.husky/`, `.github/workflows/` 등을 수정하는 것은 정상 작업
-- 9단계에서 사람이 `supabase/migrations/` 마이그레이션을 추가하는 것도 정상 작업
+- 10단계에서 사람이 `supabase/migrations/` 마이그레이션을 추가하는 것도 정상 작업
 - 정책의 거부 범위는 **LLM/봇이 자동으로 손대는 것**만 차단
 
 ---
@@ -964,7 +964,7 @@ const DENIED_PATH_PATTERNS = [
   // DB / 백엔드 핵심
   /^supabase\/migrations\//,
   /^supabase\/functions\//,
-  // 인증 / 보안 (9단계에서 추가될 인증 코드 미리 차단)
+  // 인증 / 보안 (10단계에서 추가될 인증 코드 미리 차단)
   /^packages\/shared\/src\/services\/auth\//,
   /\/auth\//,
   // 환경변수
