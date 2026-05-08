@@ -26,9 +26,10 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#F8F7F5"
       },
-      "package": "com.isakok.app"
+      "package": "com.isakok.app",
+      "usesCleartextTraffic": true
     },
-    "plugins": ["expo-router"],
+    "plugins": ["expo-router", "expo-font"],
     "extra": {
       "router": {},
       "eas": {
