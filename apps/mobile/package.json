@@ -8,7 +8,10 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "build:dev": "eas build --profile development --platform all",
-    "build:preview": "eas build --profile preview --platform all"
+    "build:preview": "eas build --profile preview --platform all",
+    "android:reverse": "adb reverse tcp:5173 tcp:5173 && adb reverse tcp:8081 tcp:8081",
+    "android": "expo run:android",
+    "ios": "expo run:ios"
   },
   "dependencies": {
     "@expo/vector-icons": "^14.0.0",
