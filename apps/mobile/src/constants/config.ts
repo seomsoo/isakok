@@ -1,4 +1,7 @@
-export const WEB_APP_URL = process.env.EXPO_PUBLIC_WEB_APP_URL ?? 'http://localhost:5173'
+import { Platform } from 'react-native'
+
+const DEV_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost'
+export const WEB_APP_URL = process.env.EXPO_PUBLIC_WEB_APP_URL ?? `http://${DEV_HOST}:5173`
 
 export const SPLASH_TIMEOUT_MS = 5000
 

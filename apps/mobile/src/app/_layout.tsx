@@ -1,5 +1,6 @@
 import { Slot } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
+import { SafeAreaProvider } from 'react-native-safe-area-context'
 import * as SplashScreen from 'expo-splash-screen'
 import { useEffect } from 'react'
 import { hideSplashOnce } from '../utils/splash'
@@ -17,9 +18,9 @@ export default function RootLayout() {
   }, [])
 
   return (
-    <>
+    <SafeAreaProvider>
       <StatusBar style="dark" />
       <Slot />
-    </>
+    </SafeAreaProvider>
   )
 }
