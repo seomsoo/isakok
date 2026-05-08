@@ -8,6 +8,7 @@
 ## 0. 이 단계에서 하는 것 / 안 하는 것
 
 ### 하는 것
+
 - Supabase CLI 설치 + 프로젝트 링크
 - DB 마이그레이션 파일 작성 (테이블 6개 + 인덱스 + trigger)
 - RPC 함수 2개 (createMoveWithChecklist, updateMoveWithReschedule)
@@ -20,6 +21,7 @@
 - Supabase 타입 자동 생성 (database.ts)
 
 ### 안 하는 것
+
 - RLS 활성화 (8단계)
 - Auth 설정 — Apple/카카오/Google 소셜 로그인 (8단계)
 - Edge Function 작성 (7단계)
@@ -75,18 +77,20 @@ npx supabase link --project-ref ybcqinanfcarhqkclvue
 ## 3. 환경변수
 
 ### .env.local (Git 제외 — 실제 키)
+
 ```bash
 VITE_SUPABASE_URL=https://ybcqinanfcarhqkclvue.supabase.co
 VITE_SUPABASE_ANON_KEY=실제_anon_key_여기에
 ```
 
 ### .env.example (Git 포함 — 템플릿)
+
 ```bash
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-> **왜 VITE_ 접두사?**: Vite는 `VITE_`로 시작하는 환경변수만 클라이언트 코드에 노출한다.
+> **왜 VITE\_ 접두사?**: Vite는 `VITE_`로 시작하는 환경변수만 클라이언트 코드에 노출한다.
 > 이 접두사가 없으면 import.meta.env에서 접근 불가.
 
 ---
@@ -94,6 +98,7 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 ## 4. DB 마이그레이션 — 테이블 6개
 
 ### 4-1. users
+
 ```sql
 -- Supabase Auth 확장 — auth.users와 연결되는 공개 프로필 테이블
 CREATE TABLE public.users (
@@ -107,6 +112,7 @@ CREATE TABLE public.users (
 ```
 
 ### 4-2. moves
+
 ```sql
 CREATE TABLE public.moves (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -128,6 +134,7 @@ CREATE INDEX idx_moves_user_id ON public.moves(user_id);
 ```
 
 ### 4-3. master_checklist_items
+
 ```sql
 CREATE TABLE public.master_checklist_items (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -153,6 +160,7 @@ CREATE TABLE public.master_checklist_items (
 > JSONB 대신 text[]를 쓰는 이유: 단순 포함 여부 체크에는 배열이 더 간단하고 빠름. (ADR: 기획정리 §10)
 
 ### 4-4. user_checklist_items
+
 ```sql
 CREATE TABLE public.user_checklist_items (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -177,6 +185,7 @@ CREATE INDEX idx_user_checklist_user_id ON public.user_checklist_items(user_id);
 > user_checklist_items에 user_id를 직접 넣어야 RLS에서 `auth.uid() = user_id` 체크가 가능.
 
 ### 4-5. property_photos
+
 ```sql
 CREATE TABLE public.property_photos (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -205,6 +214,7 @@ CREATE INDEX idx_photos_user_id ON public.property_photos(user_id);
 > 필요할 때 `supabase.storage.from('property-photos').createSignedUrl(path, 3600)`으로 URL을 생성하는 게 안전.
 
 ### 4-6. ai_guide_cache
+
 ```sql
 CREATE TABLE public.ai_guide_cache (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -217,6 +227,7 @@ CREATE TABLE public.ai_guide_cache (
 ```
 
 ### 공통: updated_at 자동 갱신 trigger
+
 ```sql
 -- 모든 테이블에 적용하는 updated_at 자동 갱신 함수
 CREATE OR REPLACE FUNCTION public.handle_updated_at()
@@ -395,11 +406,11 @@ $$;
 
 ---
 
-## 6. RLS 정책 (SQL만 작성, 8단계에서 활성화)
+## 6. RLS 정책 (SQL만 작성, 10단계에서 활성화)
 
 ```sql
 -- ⚠️ 이 마이그레이션은 RLS를 아직 켜지 않음 (ALTER TABLE ... ENABLE ROW LEVEL SECURITY 없음)
--- 8단계에서 아래 주석을 해제하고 RLS를 활성화할 것
+-- 10단계에서 아래 주석을 해제하고 RLS를 활성화할 것
 
 -- ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 -- ALTER TABLE public.moves ENABLE ROW LEVEL SECURITY;
@@ -450,6 +461,7 @@ VALUES ('property-photos', 'property-photos', false);
 데이터 원본: `docs/마스터_체크리스트_데이터.md` (46개 항목)
 
 ### 반영해야 할 수정사항 (설계 결정사항 v2 §9-2, §9-3):
+
 1. #01 이사 비용: 2026 시세 반영 (원룸 용달 5~15만, 반포장 20~35만, 포장 35~70만)
 2. #31 한전 앱: "스마트 한전" → "한전ON"
 3. #41 전입신고: 정부24 모바일 동시 처리, 수수료 500원
@@ -458,6 +470,7 @@ VALUES ('property-photos', 'property-photos', false);
 6. guide_url 15개+ 확충 (빼기 앱, 가스앱, KT Moving 등)
 
 ### 시드 데이터 형식 예시 (1개)
+
 ```sql
 INSERT INTO public.master_checklist_items
   (title, description, guide_content, guide_url, d_day_offset, housing_types, contract_types, move_types, category, sort_order, is_skippable, guide_type)
@@ -487,6 +500,7 @@ VALUES
 ## 9. 웹앱 연동 파일
 
 ### apps/web/src/lib/supabase.ts
+
 ```typescript
 import { createClient } from '@supabase/supabase-js'
 
@@ -494,9 +508,7 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error(
-    'Supabase URL 또는 Anon Key가 설정되지 않았습니다. .env.local 파일을 확인하세요.',
-  )
+  throw new Error('Supabase URL 또는 Anon Key가 설정되지 않았습니다. .env.local 파일을 확인하세요.')
 }
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
@@ -506,12 +518,14 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 > 에러 메시지 없이 조용히 실패하면 디버깅이 어려움. 빠르게 실패(fail fast)하는 게 좋음.
 
 ### 패키지 설치
+
 ```bash
 cd apps/web
 pnpm add @supabase/supabase-js
 ```
 
 ### Supabase 타입 자동 생성
+
 ```bash
 # 루트에서 실행
 npx supabase gen types typescript --project-id ybcqinanfcarhqkclvue > packages/shared/src/types/database.ts
@@ -542,23 +556,28 @@ npx supabase gen types typescript --project-id ybcqinanfcarhqkclvue > packages/s
 ## 11. 엣지케이스 / 주의사항
 
 ### Supabase CLI vs 대시보드
+
 - 테이블 생성은 **반드시 마이그레이션 파일**로 (대시보드에서 수동 생성하면 마이그레이션 이력이 안 남음)
 - 마이그레이션 파일이 있어야 나중에 다른 환경에서 재현 가능
 
 ### 시드 데이터 주의
+
 - `seed.sql`은 `npx supabase db reset` 할 때만 자동 실행됨
 - 원격 DB에 시드 넣으려면 `npx supabase db push` 후 별도로 SQL Editor에서 실행하거나 `psql`로 직접 실행
 
 ### housing_types 배열에 '아파트' 포함
+
 - 설계 결정사항 v2에서 추가됨 (ADR-012)
 - 기존 마스터 체크리스트 데이터에서 `[전체]`로 표시된 항목은 `ARRAY['원룸', '오피스텔', '빌라', '아파트', '투룸+']`로 변환
 
 ### RLS 정책은 만들되 켜지 않음
+
 - CREATE POLICY는 RLS가 꺼져 있어도 생성 가능
 - ENABLE ROW LEVEL SECURITY가 없으면 정책이 존재하지만 적용되지 않음
 - 8단계에서 ALTER TABLE ... ENABLE ROW LEVEL SECURITY 실행하면 즉시 적용
 
 ### database.ts 타입 자동 생성 타이밍
+
 - 마이그레이션을 push한 후에 실행해야 최신 스키마가 반영됨
 - 순서: 마이그레이션 push → 타입 생성 → 코드에서 import
 
@@ -567,6 +586,7 @@ npx supabase gen types typescript --project-id ybcqinanfcarhqkclvue > packages/s
 ## 12. 다음 단계 연결
 
 1단계 완료 후 → **2단계: 온보딩 → 체크리스트 생성** (`docs/specs/02-onboarding.md`)
+
 - 온보딩 4단계 폼 (이사일, 주거유형, 계약유형, 첫이사 여부)
 - createMoveWithChecklist RPC 호출
 - 온보딩 완료 → 대시보드로 이동

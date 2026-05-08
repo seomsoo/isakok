@@ -250,7 +250,7 @@ src/
 - 날짜 그룹핑을 프론트에서 처리: DB에서 GROUP BY 하면 UI 변경 시마다 쿼리 수정 필요. flat 리스트로 받아서 프론트에서 묶는 게 유연 (데이터 15-25개라 성능 이슈 없음)
 - 낙관적 업데이트: toggleChecklistItem은 TanStack Query의 useMutation + onMutate로 UI 먼저 반영 → 실패 시 자동 롤백
 - 사진 업로드 2단계: Storage에 파일 → DB에 메타데이터. taken_at은 오프라인 촬영 시점 보존 (증거력)
-- 비회원 동작: Step 1~8은 IndexedDB로 로컬 동작. Step 9 가입 시 로컬 → 서버 마이그레이션
+- 비회원 동작: Step 1~9는 IndexedDB로 로컬 동작. Step 10 가입 시 로컬 → 서버 마이그레이션
 
 ### RLS 정책
 

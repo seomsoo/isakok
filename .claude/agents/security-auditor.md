@@ -40,7 +40,7 @@ tools: Read, Grep, Glob
   - service_role 키는 Edge Function에서만 사용 (Deno)
 - [ ] Supabase 클라이언트가 anon key 사용? (서버 코드는 service_role)
 
-### C. RLS 정책 (9단계 활성 예정 — 8-2에선 의미 검토만)
+### C. RLS 정책 (10단계 활성 예정 — 8-2에선 의미 검토만)
 
 - [ ] `auth.uid() = user_id` 패턴이 모든 정책에 일관되는가?
 - [ ] `current_user`, `session_user` 사용 금지 (auth.uid()이어야 함)
@@ -52,7 +52,7 @@ tools: Read, Grep, Glob
 - [ ] 사용자 입력이 dangerouslySetInnerHTML, eval, new Function에 들어가는가? (check-scope가 1차 차단하지만 우회 패턴 검토)
 - [ ] 파일 업로드 시 MIME type, 크기, 확장자 검증?
 
-### E. 인증 (9단계 도입 시 활성)
+### E. 인증 (10단계 도입 시 활성)
 
 - [ ] 토큰이 localStorage에 저장? (XSS 시 탈취 가능 → httpOnly 쿠키 권장하지만 Supabase는 localStorage 기본)
 - [ ] 비회원 → 회원 마이그레이션 시 race condition?

@@ -33,10 +33,10 @@ id (uuid PK), cache_key (text UNIQUE), master_version (integer), guides (jsonb),
 - soft delete: deleted_at IS NULL 조건으로 조회
 - user_id 비정규화: RLS에서 JOIN 없이 권한 체크용
 
-## RLS 정책 (8단계에서 켜기)
+## RLS 정책 (10단계에서 켜기)
 
-**지금(0~7단계): RLS 끔, 서비스키로 개발**
-**8단계: 아래 정책 전부 켜기 + 전수 검증**
+**지금(0~9단계): RLS 끔, 서비스키로 개발**
+**10단계: 아래 정책 전부 켜기 + 전수 검증**
 
 ```sql
 -- 이름 규칙: {테이블}_{작업}_{조건}
@@ -101,7 +101,7 @@ CREATE POLICY "ai_cache_select_public" ON ai_guide_cache
 ### generate-ai-guide
 
 - 모델: claude-haiku-4-5-20251001 (ADR-021: Sonnet→Haiku 전환, 응답 시간 120s→60s)
-- 캐시 키: ${housing_type}_${contract_type}_${move_type}_${prompt_version}
+- 캐시 키: ${housing_type}_${contract*type}*${move_type}_${prompt_version}
 - 캐시 있고 버전 일치 → 바로 반환
 - 캐시 없거나 버전 불일치 → Claude API 호출 → 캐시 저장 → 반환
 - 에러 시 기존 guide_content로 폴백

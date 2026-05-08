@@ -354,7 +354,7 @@
 - `.claude/agents/pr-summarizer.md`: PR 변경사항 자동 요약 (사실만 기술, 평가 금지)
 - `.claude/agents/ux-state-reviewer.md`: loading/empty/error/success 4상태 검토
 - `.claude/agents/web-a11y-reviewer.md`: WCAG 2.1/2.2 기준 의미 분석 (24×24/44×44 터치 타겟)
-- `.claude/agents/native-a11y-reviewer.md`: RN accessibility props (정의만, 9단계 활성)
+- `.claude/agents/native-a11y-reviewer.md`: RN accessibility props (9단계 Expo 셸에서 활성)
 - `.claude/agents/perf-budget-reviewer.md`: 번들 사이즈, 렌더링, 이미지 최적화 검토
 - 모든 에이전트에 prompt injection 방어 문구 포함
 
@@ -451,14 +451,14 @@
 
 ## 다음 할 것
 
-1. 9단계: 인증 + 비회원 로컬 + RLS 켜기
+1. 9단계: Expo 셸 + WebView 래핑
 2. AUTO_FIX_MODE dry-run → apply 전환 (9단계 PR 몇 개 dry-run 결과 확인 후)
 3. Anthropic Console 월 예산 알림 설정 ($5~$10) - 완료
 
 ## 알려진 문제
 
 - urgent/critical 모드 격려 문구는 사용자 상황별 맞춤 교체 검토 (Follow-up)
-- previousMode는 현재 세션 단위. 9단계 인증 후 서버 영속 검토 (Follow-up)
+- previousMode는 현재 세션 단위. 10단계 인증 후 서버 영속 검토 (Follow-up)
 - CLAUDE.md import 별칭 `@shared/` vs 실제 `@moving/shared` 불일치 (빌드 문제 없음, 정리 필요)
 - shared/constants/aiGuide.ts dead code (VALID_HOUSING_TYPES 등 미사용 상수)
 

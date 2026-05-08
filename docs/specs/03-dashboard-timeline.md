@@ -13,7 +13,7 @@
 - 전체 리스트 페이지 (전체 체크리스트 상대시간 그룹핑 + 정렬 옵션)
 - 설정 페이지 (이사 정보 수정 → updateMoveWithReschedule)
 - 체크 토글 (toggleChecklistItem — 낙관적 업데이트)
-- 하단 탭바 DevTabBar (웹 개발용, 9단계에서 네이티브 탭바로 교체)
+- 하단 탭바 DevTabBar (웹 개발용, 9단계 Expo 셸에서 네이티브 탭바로 교체)
 - 서비스 함수: getCurrentMove, getTodayItems, getTimelineItems, toggleChecklistItem, getOverdueItems, batchCompleteItems
 - TanStack Query 훅: useCurrentMove, useTodayItems (useDashboardItems), useTimelineItems, useToggleItem, useTimelineItemsForProgress
 - 공통 컴포넌트: CircularProgress, Badge, DevTabBar, PageHeader, Skeleton
@@ -27,8 +27,8 @@
 - 스마트 재배치 빠듯/급한/초급한 모드 (5단계 — 3단계는 여유 모드만)
 - 집 상태 기록 UI (6단계 — CTA 카드만 보여주기)
 - AI 맞춤 가이드 (7단계)
-- 인증/비회원 분기 (8단계)
-- 네이티브 탭바 (9단계)
+- 인증/비회원 분기 (10단계)
+- 네이티브 탭바 (9단계 Expo 셸)
 - 애니메이션/트랜지션 (기능 완성 후 폴리싱)
 
 ---
@@ -158,7 +158,7 @@ interface MoveStore {
 /**
  * 현재 진행 중인 이사 조회 (active 상태 1건)
  * RLS 꺼진 상태이므로 user_id 없이 조회
- * 8단계에서 auth.uid() 기반으로 전환
+ * 10단계에서 auth.uid() 기반으로 전환
  */
 export async function getCurrentMove(): Promise<Move | null> {
   const { data, error } = await supabase
@@ -177,7 +177,7 @@ export async function getCurrentMove(): Promise<Move | null> {
 
 > **왜 maybeSingle?**: `.single()`은 결과가 0건이면 에러를 던짐. 이사가 없을 수 있으니 `.maybeSingle()` 사용.
 > **왜 user_id 없이?**: 3단계에서는 RLS 꺼져있고 인증 없음. 가장 최근 active 이사 1건만 가져옴.
-> 8단계에서 RLS 켜면 `auth.uid()` 기반으로 자동 필터링됨.
+> 10단계에서 RLS 켜면 `auth.uid()` 기반으로 자동 필터링됨.
 
 ### services/checklist.ts (생성)
 
@@ -719,7 +719,7 @@ interface CompletedSectionProps {
 - 클릭 시 검색바 펼침 (상단에 인라인 노출)
 - 검색 대상: 항목 제목 (title)만 — 프론트에서 필터링
 - 15~25개 항목이므로 서버 검색 불필요
-- 9단계 네이티브에서는 pull-to-reveal 패턴으로 전환 가능
+- 9단계(Expo 셸) 네이티브에서는 pull-to-reveal 패턴으로 전환 가능
 
 ### 8-8. 프로그레스 바
 
@@ -816,7 +816,7 @@ interface BadgeProps {
 
 ```typescript
 // 웹 개발용 하단 탭바
-// 9단계에서 Expo 네이티브 탭바로 교체 → 이 컴포넌트 제거
+// 9단계(Expo 셸)에서 네이티브 탭바로 교체 → 이 컴포넌트 제거
 ```
 
 - 3탭: 홈(House), 전체(ClipboardList), 집기록(Camera)
@@ -829,7 +829,7 @@ interface BadgeProps {
 
 > **왜 DevTabBar인가?**: 설계 결정에서 "하단 탭바는 Expo 네이티브"로 확정.
 > 하지만 웹 단독 개발 중에는 탭 네비게이션이 필요하니 임시 웹 탭바를 만듦.
-> 9단계에서 Expo 셸이 추가되면 이 컴포넌트를 제거하고 네이티브로 교체.
+> 9단계(Expo 셸)에서 이 컴포넌트를 제거하고 네이티브로 교체.
 
 ### 9-5. Skeleton
 

@@ -15,7 +15,7 @@
 
 ```
 apps/web/          ← React Vite 웹앱 (현재 개발 중)
-apps/mobile/       ← Expo 앱 (9단계에서 추가)
+apps/mobile/       ← Expo 앱 (현재 9단계에서 추가)
 packages/shared/   ← 타입, 상수, 유틸, 서비스 (앱 간 공유)
 supabase/          ← DB 마이그레이션, 시드, Edge Functions
 docs/              ← 기획 문서, 단계별 스펙 (SDD)
@@ -43,8 +43,8 @@ docs/              ← 기획 문서, 단계별 스펙 (SDD)
 6. 집 상태 기록 + 리포트
 7. AI 맞춤 가이드 (Edge Function + Codex API)
 8. 하네스 고도화 (CI + 교정 루프 + 워커 격리)
-9. 인증 + 비회원 로컬 + RLS 켜기
-10. Expo 셸 + 배포
+9. Expo 셸 + WebView 래핑
+10. 인증 + 비회원 로컬 + RLS 켜기
 
 ## 보안 규칙 (전역 — 절대 위반 금지)
 
@@ -112,7 +112,7 @@ refactor(shared): extract date calc to pure utility
 - 시드 재실행 불필요, 롤백은 테이블 drop으로 가능
 
 ### Follow-ups
-- 인증 도입 전까지 `user_id` 하드코딩 유지 (8단계에서 `auth.uid()`로 교체)
+- 인증 도입 전까지 `user_id` 하드코딩 유지 (10단계에서 `auth.uid()`로 교체)
 
 ### Screenshot
 (UI 캡처)
