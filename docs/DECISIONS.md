@@ -694,3 +694,52 @@ type NativeToWeb =
 - 결정: 일일 토큰 사용량을 별도 DB 없이 `docs/auto-fix-log/budget-{date}.json`에 누적
 - 대안: (A) 외부 DB (Supabase 등) → 1인 사이드프로젝트엔 오버킬 / (B) GitHub Actions Cache → 만료 정책 복잡 / (C) 파일 (채택) → 단순, workflow_run에서 push 권한 필요
 - 근거: 단순함이 우선. 한도 추적이 정밀할 필요 없음 (대략 한도 안인지만 확인).
+
+### ADR-034: Expo 셸 먼저, 인증은 다음 단계로
+
+- 결정: 원래 8단계(인증+RLS) → 9단계(Expo 셸)로 계획되어 있었으나 순서를 바꿈. 9단계에서 Expo 셸을 먼저 구축하고, 10단계에서 인증+RLS를 구현한다.
+- 이유: DECISIONS.md에 "인증은 네이티브(Expo)가 전담"으로 확정. 소셜 로그인은 네이티브 SDK → Supabase Auth → SecureStore → WebView postMessage 구조. Expo 셸 없이 웹에서 인증을 구현하면 네이티브 전환 시 인증 코드 전체를 다시 짜야 함.
+- 트레이드오프: 인증 없이 앱이 돌아가는 기간이 한 단계 더 늘어남. 하지만 guest_id 기반 비회원 사용이 이미 동작하므로 기능적 문제 없음.
+
+### ADR-035: 탭별 WebView 3개 구조 (vs 단일 WebView)
+
+- 결정: Expo Router Tabs에서 탭별로 독립 WebView를 보유하는 3개 구조로 구현. 단일 WebView + 커스텀 탭바는 채택하지 않음.
+- 이유: Expo Router Tabs와 자연스럽게 통합. 탭 전환 시 WebView 리로드 없음 (unmountOnBlur=false). 구현 단순성. 9단계에서는 인증이 없으므로 세션 동기화 문제 없음.
+- 트레이드오프: 10단계 인증 도입 시 AUTH_SESSION/AUTH_LOGOUT 메시지를 모든 활성 WebView에 브로드캐스트해야 함. 세션 동기화가 복잡해지면 단일 WebView + 커스텀 네이티브 탭바 구조로 전환 재검토.
+
+### ADR-036: WebView 원격 URL 로드 (vs 로컬 번들)
+
+- 결정: Vercel에 배포된 웹앱 URL을 WebView `source.uri`로 로드. 로컬 번들(앱 assets에 빌드 포함)이나 프리캐싱은 채택하지 않음.
+- 이유: 웹앱 수정 시 앱스토어 업데이트 없이 Vercel 배포만으로 반영. 1인 개발에서 운영 부담 최소화. 스플래시 스크린으로 초기 로딩 커버.
+- 트레이드오프: 네트워크 필수 (첫 실행 시). 오프라인 첫 실행 불가. 이사 당일 오프라인 대응은 10단계+에서 Service Worker/IndexedDB 프리캐싱 전략과 함께 재검토.
+
+### ADR-037: 로그인 분기 랜딩 페이지 제거 + 트렌드 반영
+
+- 결정: 기존 웹앱의 LandingPage를 삭제하고 EntryRedirect로 교체. 앱 시작 → 바로 온보딩/대시보드 진입. 로그인/비회원 분기 화면 없음.
+- 이유:
+  1. 트렌드: 도구형 앱은 가입/로그인 벽을 최대한 늦추는 방향. 토스, 당근 등 참고.
+  2. Apple Guideline: 로그인 없이 핵심 기능 사용 가능해야 함.
+  3. 아키텍처: 10단계에서 소셜 로그인은 네이티브 화면에서 처리. 웹의 랜딩 페이지를 재활용할 수 없음.
+  4. 기존 회원 복귀 경로: 10단계에서 온보딩 우상단에 "로그인" 텍스트 버튼 추가 (브릿지 REQUEST_LOGIN).
+- 트레이드오프: 기존 회원이 재설치 시 바로 로그인할 수 있는 진입점이 일시적으로 없음. 10단계에서 해결.
+
+### ADR-038: 네이티브→웹 브릿지에 dispatchEvent 방식 채택
+
+- 결정: 네이티브에서 WebView로 메시지를 보낼 때 `window.postMessage` 대신 `window.dispatchEvent(new MessageEvent('message', { data }))` 방식 사용.
+- 이유: `window.postMessage`는 origin 체크가 복잡해질 수 있음. `dispatchEvent`는 같은 `message` 이벤트를 발생시키면서 origin 이슈가 없음. 웹 측 리스너(`window.addEventListener('message', ...)`)와 자연스럽게 호환.
+- 트레이드오프: `dispatchEvent`는 표준 postMessage와 다른 호출 경로이므로, 서드파티 라이브러리가 `event.origin`을 체크하면 문제될 수 있음. 현재 앱에서는 자체 브릿지만 사용하므로 문제 없음.
+
+### ADR-039: 네이티브 환경 플래그 사전 주입 (injectedJavaScriptBeforeContentLoaded)
+
+- 결정: WebView의 `injectedJavaScriptBeforeContentLoaded`로 `window.__IS_NATIVE_WEBVIEW__ = true`와 `body.native-webview` 클래스를 콘텐츠 로드 전에 주입. `isNativeWebView()` 함수는 `__IS_NATIVE_WEBVIEW__`와 `ReactNativeWebView` 두 가지를 모두 체크.
+- 이유: `window.ReactNativeWebView`는 react-native-webview가 주입하는데, 타이밍상 React 앱 마운트보다 늦을 수 있음. 이 경우 DevTabBar가 첫 렌더에서 잠깐 보이는 깜빡임 발생. `__IS_NATIVE_WEBVIEW__`를 먼저 주입하면 첫 렌더부터 정확하게 감지.
+- 트레이드오프: 플래그가 두 개(`__IS_NATIVE_WEBVIEW__`, `ReactNativeWebView`)로 늘어남. 하지만 둘 다 같은 의미이므로 혼란 없음. `isNativeWebView()` 유틸로 추상화.
+
+### ADR-040: 네이티브 카메라 전환은 인증 이후로 (9단계에서 미구현)
+
+- 결정: 9단계에서는 기존 웹의 `<input type="file">` 방식을 WebView에서 그대로 사용하고, 네이티브 카메라(expo-image-picker/expo-camera)로의 전환은 10단계 이후로 미룸. 브릿지 프로토콜 타입만 정의.
+- 이유:
+  1. 네이티브 카메라 결과는 `uri` 기반, 기존 웹 업로드 로직은 `File` 객체 기반 → 변환 필요
+  2. WebView로 base64를 넘기면 용량/성능 부담
+  3. 네이티브가 직접 Supabase Storage에 업로드하려면 인증 토큰/세션 전달 구조 필요 → 10단계 인증이 선행되어야 함
+- 트레이드오프: WebView 파일 업로드가 iOS/Android 특정 버전에서 동작하지 않을 수 있음. 이 경우 STATUS.md에 기록하고 10단계에서 네이티브 업로드로 전환.

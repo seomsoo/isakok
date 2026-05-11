@@ -1,10 +1,10 @@
 # 프로젝트 상태
 
-> 마지막 업데이트: 2026-05-06 (8-2 머지 + 하네스 실동작 검증 + 프롬프트 튜닝 완료)
+> 마지막 업데이트: 2026-05-08 (9↔10 단계 스왑 문서 반영 + PR #31)
 
 ## 현재 단계
 
-8단계 완료 — 다음 단계 대기
+9단계: Expo 셸 + WebView 래핑 — 구현 완료, 커밋 정리 + 검증 대기
 
 ## 완료된 것
 
@@ -445,15 +445,102 @@
 - 워크플로우 수정: PR #23, #25, #26 (각 1 파일씩 분할 머지)
 - 프롬프트 튜닝: PR #27, #28, #29 (에이전트 정의 + run.mjs + 워크플로우)
 
+### 9↔10 단계 스왑 문서 반영
+
+#### 변경 사유
+
+- 아키텍처 설계 기준으로 Expo 셸(WebView 래핑)을 먼저, 인증을 나중에 하는 게 적합
+- 인증 없이도 WebView 래핑은 독립적으로 가능
+- 인증 도입 시 WebView 세션 동기화 등 복잡도가 높아 네이티브 셸이 먼저 안정화돼야 함
+
+#### 변경 내역 (23개 파일)
+
+- 구 9단계 (인증+RLS) → 신 10단계
+- 구 10단계 (Expo 셸) → 신 9단계
+- 구 8단계 인증/RLS 참조도 10단계로 정리 (하네스 삽입 전 구 번호 잔재)
+- native-a11y-reviewer "비활성" → "활성" 전환
+- 대상: CLAUDE.md, AGENTS.md, 에이전트 정의 2개, 정책 1개, CLAUDE.md 하위 3개, STATUS.md, project-overview.md, DECISIONS.md, harness-engineering.md, 스펙 13개
+
+#### 스펙
+
+- docs/specs/09-expo-shell.md: 이미 새 번호(9단계=Expo)로 작성 완료
+
+#### Git
+
+- docs/swap-stage-9-10 브랜치, 9개 커밋 (1~3 파일/커밋 컨벤션)
+- PR #31: https://github.com/seomsoo/isakok/pull/31 (머지 완료)
+
+### 9단계: Expo 셸 + WebView 래핑
+
+#### 네이티브 셸 구조
+
+- apps/mobile/src/app/\_layout.tsx: RootLayout (SafeAreaProvider + StatusBar + SplashScreen 타임아웃)
+- apps/mobile/src/app/(tabs)/\_layout.tsx: TabLayout (홈/전체/집기록 3탭, Ionicons, COLORS 기반 스타일)
+- apps/mobile/src/app/(tabs)/index.tsx: HomeTab → WebViewScreen path="/"
+- apps/mobile/src/app/(tabs)/timeline.tsx: TimelineTab → WebViewScreen path="/timeline"
+- apps/mobile/src/app/(tabs)/photos.tsx: PhotosTab → WebViewScreen path="/photos"
+
+#### 핵심 컴포넌트
+
+- WebViewScreen.tsx: WebView 래핑 + 로딩/에러/오프라인 폴백
+  - WEB_READY 메시지 수신 시 로딩 해제 + splash 숨김 (Codex 수정 — 원래 빠져있었음)
+  - onLoadProgress >= 0.95 보강 (Android onLoadEnd 불안정 대응)
+  - WEBVIEW_LOAD_TIMEOUT_MS (15초) 타임아웃 → 에러 상태 전환
+  - useSafeAreaInsets로 상태바 영역 확보 (paddingTop)
+- LoadingFallback.tsx: 로딩 중 스피너 UI
+- ErrorFallback.tsx: 에러 시 "다시 시도" 버튼
+- OfflineFallback.tsx: 오프라인 시 안내 UI
+
+#### 훅/유틸
+
+- useNetworkStatus.ts: NetInfo 기반 온라인/오프라인 감지
+- useWebViewRef.ts: WebView ref + reload/goBack 메서드
+- splash.ts: hideSplashOnce (SplashScreen.hideAsync 1회 보장)
+- urlAllowlist.ts: WebView URL 화이트리스트 (**DEV**에서 localhost, 192.168._, 10._ 허용)
+
+#### 설정
+
+- config.ts: Platform.OS 분기 (Android → 10.0.2.2, iOS → localhost), COLORS 상수
+- app.json: usesCleartextTraffic: true (Android WebView HTTP 허용), expo-font 플러그인
+- eas.json: development/preview/production 빌드 프로필
+- package.json: android:reverse, android, ios 스크립트 추가
+
+#### 웹앱 브릿지 연동
+
+- apps/web/src/App.tsx: WebReadySignal 컴포넌트 (isNativeWebView → sendToNative WEB_READY)
+- packages/shared/src/utils/nativeBridge.ts: isNativeWebView(), sendToNative() 유틸
+- packages/shared/src/types/bridge.ts: 브릿지 메시지 타입 정의
+
+#### 기존 ADR 추가 (docs/DECISIONS.md)
+
+- ADR-034: Expo 셸 먼저, 인증은 다음 단계로
+- ADR-035: 탭별 WebView 3개 구조 (vs 단일 WebView)
+- ADR-036: WebView 원격 URL 로드 (vs 로컬 번들)
+- ADR-037: 로그인 분기 랜딩 페이지 제거 + 트렌드 반영
+- ADR-038: 네이티브→웹 브릿지에 dispatchEvent 방식 채택
+
+#### Android 에뮬레이터 검증 (완료)
+
+- EAS development 빌드 → API 35 에뮬레이터 설치
+- 대시보드 진입 ✅, 탭 전환 (전체/집기록) ✅, 상태바 safe area ✅
+- WebView HTTP 로딩 ✅ (usesCleartextTraffic + 10.0.2.2 + Vite --host 0.0.0.0)
+
+#### iOS 검증 (미완료)
+
+- iOS 26.3 시뮬레이터 런타임 다운로드 + 로컬 빌드 시도 → SimRuntime 검사 단계에서 부팅 실패 (검은 화면)
+- Apple Developer 계정 등록 대기 중 (실기기 테스트용)
+
 ## 진행 중인 것
 
-없음
+- 미커밋 변경사항 4개 파일 (WebViewScreen.tsx, \_layout.tsx, config.ts, package.json)
+- docs/DECISIONS.md, docs/STATUS.md 문서 업데이트
 
 ## 다음 할 것
 
-1. 9단계: Expo 셸 + WebView 래핑
-2. AUTO_FIX_MODE dry-run → apply 전환 (9단계 PR 몇 개 dry-run 결과 확인 후)
-3. Anthropic Console 월 예산 알림 설정 ($5~$10) - 완료
+1. 커밋 정리 (파일 1~3개 단위 분할)
+2. /verify 스펙 검증
+3. Codex 리뷰 (/codex:review --background)
+4. PR 생성 (feat/expo-shell → main)
 
 ## 알려진 문제
 
@@ -481,3 +568,7 @@
 - CI 워크플로우에서 `execSync`로 사용자 제어 가능한 값(브랜치명 등)을 쉘 보간하지 말 것 → `execFileSync` + argument array 사용 (GH_TOKEN 환경에서 command injection 위험)
 - auto-fix-bot 워크플로우에서 trusted tools를 `tools/` 경로에 체크아웃하면, `gh` CLI 명령어는 git repo 컨텍스트가 필요하므로 `working-directory: workspace` 지정 필수 (pnpm setup도 `package_json_file: tools/package.json` 명시 필요)
 - Claude API 단일 응답(비-에이전트)에서 중간 사고 출력을 막으려면 프롬프트에 "최종 마크다운만 출력, 추가 파일을 읽으려 하지 마라" 명시 필요 — 에이전트 정의만으로는 부족, user prompt에도 중복 지시
+- Android WebView 무한 스피너 디버깅 시 네트워크 레이어만 의심하지 말 것 — 에뮬레이터 브라우저에서 접속 되면 네트워크는 정상. 앱 코드의 로딩 상태 해제 경로(onLoadEnd, onMessage의 WEB_READY 처리)를 먼저 확인
+- Android 에뮬레이터에서 adb reverse는 에뮬레이터 재시작/ADB 재연결 시 풀림 — 10.0.2.2 + Vite `--host 0.0.0.0` 조합이 더 안정적 (adb reverse 불필요)
+- Vite dev server를 `--host 0.0.0.0` 없이 기동하면 IPv6 `[::1]`에서만 리슨 — Android 에뮬레이터의 10.0.2.2는 IPv4 전용이라 접속 불가
+- iOS 26.3 시뮬레이터 런타임은 부팅 불안정 (SimRuntime 검사에서 무한 대기) — 안정 버전(iOS 18.x) 사용 권장
