@@ -25,6 +25,8 @@ export function sendToNative(message: WebToNativeMessage): void {
 
   if (typeof window !== 'undefined' && window.ReactNativeWebView) {
     window.ReactNativeWebView.postMessage(JSON.stringify(wrapped))
+  } else {
+    console.log('[NativeBridge] (dev fallback)', wrapped)
   }
 }
 
