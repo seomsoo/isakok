@@ -1,8 +1,10 @@
+import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from '@/lib/queryClient'
 import { ROUTES } from '@shared/constants/routes'
-import { LandingPage } from '@/pages/LandingPage'
+import { isNativeWebView, sendToNative } from '@moving/shared'
+import { EntryRedirect } from '@/pages/EntryRedirect'
 import { OnboardingPage } from '@/pages/OnboardingPage'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { PreCheckPage } from '@/pages/PreCheckPage'
@@ -15,13 +17,23 @@ import { PhotoReportPage } from '@/pages/PhotoReportPage'
 import { PhotoTrashPage } from '@/pages/PhotoTrashPage'
 import { ToastProvider } from '@/shared/components/ToastProvider'
 
+function WebReadySignal() {
+  useEffect(() => {
+    if (isNativeWebView()) {
+      sendToNative({ type: 'WEB_READY' })
+    }
+  }, [])
+  return null
+}
+
 export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
         <BrowserRouter>
+          <WebReadySignal />
           <Routes>
-            <Route path={ROUTES.LANDING} element={<LandingPage />} />
+            <Route path={ROUTES.LANDING} element={<EntryRedirect />} />
             <Route path={ROUTES.ONBOARDING} element={<OnboardingPage />} />
             <Route path={ROUTES.PRE_CHECK} element={<PreCheckPage />} />
             <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />

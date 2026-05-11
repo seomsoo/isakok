@@ -1,6 +1,7 @@
 import { House, ClipboardList, Camera } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { ROUTES } from '@shared/constants/routes'
+import { isNativeWebView } from '@moving/shared'
 import { cn } from '@/lib/cn'
 
 const TABS = [
@@ -10,6 +11,8 @@ const TABS = [
 ] as const
 
 export function DevTabBar() {
+  if (isNativeWebView()) return null
+
   return (
     <nav
       role="navigation"
@@ -27,7 +30,6 @@ export function DevTabBar() {
                 isActive ? 'text-primary' : 'text-placeholder',
               )
             }
-            aria-current="page"
           >
             <Icon size={22} strokeWidth={1.8} />
             <span className="text-caption">{label}</span>

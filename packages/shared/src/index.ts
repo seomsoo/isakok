@@ -1,4 +1,5 @@
 // 타입
+export type { WebToNativeMessage, NativeToWebMessage, BridgeMessage } from './types/bridge'
 export type { HousingType, ContractType, MoveType } from './types/move'
 export type { MoveStatus } from './types/move'
 export type { GuideType, CategoryType } from './types/checklist'
@@ -28,7 +29,11 @@ export {
   MODE_TRANSITION_MESSAGE,
 } from './constants/urgencyText'
 
+// 상수 (platform)
+export { PLATFORM } from './constants/platform'
+
 // 유틸
+export { isNativeWebView, sendToNative, onNativeMessage } from './utils/nativeBridge'
 export { calculateProgress, calculateEssentialProgress } from './utils/progress'
 export { getRelativeDateLabel, formatDateKorean, parseLocalDate } from './utils/dateLabel'
 export { getUrgencyMode, rescheduleOverdueItems } from './utils/urgencyMode'
