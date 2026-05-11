@@ -5,7 +5,13 @@ import { COLORS } from '../constants/config'
 export function OfflineFallback() {
   return (
     <View style={styles.container} accessibilityRole="alert" accessibilityLabel="인터넷 연결 끊김">
-      <Ionicons name="cloud-offline-outline" size={48} color={COLORS.muted} />
+      <Ionicons
+        name="cloud-offline-outline"
+        size={48}
+        color={COLORS.muted}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      />
       <Text style={styles.title}>인터넷 연결을 확인해주세요</Text>
       <Text style={styles.description}>연결되면 자동으로 새로고침돼요</Text>
     </View>

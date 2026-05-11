@@ -5,7 +5,13 @@ export function LoadingFallback() {
   return (
     <View style={styles.container} accessibilityRole="progressbar" accessibilityLabel="로딩 중">
       <Text style={styles.logo}>이사콕</Text>
-      <ActivityIndicator size="large" color={COLORS.primary} style={styles.spinner} />
+      <ActivityIndicator
+        size="large"
+        color={COLORS.primary}
+        style={styles.spinner}
+        accessibilityElementsHidden
+        importantForAccessibility="no-hide-descendants"
+      />
     </View>
   )
 }
