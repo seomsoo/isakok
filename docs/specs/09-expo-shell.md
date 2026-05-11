@@ -808,7 +808,7 @@ body.native-webview #root {
 웹앱에서 외부 링크 클릭 시 네이티브 브라우저로 열기:
 
 ```typescript
-// apps/web/src/features/checklist/components/RelatedLinkCard.tsx (수정)
+// apps/web/src/features/checklist-detail/components/RelatedLinkCard.tsx (수정)
 
 import { isNativeWebView, sendToNative } from '@moving/shared/utils/nativeBridge'
 
