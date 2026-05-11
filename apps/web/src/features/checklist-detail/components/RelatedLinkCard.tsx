@@ -23,7 +23,7 @@ export function RelatedLinkCard({ url }: RelatedLinkCardProps) {
         href={url}
         target="_blank"
         rel="noopener noreferrer"
-        aria-label={`${meta.name} 열기`}
+        aria-label={`${meta.name} 새 창에서 열기`}
         onClick={(e) => handleLinkClick(e, url)}
         className="flex items-center gap-3 rounded-xl bg-surface px-4 py-3 ring-1 ring-border transition-colors active:bg-neutral"
       >

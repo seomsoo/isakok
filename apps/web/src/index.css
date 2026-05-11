@@ -1,6 +1,7 @@
 @import 'tailwindcss';
 
 @theme {
+  --font-sans: 'Apple SD Gothic Neo', ui-sans-serif, system-ui, -apple-system, sans-serif;
   --color-primary: oklch(0.51 0.086 186.4);
   --color-secondary: oklch(0.33 0.03 285);
   --color-tertiary: oklch(0.95 0.019 193);
