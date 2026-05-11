@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { View, BackHandler, Platform, StyleSheet, Linking } from 'react-native'
+import { View, BackHandler, Platform, StyleSheet, Linking, AccessibilityInfo } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { WebView } from 'react-native-webview'
 import type { WebViewMessageEvent, WebViewNavigation } from 'react-native-webview'
@@ -14,6 +14,7 @@ import { OfflineFallback } from './OfflineFallback'
 
 interface WebViewScreenProps {
   path: string
+  onMessage?: (data: unknown) => void
 }
 
 const INJECTED_BEFORE_LOAD = `
@@ -32,7 +33,13 @@ const INJECTED_BEFORE_LOAD = `
 
 const WEBVIEW_LOAD_TIMEOUT_MS = 15000
 
-export function WebViewScreen({ path }: WebViewScreenProps) {
+const PATH_LABELS: Record<string, string> = {
+  '/': '홈',
+  '/timeline': '전체 일정',
+  '/photos': '집기록',
+}
+
+export function WebViewScreen({ path, onMessage }: WebViewScreenProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [hasError, setHasError] = useState(false)
   const [canGoBack, setCanGoBack] = useState(false)
@@ -46,6 +53,9 @@ export function WebViewScreen({ path }: WebViewScreenProps) {
       setWasOffline(true)
     } else if (wasOffline) {
       setWasOffline(false)
+      AccessibilityInfo.announceForAccessibility(
+        '인터넷이 연결되었습니다. 페이지를 다시 불러옵니다.',
+      )
       reload()
     }
   }, [isConnected, wasOffline, reload])
@@ -75,24 +85,29 @@ export function WebViewScreen({ path }: WebViewScreenProps) {
     return () => clearTimeout(timeout)
   }, [hasError, isLoading])
 
-  const handleMessage = useCallback((event: WebViewMessageEvent) => {
-    try {
-      const parsed = JSON.parse(event.nativeEvent.data)
-      if (parsed.version === 1 && parsed.data?.type === 'WEB_READY') {
-        setIsLoading(false)
-        setHasError(false)
-        hideSplashOnce()
-      }
-      if (parsed.version === 1 && parsed.data?.type === 'OPEN_EXTERNAL_LINK') {
-        const url = parsed.data.payload?.url
-        if (typeof url === 'string') {
-          Linking.openURL(url)
+  const handleMessage = useCallback(
+    (event: WebViewMessageEvent) => {
+      try {
+        const parsed = JSON.parse(event.nativeEvent.data)
+        if (parsed.version === 1 && parsed.data?.type === 'WEB_READY') {
+          setIsLoading(false)
+          setHasError(false)
+          hideSplashOnce()
         }
+        if (parsed.version === 1 && parsed.data?.type === 'OPEN_EXTERNAL_LINK') {
+          const url = parsed.data.payload?.url
+          if (typeof url === 'string') {
+            Linking.openURL(url)
+          }
+        } else if (onMessage) {
+          onMessage(parsed)
+        }
+      } catch {
+        // non-bridge message
       }
-    } catch {
-      // non-bridge message
-    }
-  }, [])
+    },
+    [onMessage],
+  )
 
   const handleNavigationStateChange = useCallback((navState: WebViewNavigation) => {
     setCanGoBack(navState.canGoBack)
@@ -129,6 +144,9 @@ export function WebViewScreen({ path }: WebViewScreenProps) {
       <WebView
         ref={webViewRef}
         source={{ uri: `${WEB_APP_URL}${path}` }}
+        accessibilityLabel={`${PATH_LABELS[path] ?? path} 웹 콘텐츠`}
+        accessibilityElementsHidden={isLoading}
+        importantForAccessibility={isLoading ? 'no-hide-descendants' : 'auto'}
         javaScriptEnabled
         domStorageEnabled
         bounces={false}
