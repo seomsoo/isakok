@@ -30,7 +30,6 @@ export function DevTabBar() {
                 isActive ? 'text-primary' : 'text-placeholder',
               )
             }
-            aria-current="page"
           >
             <Icon size={22} strokeWidth={1.8} />
             <span className="text-caption">{label}</span>
