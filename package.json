@@ -22,7 +22,7 @@
     ]
   },
   "devDependencies": {
-    "@commitlint/cli": "^20.5.2",
+    "@commitlint/cli": "^21.0.1",
     "@commitlint/config-conventional": "^21.0.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
     "husky": "^9.1.7",
