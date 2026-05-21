@@ -1,10 +1,10 @@
 # 프로젝트 상태
 
-> 마지막 업데이트: 2026-05-21 (10-1 Codex 리뷰 수정 + user_id 필터 전면 추가)
+> 마지막 업데이트: 2026-05-21 (10-1 PR #45 CI 통과, gitleaks 해결)
 
 ## 현재 단계
 
-10-1단계: 네이티브 인증 + 세션 브릿지 — 구현 + 리뷰 수정 완료, 커밋 분할 대기
+10-1단계: 네이티브 인증 + 세션 브릿지 — PR #45 CI 통과, 머지 대기
 
 ## 완료된 것
 
@@ -560,8 +560,8 @@
 
 #### 수정 파일
 
-- apps/mobile/app.json — config plugins 추가 (apple-auth, google-signin, kakao-login)
-- apps/mobile/eas.json — 빌드 프로파일별 env
+- apps/mobile/app.config.ts — app.json → app.config.ts 전환, process.env로 키 참조 (ADR-055)
+- apps/mobile/eas.json — env 블록 제거, EAS Secrets 방식으로 전환 (ADR-055)
 - apps/mobile/.env.example — Supabase/Google/Kakao 키 템플릿
 - apps/mobile/src/app/\_layout.tsx — bootstrapAuth + auth 라우트
 - apps/mobile/src/components/WebViewScreen.tsx — WEB_READY 시 세션 주입, localStorage 정리
@@ -603,16 +603,29 @@
 - move.ts stale JSDoc 갱신 ("RLS 꺼진 상태" → `@param userId`)
 - 검증 리포트: docs/specs/10-1-verify.md (종합 ✅ 통과)
 
+#### gitleaks CI 해결 (2026-05-21)
+
+- gitleaks가 PR 전체 커밋 히스토리를 스캔 → 과거 커밋의 공개 키(Supabase anon key JWT, Kakao app key)를 시크릿으로 감지
+- 시도한 접근: (1) docs 토큰 redaction (2) .gitleaks.toml regex allowlist (3) .gitleaksbaseline (4) commit allowlist — 모두 부분 실패
+- 최종 해결: `app.json` → `app.config.ts` 전환 + `eas.json` env 제거 + `git rebase -i`로 fix 커밋을 원래 커밋에 fixup → 히스토리에서 키 완전 제거
+- ADR-055 기록 완료
+
+#### Git
+
+- feat/10-1-native-auth 브랜치, 18개 커밋 (1~3 파일/커밋 컨벤션)
+- PR #45: https://github.com/seomsoo/isakok/pull/45 (CI 통과, 머지 대기)
+
 ## 진행 중인 것
 
-- **10-1 커밋 + PR 준비** — Codex 리뷰 수정 + user_id 필터 반영 완료, 커밋 분할 대기
+- **10-1 PR #45 머지 대기**
 
 ## 다음 할 것
 
-1. **커밋 분할** (파일 1~3개 단위) → PR 작성
-2. **10-2 스펙 작성** — verify 리포트 미검증 항목 (토큰 만료, 디바이스 A/B, Apple 실기기, curl 테스트 등)을 검증 체크리스트로 포함
-3. **Apple 실기기 테스트** — 시뮬레이터에서 불가, 기기 등록 + 코드 서명 필요
-4. **Android 에뮬레이터 테스트** — 9단계 검증 완료 상태, auth 로직 추가 검증
+1. **PR #45 머지** (squash merge)
+2. **EAS Secrets 등록** — `eas secret:create`로 7개 키 등록 (EAS 빌드 전 필수)
+3. **10-2 스펙 작성** — verify 리포트 미검증 항목 (토큰 만료, 디바이스 A/B, Apple 실기기, curl 테스트 등)을 검증 체크리스트로 포함
+4. **Apple 실기기 테스트** — 시뮬레이터에서 불가, 기기 등록 + 코드 서명 필요
+5. **Android 에뮬레이터 테스트** — 9단계 검증 완료 상태, auth 로직 추가 검증
 
 ## 알려진 문제
 

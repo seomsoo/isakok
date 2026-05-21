@@ -833,4 +833,12 @@ type NativeToWeb =
 - 결정: `linkIdentity` 성공 시 `auth.users.raw_app_meta_data.provider`가 자동 갱신됨 (spike 실측). `on_auth_user_updated` 트리거가 `public.users.provider`를 갱신.
 - `ensureUsersProviderUpdated`는 트리거 누락 시 fallback으로만 유지. 주 경로 아님.
 - 배경: GPT v2 리뷰 #11이 "linkIdentity 후 provider 안 바뀔 수 있다"고 우려했으나, spike에서 자동 갱신 확인.
+
+### ADR-055: 모바일 공개 키를 eas.json이 아닌 EAS Secrets + app.config.ts로 관리
+
+- 결정: Supabase anon key, Kakao native app key, Google Client IDs 등 공개 키를 `eas.json` env 블록에 하드코딩하지 않고, `app.config.ts`에서 `process.env`로 참조. 로컬 개발은 `.env` (gitignored), EAS 빌드는 EAS Secrets에서 주입.
+- 대안: (A) `eas.json`에 직접 기입 → gitleaks가 JWT 패턴(anon key)과 API key 패턴(Kakao)을 감지해 CI 실패. allowlist/baseline으로 억제 시도했으나 action v2 호환 문제 + baseline 파일 자체가 감지되는 이슈 발생. (B) `app.config.ts` + EAS Secrets (채택) → 키가 git 히스토리에 남지 않음.
+- `app.json` → `app.config.ts` 전환: 카카오 `kakaoAppKey`, `CFBundleURLSchemes`, Google `iosUrlScheme`이 빌드 타임 값이라 동적 config 필수.
+- 히스토리 정리: 과거 커밋에 키가 남아있어 `git rebase -i`로 fix 커밋을 원래 커밋에 fixup. feature branch이므로 rewrite 안전.
+- 트레이드오프: EAS 빌드 전 `eas secret:create`로 키 등록 필요. 로컬 `.env` 파일 관리 필요.
 - 참고 (디버깅용): `linkIdentity` 응답의 `user.identities`는 빈 배열로 오지만, 직후 `getUser()` 조회 시 정상 표시됨. 응답 즉시 identity 개수를 신뢰하지 말 것.
