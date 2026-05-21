@@ -172,13 +172,13 @@ supabase secrets set ANTHROPIC_API_KEY=<key> ANTHROPIC_MODEL=claude-haiku-4-5-20
 
 **Google** 활성화 — ⭐ v3.1 정정: **Skip nonce checks ON 필수**:
 
-| Google 필드                   | 입력                                                                            |
-| ----------------------------- | ------------------------------------------------------------------------------- |
-| Enable Sign in with Google    | ON                                                                              |
-| **Client IDs** (콤마 구분)    | Web + iOS + Android 3개 모두 (`<web>,<ios>,<android>`)                          |
-| **Client Secret (for OAuth)** | Web Client Secret (`GOCSPX-...`) — 네이티브엔 불필요하나 향후 웹 확장 대비 등록 |
-| **Skip nonce checks**         | **ON** ⭐ (RN 라이브러리가 nonce 미전달 → 검증 우회 필요)                       |
-| Allow users without an email  | OFF (Google은 보통 이메일 반환)                                                 |
+| Google 필드                   | 입력                                                                                 |
+| ----------------------------- | ------------------------------------------------------------------------------------ |
+| Enable Sign in with Google    | ON                                                                                   |
+| **Client IDs** (콤마 구분)    | Web + iOS + Android 3개 모두 (`<web>,<ios>,<android>`)                               |
+| **Client Secret (for OAuth)** | Web Client Secret (`<client-secret>`) — 네이티브엔 불필요하나 향후 웹 확장 대비 등록 |
+| **Skip nonce checks**         | **ON** ⭐ (RN 라이브러리가 nonce 미전달 → 검증 우회 필요)                            |
+| Allow users without an email  | OFF (Google은 보통 이메일 반환)                                                      |
 
 > **Google Skip nonce ON 근거 (ADR-052)**: `@react-native-google-signin`은 우리 코드 흐름상 nonce를 발급/전달하지 않는다. Supabase가 id_token의 nonce를 검증하려 하면 검증 대상이 없어 로그인이 실패한다. 따라서 Skip nonce checks를 켜 검증을 우회한다. Apple은 `expo-apple-authentication`이 nonce를 지원해 우리가 직접 생성·전달하므로 (§6-2) Apple provider엔 이 옵션이 없고 nonce 검증이 정상 동작한다.
 
