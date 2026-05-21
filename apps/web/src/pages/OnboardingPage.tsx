@@ -3,12 +3,34 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
 import { ROUTES } from '@shared/constants/routes'
 import { useOnboardingStore } from '@/stores/onboardingStore'
+import { useSession } from '@/auth/useSession'
+import { sendToNative } from '@moving/shared'
 import { ProgressBar } from '@/shared/components/ProgressBar'
 import { StepMovingDate } from '@/features/onboarding/components/StepMovingDate'
 import { StepHousingType } from '@/features/onboarding/components/StepHousingType'
 import { StepContractAndMove } from '@/features/onboarding/components/StepContractAndMove'
 
 const TOTAL_STEPS = 3
+
+function LoginEntryButton() {
+  const { data: session } = useSession()
+  if (session?.user && !session.user.is_anonymous) return null
+
+  return (
+    <button
+      type="button"
+      onClick={() =>
+        sendToNative({
+          type: 'REQUEST_LOGIN',
+          payload: { source: 'onboarding_top' },
+        })
+      }
+      className="text-sm text-text-secondary hover:text-text-primary focus:outline focus:outline-2 focus:outline-primary rounded px-2 py-1"
+    >
+      로그인
+    </button>
+  )
+}
 
 export function OnboardingPage() {
   const navigate = useNavigate()
@@ -17,7 +39,8 @@ export function OnboardingPage() {
 
   useEffect(() => {
     reset()
-  }, [reset])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
     titleRef.current?.focus()
@@ -35,7 +58,7 @@ export function OnboardingPage() {
     <div className="flex min-h-dvh flex-col bg-neutral">
       {/* 헤더 */}
       <header className="px-4 pt-5 pb-3">
-        <div className="flex items-center">
+        <div className="flex items-center justify-between">
           <button
             type="button"
             onClick={handleBack}
@@ -44,6 +67,7 @@ export function OnboardingPage() {
           >
             <ChevronLeft className="h-9 w-9 text-secondary/80" />
           </button>
+          <LoginEntryButton />
         </div>
         <div className="mt-8 px-1">
           <ProgressBar currentStep={step} totalSteps={TOTAL_STEPS} />
