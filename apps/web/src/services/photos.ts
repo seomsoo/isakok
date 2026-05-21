@@ -9,16 +9,22 @@ const SIGNED_URL_EXPIRY_SEC = 3600 // 1시간
 
 /**
  * 이사 건의 사진 목록 조회 (soft delete 제외)
+ * @param moveId - 이사 ID
+ * @param photoType - 입주/퇴실 구분
+ * @param userId - 소유자 ID (user_id 필터)
+ * @throws 쿼리 에러 시 [getPhotosByMove] 접두사와 함께 throw
  */
 export async function getPhotosByMove(
   moveId: string,
   photoType: PhotoType,
+  userId: string,
 ): Promise<PropertyPhoto[]> {
   const { data, error } = await supabase
     .from('property_photos')
     .select('*')
     .eq('move_id', moveId)
     .eq('photo_type', photoType)
+    .eq('user_id', userId)
     .is('deleted_at', null)
     .order('room')
     .order('created_at', { ascending: true })
@@ -44,9 +50,7 @@ export async function getSignedUrl(storagePath: string): Promise<string> {
  * 여러 사진의 signed URL 일괄 생성 (path → signedUrl Record)
  * Supabase JS v2의 createSignedUrls(복수형) 사용 → API 1회로 N개 URL 획득
  */
-export async function getSignedUrls(
-  storagePaths: string[],
-): Promise<Record<string, string>> {
+export async function getSignedUrls(storagePaths: string[]): Promise<Record<string, string>> {
   if (storagePaths.length === 0) return {}
 
   const { data, error } = await supabase.storage
@@ -92,12 +96,10 @@ export async function uploadPhoto(params: UploadPhotoParams): Promise<PropertyPh
   const timestamp = Date.now()
   const storagePath = `${moveId}/${photoType}/${room}_${timestamp}.${ext}`
 
-  const { error: storageError } = await supabase.storage
-    .from(BUCKET)
-    .upload(storagePath, file, {
-      contentType: file.type || 'image/jpeg',
-      upsert: false,
-    })
+  const { error: storageError } = await supabase.storage.from(BUCKET).upload(storagePath, file, {
+    contentType: file.type || 'image/jpeg',
+    upsert: false,
+  })
 
   if (storageError) throw new Error(`[uploadPhoto:storage] ${storageError.message}`)
 
@@ -128,23 +130,33 @@ export async function uploadPhoto(params: UploadPhotoParams): Promise<PropertyPh
 
 /**
  * 사진 soft delete (deleted_at 설정). Storage 파일은 보존 → 복구 가능.
+ * @param photoId - 사진 ID
+ * @param userId - 소유자 ID (user_id 필터)
+ * @throws 쿼리 에러 시 [softDeletePhoto] 접두사와 함께 throw
  */
-export async function softDeletePhoto(photoId: string): Promise<void> {
+export async function softDeletePhoto(photoId: string, userId: string): Promise<void> {
   const { error } = await supabase
     .from('property_photos')
     .update({ deleted_at: new Date().toISOString() })
     .eq('id', photoId)
+    .eq('user_id', userId)
 
   if (error) throw new Error(`[softDeletePhoto] ${error.message}`)
 }
 
 /**
  * 삭제된 사진 조회 (방별, deleted_at 최신순)
+ * @param moveId - 이사 ID
+ * @param photoType - 입주/퇴실 구분
+ * @param room - 방 타입
+ * @param userId - 소유자 ID (user_id 필터)
+ * @throws 쿼리 에러 시 [getDeletedPhotos] 접두사와 함께 throw
  */
 export async function getDeletedPhotos(
   moveId: string,
   photoType: PhotoType,
   room: string,
+  userId: string,
 ): Promise<PropertyPhoto[]> {
   const { data, error } = await supabase
     .from('property_photos')
@@ -152,6 +164,7 @@ export async function getDeletedPhotos(
     .eq('move_id', moveId)
     .eq('photo_type', photoType)
     .eq('room', room)
+    .eq('user_id', userId)
     .not('deleted_at', 'is', null)
     .order('deleted_at', { ascending: false })
 
@@ -161,16 +174,22 @@ export async function getDeletedPhotos(
 
 /**
  * 삭제된 사진 전체 조회 (모든 방, deleted_at 최신순)
+ * @param moveId - 이사 ID
+ * @param photoType - 입주/퇴실 구분
+ * @param userId - 소유자 ID (user_id 필터)
+ * @throws 쿼리 에러 시 [getAllDeletedPhotos] 접두사와 함께 throw
  */
 export async function getAllDeletedPhotos(
   moveId: string,
   photoType: PhotoType,
+  userId: string,
 ): Promise<PropertyPhoto[]> {
   const { data, error } = await supabase
     .from('property_photos')
     .select('*')
     .eq('move_id', moveId)
     .eq('photo_type', photoType)
+    .eq('user_id', userId)
     .not('deleted_at', 'is', null)
     .order('deleted_at', { ascending: false })
 
@@ -180,20 +199,32 @@ export async function getAllDeletedPhotos(
 
 /**
  * 사진 복구 (deleted_at → null)
+ * @param photoId - 사진 ID
+ * @param userId - 소유자 ID (user_id 필터)
+ * @throws 쿼리 에러 시 [restorePhoto] 접두사와 함께 throw
  */
-export async function restorePhoto(photoId: string): Promise<void> {
+export async function restorePhoto(photoId: string, userId: string): Promise<void> {
   const { error } = await supabase
     .from('property_photos')
     .update({ deleted_at: null, updated_at: new Date().toISOString() })
     .eq('id', photoId)
+    .eq('user_id', userId)
 
   if (error) throw new Error(`[restorePhoto] ${error.message}`)
 }
 
 /**
  * 영구삭제 (Storage 파일 삭제 + DB 행 삭제)
+ * @param photoId - 사진 ID
+ * @param storagePath - Storage 경로
+ * @param userId - 소유자 ID (user_id 필터)
+ * @throws 쿼리 에러 시 [hardDeletePhoto] 접두사와 함께 throw
  */
-export async function hardDeletePhoto(photoId: string, storagePath: string): Promise<void> {
+export async function hardDeletePhoto(
+  photoId: string,
+  storagePath: string,
+  userId: string,
+): Promise<void> {
   const { error: storageError } = await supabase.storage.from(BUCKET).remove([storagePath])
   if (storageError) throw new Error(`[hardDeletePhoto:storage] ${storageError.message}`)
 
@@ -201,18 +232,28 @@ export async function hardDeletePhoto(photoId: string, storagePath: string): Pro
     .from('property_photos')
     .delete()
     .eq('id', photoId)
+    .eq('user_id', userId)
 
   if (error) throw new Error(`[hardDeletePhoto:db] ${error.message}`)
 }
 
 /**
  * 사진 메모 업데이트
+ * @param photoId - 사진 ID
+ * @param userId - 소유자 ID (user_id 필터)
+ * @param memo - 저장할 메모 (빈 문자열 허용)
+ * @throws 쿼리 에러 시 [updatePhotoMemo] 접두사와 함께 throw
  */
-export async function updatePhotoMemo(photoId: string, memo: string): Promise<void> {
+export async function updatePhotoMemo(
+  photoId: string,
+  userId: string,
+  memo: string,
+): Promise<void> {
   const { error } = await supabase
     .from('property_photos')
     .update({ memo, updated_at: new Date().toISOString() })
     .eq('id', photoId)
+    .eq('user_id', userId)
 
   if (error) throw new Error(`[updatePhotoMemo] ${error.message}`)
 }
