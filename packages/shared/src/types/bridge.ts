@@ -4,8 +4,14 @@
  */
 export type WebToNativeMessage =
   | { type: 'OPEN_CAMERA'; payload: { room: string; photoType: 'move_in' | 'move_out' } }
-  | { type: 'REQUEST_LOGIN' }
+  | {
+      type: 'REQUEST_LOGIN'
+      payload?: {
+        source: 'onboarding_top' | 'photo_gate' | 'completion_cta' | 'ai_regenerate' | 'settings'
+      }
+    }
   | { type: 'REQUEST_LOGOUT' }
+  | { type: 'REQUEST_SESSION_REFRESH' }
   | { type: 'OPEN_EXTERNAL_LINK'; payload: { url: string } }
   | { type: 'SHARE_REPORT'; payload: { url: string } }
   | { type: 'WEB_READY' }
@@ -16,7 +22,16 @@ export type WebToNativeMessage =
  * WebView의 injectJavaScript()로 전송
  */
 export type NativeToWebMessage =
-  | { type: 'AUTH_SESSION'; payload: { token: string; userId: string } }
+  | {
+      type: 'AUTH_SESSION'
+      payload: {
+        access_token: string
+        refresh_token: string
+        expires_at: number
+        user_id: string
+        is_anonymous: boolean
+      }
+    }
   | { type: 'AUTH_LOGOUT' }
   | {
       type: 'PHOTO_TAKEN'

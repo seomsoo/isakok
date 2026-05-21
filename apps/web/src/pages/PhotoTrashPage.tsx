@@ -16,6 +16,7 @@ import { useSignedUrls } from '@/features/photos/hooks/useSignedUrls'
 import { usePhotos } from '@/features/photos/hooks/usePhotos'
 import { photoKeys } from '@/features/photos/hooks/queryKeys'
 import { useToast } from '@/shared/components/ToastProvider'
+import { useUserId } from '@/auth/useSession'
 import { cn } from '@/lib/cn'
 
 const FILTER_ALL = 'all'
@@ -60,12 +61,15 @@ interface InnerProps {
 function Inner({ moveId, photoType, onBack }: InnerProps) {
   const queryClient = useQueryClient()
   const toast = useToast()
+  const { userId } = useUserId()
+  const uid = userId ?? ''
   const [activeFilter, setActiveFilter] = useState<string>(FILTER_ALL)
 
-  const { data: activePhotos = [] } = usePhotos(moveId, photoType)
+  const { data: activePhotos = [] } = usePhotos(moveId, photoType, uid)
   const { data: deletedPhotos = [], isLoading } = useQuery({
     queryKey: photoKeys.allDeleted(moveId, photoType),
-    queryFn: () => getAllDeletedPhotos(moveId, photoType),
+    queryFn: () => getAllDeletedPhotos(moveId, photoType, uid),
+    enabled: !!uid,
   })
 
   const activeCountByRoom = new Map<string, number>()
@@ -77,7 +81,10 @@ function Inner({ moveId, photoType, onBack }: InnerProps) {
   const { data: urlMap } = useSignedUrls(paths)
 
   const restoreMutation = useMutation({
-    mutationFn: restorePhoto,
+    mutationFn: (photoId: string) => {
+      if (!userId) return Promise.reject(new Error('no user'))
+      return restorePhoto(photoId, userId)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: photoKeys.allDeleted(moveId, photoType) })
       queryClient.invalidateQueries({ queryKey: photoKeys.byMove(moveId, photoType) })
@@ -87,7 +94,10 @@ function Inner({ moveId, photoType, onBack }: InnerProps) {
   })
 
   const hardDeleteMutation = useMutation({
-    mutationFn: (photo: PropertyPhoto) => hardDeletePhoto(photo.id, photo.storage_path),
+    mutationFn: (photo: PropertyPhoto) => {
+      if (!userId) return Promise.reject(new Error('no user'))
+      return hardDeletePhoto(photo.id, photo.storage_path, userId)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: photoKeys.allDeleted(moveId, photoType) })
       toast.success('영구삭제했어요')

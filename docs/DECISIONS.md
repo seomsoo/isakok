@@ -743,3 +743,102 @@ type NativeToWeb =
   2. WebView로 base64를 넘기면 용량/성능 부담
   3. 네이티브가 직접 Supabase Storage에 업로드하려면 인증 토큰/세션 전달 구조 필요 → 10단계 인증이 선행되어야 함
 - 트레이드오프: WebView 파일 업로드가 iOS/Android 특정 버전에서 동작하지 않을 수 있음. 이 경우 STATUS.md에 기록하고 10단계에서 네이티브 업로드로 전환.
+
+### ADR-041: Native가 세션 소유자 (Session Owner)
+
+- 결정: 네이티브 앱(Expo)이 Supabase 세션의 유일한 소유자. WebView는 세션을 직접 관리하지 않고, 네이티브로부터 브릿지를 통해 주입받는다.
+- 이유: WebView가 독립적으로 세션을 갱신하면 네이티브와 토큰이 어긋남. 한쪽이 갱신한 refresh token을 다른 쪽이 모르면 401 루프 발생.
+- 트레이드오프: WebView의 `autoRefreshToken: false`로 자체 갱신 비활성화 필수. 401 발생 시 네이티브에 갱신 요청하는 인터셉터 필요.
+
+### ADR-042: Anonymous Sign-In으로 비회원 우선 UX
+
+- 결정: 앱 첫 실행 시 Supabase `signInAnonymously()`로 즉시 익명 세션 생성. 온보딩·데이터 저장이 계정 생성 없이 가능.
+- 이유: 회원가입 강제 시 이탈률 높음. 비회원으로 먼저 가치를 체험한 뒤 소셜 로그인으로 승격하는 패턴이 리텐션에 유리.
+- 트레이드오프: 익명 사용자 데이터 소유권 관리 복잡도 증가. 디바이스 분실 시 데이터 복구 불가 (소셜 링킹 전까지).
+
+### ADR-043: linkIdentity 우선, signInWithIdToken 폴백
+
+- 결정: 익명→소셜 승격 시 `linkIdentity({ provider, token })` 우선 시도. 실패 시 `signInWithIdToken`으로 새 계정 생성 후 conflict 처리.
+- spike 결과 (2026-05-20): ✅ 통과. 익명 user.id 유지 + is_anonymous false 전환 + Google identity 추가 확인.
+- `as any` 캐스트 유지: SDK 타입 정의에 `token` 파라미터가 아직 없어 컴파일러가 인식 못 함(런타임 정상). 검증된 예외 — `tryLinkIdentity`에 사유 주석 필수. SDK 타입이 `token`을 명시하는 버전이 나오면 제거.
+- 트레이드오프: linkIdentity는 Manual Linking beta 의존 (ADR-050). 폴백 경로는 user.id가 바뀌어 데이터 이전 RPC가 필요.
+
+### ADR-044: Kakao는 Edge Function + magic link 경유
+
+- 결정: Kakao는 OIDC 미지원이라 `signInWithIdToken` 직접 호출 불가. Edge Function에서 Kakao access_token → user info 조회 → `generateLink` + `verifyOtp`로 Supabase 세션 발급.
+- 이유: Kakao OAuth는 id_token을 반환하지 않아 Supabase의 OIDC 검증 경로를 탈 수 없음.
+- 트레이드오프: Edge Function 추가 홉, 응답 시간 증가 (~500ms). JWT secret이 Edge Function에만 존재해 클라이언트 노출 없음.
+
+### ADR-045: Provider 추상화 (AuthProvider 인터페이스)
+
+- 결정: Apple/Google/Kakao 각 로그인을 `AuthProvider` 인터페이스로 추상화. `authenticate()` → `AuthProviderResult` 반환.
+- 이유: 로그인 화면(auth.tsx)이 provider 구현 세부사항을 모르게 함. provider 추가 시 인터페이스 구현체만 추가.
+- 트레이드오프: 추상화 레이어 하나 추가. 현재 3개 provider로 충분히 정당화됨.
+
+### ADR-046: 환경 분리 — 10-1은 dev 전용
+
+- 결정: 10-1 단계 전체를 dev Supabase 환경에서만 개발·테스트. prod는 10-2에서 마이그레이션 완성 후 일괄 생성·적용.
+- 이유: 마이그레이션이 00012까지만 적용된 prod를 10-2까지 방치하면 부분 적용 상태가 됨. dev에서 모든 마이그레이션을 검증한 뒤 prod에 일괄 적용이 깔끔.
+- 트레이드오프: prod 환경 검증이 10-2로 밀림.
+
+### ADR-047: BridgeMessage wrapper 필수
+
+- 결정: 네이티브↔웹 브릿지 메시지는 반드시 `{ type, payload }` wrapper 형식. raw 문자열 전송 금지.
+- 이유: 메시지 타입 식별, 페이로드 구조화, TypeScript 타입 안전성. 타입별 핸들러 분기 명확.
+- 트레이드오프: 없음. 구조화 비용 무시할 수준.
+
+### ADR-048: Kakao custom mapping (auth_provider_links)
+
+- 결정: Kakao identity는 Supabase `auth.identities`에 직접 등록되지 않으므로, `public.auth_provider_links` 테이블로 별도 매핑 관리.
+- 이유: Edge Function의 `generateLink` + `verifyOtp` 흐름은 magiclink provider로 등록됨. Kakao 계정 식별자(kakao_id)와 Supabase user.id의 매핑을 앱 레벨에서 관리해야 중복 계정 방지 가능.
+- 트레이드오프: 별도 테이블 관리 비용. RLS 활성화 필수 (service_role만 접근 — ADR 보안 감사에서 확인).
+
+### ADR-049: WEB_READY 시 currentSession 즉시 주입
+
+- 결정: WebView가 `WEB_READY` 메시지를 보내면 네이티브가 즉시 `AUTH_SESSION` 메시지로 현재 세션(access_token + refresh_token)을 주입.
+- 이유: WebView의 `supabase.auth.setSession()`이 세션을 설정해야 API 호출 가능. 탭 전환 시 WebView가 재마운트될 수 있어 매번 주입 필요.
+- 트레이드오프: 탭 전환마다 세션 주입 오버헤드. 토큰 크기 ~2KB로 무시할 수준.
+
+### ADR-050: Manual Linking beta 기능 사용 + 모니터링 정책
+
+- 결정: Supabase Manual Identity Linking은 현재 (2026.05) beta 단계. 그럼에도 익명→소셜 승격에 필수적이라 사용.
+- 대안: (A) 사용 안 함 → 익명 user는 영구 회원 전환 불가 (이메일/비번 외). (B) 사용 (채택) — beta 리스크 감수.
+- 모니터링 정책: supabase-js 버전 올릴 때마다 spike 재실행 / Supabase changelog 모니터링 / linkIdentity 실패율 Edge Function 로깅으로 추적 (10-2 추가).
+- 트레이드오프: beta 변경 가능성 vs 익명 우선 UX 가치. 후자가 충분히 큼.
+
+### ADR-051: Production Vercel을 10-1 동안 dev Supabase에 연결
+
+- 결정: 10-1 작업 중 prod Supabase 외부 노출 위험 차단을 위해 production Vercel 환경변수에 dev Supabase URL/anon key를 임시 연결. 10-2 RLS 활성화 완료 시점에 prod로 스위치.
+- 대안: (A) Vercel Deployment Protection (Pro $20/월). (B) production deployment 미생성. (C) dev 연결 (채택).
+- 근거: 비용 0원, 환경 분리 인프라는 미리 구축, 실제 데이터 분리만 10-2 완료 시점에 활성화.
+- 트레이드오프: production URL이 dev 데이터를 보여줌. 외부 비공개 정책으로 관리.
+
+### ADR-052: Google Skip nonce checks ON
+
+- 결정: Supabase Google provider의 "Skip nonce checks"를 ON으로 둔다.
+- 배경: `@react-native-google-signin`은 코드 흐름상 nonce를 발급/전달하지 않음. Supabase가 id_token nonce를 검증하면 검증 대상이 없어 로그인 실패.
+- 대안: (A) Skip ON (채택) — 즉시 동작, replay 방어 약화. (B) 라이브러리에 nonce 옵션 전달 + Skip OFF — 추가 작업 필요.
+- 근거: id_token이 HTTPS 전송 + 짧은 만료시간이라 실질 replay 위험 낮음. Apple은 expo-apple-authentication이 nonce를 지원해 Skip 불필요.
+- 개선 항목 (후속): Google에도 nonce 명시 전달해 Skip OFF 전환. 보안 강화 단계에서 검토.
+
+### ADR-053: Apple/Google provider는 네이티브 Client IDs 검증 방식
+
+- 결정: Supabase Apple/Google provider에 Client IDs(audience)만 등록, Apple Secret Key(.p8)는 미입력.
+- 배경: 네이티브 SDK로 id_token을 받아 `signInWithIdToken`/`linkIdentity`로 검증하는 흐름은 id_token 서명 + audience 검증만 필요. Client Secret은 웹 OAuth redirect 흐름(authorization code → token 교환)에서만 사용.
+- 근거: 네이티브 전용 단계에서 불필요한 시크릿 관리 제거. Apple Team ID/Key ID/.p8는 보관해 향후 웹 Apple 로그인 추가 시 사용.
+- 트레이드오프: 웹 OAuth 확장 시 추가 설정 필요.
+
+### ADR-054: linkIdentity 후 provider 갱신은 트리거가 주 경로
+
+- 결정: `linkIdentity` 성공 시 `auth.users.raw_app_meta_data.provider`가 자동 갱신됨 (spike 실측). `on_auth_user_updated` 트리거가 `public.users.provider`를 갱신.
+- `ensureUsersProviderUpdated`는 트리거 누락 시 fallback으로만 유지. 주 경로 아님.
+- 배경: GPT v2 리뷰 #11이 "linkIdentity 후 provider 안 바뀔 수 있다"고 우려했으나, spike에서 자동 갱신 확인.
+
+### ADR-055: 모바일 공개 키를 eas.json이 아닌 EAS Secrets + app.config.ts로 관리
+
+- 결정: Supabase anon key, Kakao native app key, Google Client IDs 등 공개 키를 `eas.json` env 블록에 하드코딩하지 않고, `app.config.ts`에서 `process.env`로 참조. 로컬 개발은 `.env` (gitignored), EAS 빌드는 EAS Secrets에서 주입.
+- 대안: (A) `eas.json`에 직접 기입 → gitleaks가 JWT 패턴(anon key)과 API key 패턴(Kakao)을 감지해 CI 실패. allowlist/baseline으로 억제 시도했으나 action v2 호환 문제 + baseline 파일 자체가 감지되는 이슈 발생. (B) `app.config.ts` + EAS Secrets (채택) → 키가 git 히스토리에 남지 않음.
+- `app.json` → `app.config.ts` 전환: 카카오 `kakaoAppKey`, `CFBundleURLSchemes`, Google `iosUrlScheme`이 빌드 타임 값이라 동적 config 필수.
+- 히스토리 정리: 과거 커밋에 키가 남아있어 `git rebase -i`로 fix 커밋을 원래 커밋에 fixup. feature branch이므로 rewrite 안전.
+- 트레이드오프: EAS 빌드 전 `eas secret:create`로 키 등록 필요. 로컬 `.env` 파일 관리 필요.
+- 참고 (디버깅용): `linkIdentity` 응답의 `user.identities`는 빈 배열로 오지만, 직후 `getUser()` 조회 시 정상 표시됨. 응답 즉시 identity 개수를 신뢰하지 말 것.

@@ -15,12 +15,15 @@ import { useChecklistItemDetail } from '@/features/checklist-detail/hooks/useChe
 import { useToggleItem } from '@/features/dashboard/hooks/useToggleItem'
 import { useCurrentMove } from '@/features/dashboard/hooks/useCurrentMove'
 import { useUrgencyMode } from '@/features/dashboard/hooks/useUrgencyMode'
+import { useUserId } from '@/auth/useSession'
 
 export function ChecklistDetailPage() {
   const { itemId } = useParams<{ itemId: string }>()
   const navigate = useNavigate()
-  const { data: item, isLoading, isError } = useChecklistItemDetail(itemId)
-  const toggleItem = useToggleItem(item?.move_id ?? '')
+  const { userId } = useUserId()
+  const uid = userId ?? ''
+  const { data: item, isLoading, isError } = useChecklistItemDetail(itemId, uid)
+  const toggleItem = useToggleItem(item?.move_id ?? '', uid)
   const { data: move } = useCurrentMove()
   const { mode } = useUrgencyMode(move?.moving_date ?? '')
 
@@ -86,12 +89,7 @@ export function ChecklistDetailPage() {
 
   const userConditions = move
     ? {
-        housing_type: move.housing_type as
-          | '원룸'
-          | '오피스텔'
-          | '빌라'
-          | '아파트'
-          | '투룸+',
+        housing_type: move.housing_type as '원룸' | '오피스텔' | '빌라' | '아파트' | '투룸+',
         contract_type: move.contract_type as '월세' | '전세',
         move_type: move.move_type as '용달' | '반포장' | '포장' | '자가용',
       }
@@ -150,7 +148,7 @@ export function ChecklistDetailPage() {
         )}
 
         <SectionDivider />
-        <MemoSection itemId={item.id} initialMemo={item.memo} />
+        <MemoSection itemId={item.id} userId={uid} initialMemo={item.memo} />
       </div>
 
       <CompletionToggleButton

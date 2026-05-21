@@ -3,12 +3,17 @@ import { restorePhoto, type PhotoType } from '@/services/photos'
 import { photoKeys } from './queryKeys'
 import { useToast } from '@/shared/components/ToastProvider'
 
-export function useRestorePhoto(moveId: string, photoType: PhotoType, room: string) {
+export function useRestorePhoto(
+  moveId: string,
+  photoType: PhotoType,
+  room: string,
+  userId: string,
+) {
   const queryClient = useQueryClient()
   const toast = useToast()
 
   return useMutation({
-    mutationFn: restorePhoto,
+    mutationFn: (photoId: string) => restorePhoto(photoId, userId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: photoKeys.byMove(moveId, photoType) })
       queryClient.invalidateQueries({ queryKey: photoKeys.deleted(moveId, photoType, room) })

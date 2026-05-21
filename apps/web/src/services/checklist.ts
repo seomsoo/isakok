@@ -13,14 +13,16 @@ export interface OverdueItem {
 /**
  * 대시보드용 항목 조회: 밀린 할 일 + 오늘 할 일 + 앞으로 할 일
  * @param moveId - 이사 ID
+ * @param userId - 소유자 ID (user_id 필터)
  */
-export async function getDashboardItems(moveId: string) {
+export async function getDashboardItems(moveId: string, userId: string) {
   const today = format(new Date(), 'yyyy-MM-dd')
 
   const { data, error } = await supabase
     .from('user_checklist_items')
     .select('*, master_checklist_items(*)')
     .eq('move_id', moveId)
+    .eq('user_id', userId)
     .eq('is_completed', false)
     .order('assigned_date', { ascending: true })
 
@@ -37,12 +39,14 @@ export async function getDashboardItems(moveId: string) {
  * 전체 체크리스트 조회 (타임라인용)
  * 날짜별 그룹핑은 프론트에서 처리
  * @param moveId - 이사 ID
+ * @param userId - 소유자 ID (user_id 필터)
  */
-export async function getTimelineItems(moveId: string) {
+export async function getTimelineItems(moveId: string, userId: string) {
   const { data, error } = await supabase
     .from('user_checklist_items')
     .select('*, master_checklist_items(*)')
     .eq('move_id', moveId)
+    .eq('user_id', userId)
     .order('assigned_date', { ascending: true })
 
   if (error) throw new Error(`[getTimelineItems] ${error.message}`)
@@ -53,11 +57,13 @@ export async function getTimelineItems(moveId: string) {
  * 체크리스트 항목 완료/미완료 토글
  * @param itemId - 체크리스트 항목 ID
  * @param moveId - 이사 ID (방어적 스코프)
+ * @param userId - 소유자 ID (user_id 필터)
  * @param isCompleted - 완료 여부
  */
 export async function toggleChecklistItem(
   itemId: string,
   moveId: string,
+  userId: string,
   isCompleted: boolean,
 ) {
   const { data, error } = await supabase
@@ -68,6 +74,7 @@ export async function toggleChecklistItem(
     })
     .eq('id', itemId)
     .eq('move_id', moveId)
+    .eq('user_id', userId)
     .select()
     .single()
 
@@ -79,15 +86,17 @@ export async function toggleChecklistItem(
  * 밀린 항목 조회 (assigned_date < 오늘 AND 미완료)
  * master_checklist_items와 JOIN해서 title, category 포함
  * @param moveId - 이사 ID
+ * @param userId - 소유자 ID (user_id 필터)
  * @returns 밀린 항목 리스트
  */
-export async function getOverdueItems(moveId: string): Promise<OverdueItem[]> {
+export async function getOverdueItems(moveId: string, userId: string): Promise<OverdueItem[]> {
   const today = format(new Date(), 'yyyy-MM-dd')
 
   const { data, error } = await supabase
     .from('user_checklist_items')
     .select('id, assigned_date, master_item:master_checklist_items(title, category)')
     .eq('move_id', moveId)
+    .eq('user_id', userId)
     .lt('assigned_date', today)
     .eq('is_completed', false)
     .order('assigned_date', { ascending: true })
@@ -100,9 +109,10 @@ export async function getOverdueItems(moveId: string): Promise<OverdueItem[]> {
  * 체크리스트 항목 상세 조회
  * user_checklist_items + master_checklist_items JOIN
  * @param itemId - user_checklist_items PK (UUID)
+ * @param userId - 소유자 ID (user_id 필터)
  * @returns 유저 항목 + 마스터 가이드 통합 데이터. 없으면 throw
  */
-export async function getChecklistItemDetail(itemId: string) {
+export async function getChecklistItemDetail(itemId: string, userId: string) {
   const { data, error } = await supabase
     .from('user_checklist_items')
     .select(
@@ -113,6 +123,7 @@ export async function getChecklistItemDetail(itemId: string) {
       )`,
     )
     .eq('id', itemId)
+    .eq('user_id', userId)
     .single()
 
   if (error) throw new Error(`[getChecklistItemDetail] ${error.message}`)
@@ -122,13 +133,15 @@ export async function getChecklistItemDetail(itemId: string) {
 /**
  * 메모 업데이트 (단일 필드 — RPC 불필요)
  * @param itemId - user_checklist_items PK
+ * @param userId - 소유자 ID (user_id 필터)
  * @param memo - 저장할 메모 (빈 문자열 허용)
  */
-export async function updateItemMemo(itemId: string, memo: string): Promise<void> {
+export async function updateItemMemo(itemId: string, userId: string, memo: string): Promise<void> {
   const { error } = await supabase
     .from('user_checklist_items')
     .update({ memo, updated_at: new Date().toISOString() })
     .eq('id', itemId)
+    .eq('user_id', userId)
 
   if (error) throw new Error(`[updateItemMemo] ${error.message}`)
 }
@@ -136,14 +149,16 @@ export async function updateItemMemo(itemId: string, memo: string): Promise<void
 /**
  * 체크리스트 항목 일괄 완료 처리
  * @param itemIds - 완료 처리할 항목 ID 배열
+ * @param userId - 소유자 ID (user_id 필터)
  */
-export async function batchCompleteItems(itemIds: string[]): Promise<void> {
+export async function batchCompleteItems(itemIds: string[], userId: string): Promise<void> {
   if (itemIds.length === 0) return
 
   const { error } = await supabase
     .from('user_checklist_items')
     .update({ is_completed: true, completed_at: new Date().toISOString() })
     .in('id', itemIds)
+    .eq('user_id', userId)
 
   if (error) throw new Error(`[batchCompleteItems] ${error.message}`)
 }

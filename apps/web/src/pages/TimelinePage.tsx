@@ -13,21 +13,25 @@ import { SkippableSection } from '@/features/timeline/components/SkippableSectio
 import { TimelinePromptCard } from '@/features/timeline/components/TimelinePromptCard'
 import { DevTabBar } from '@/shared/components/DevTabBar'
 import { Skeleton } from '@/shared/components/Skeleton'
+import { useUserId } from '@/auth/useSession'
 import type { PeriodGroup } from '@/features/timeline/hooks/useTimelineItems'
 
 type SortMode = 'time' | 'category'
 
 export function TimelinePage() {
+  const { userId } = useUserId()
   const { data: move, isPending, isFetching } = useCurrentMove()
   const moveId = move?.id ?? ''
   const movingDate = move?.moving_date ?? ''
+  const uid = userId ?? ''
   const { mode } = useUrgencyMode(movingDate)
   const { data: timeline, isLoading: isTimelineLoading } = useTimelineItems(
     moveId,
+    uid,
     movingDate,
     mode,
   )
-  const toggleMutation = useToggleItem(moveId)
+  const toggleMutation = useToggleItem(moveId, uid)
 
   const [sortMode, setSortMode] = useState<SortMode>('time')
   const [showSortMenu, setShowSortMenu] = useState(false)
