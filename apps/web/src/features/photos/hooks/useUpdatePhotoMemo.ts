@@ -7,13 +7,13 @@ import { useToast } from '@/shared/components/ToastProvider'
  * 사진 메모 업데이트 뮤테이션
  * 4단계 MemoSection 패턴 재사용: 디바운스 + in-flight 직렬화는 호출부에서 처리
  */
-export function useUpdatePhotoMemo(moveId: string, photoType: PhotoType) {
+export function useUpdatePhotoMemo(moveId: string, photoType: PhotoType, userId: string) {
   const queryClient = useQueryClient()
   const toast = useToast()
 
   return useMutation({
     mutationFn: ({ photoId, memo }: { photoId: string; memo: string }) =>
-      updatePhotoMemo(photoId, memo),
+      updatePhotoMemo(photoId, userId, memo),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: photoKeys.byMove(moveId, photoType) })
     },

@@ -11,11 +11,7 @@ import {
   format,
 } from 'date-fns'
 import { ko } from 'date-fns/locale'
-import {
-  rescheduleOverdueItems,
-  URGENCY_GROUP_LABELS,
-  type UrgencyMode,
-} from '@moving/shared'
+import { rescheduleOverdueItems, URGENCY_GROUP_LABELS, type UrgencyMode } from '@moving/shared'
 import { getTimelineItems } from '@/services/checklist'
 import { queryKeys } from '@/features/dashboard/hooks/queryKeys'
 
@@ -52,13 +48,14 @@ const GUIDE_PRIORITY: Record<string, number> = {
 
 export function useTimelineItems(
   moveId: string,
+  userId: string,
   movingDate: string,
   mode: UrgencyMode = 'relaxed',
 ) {
   return useQuery({
     queryKey: [...queryKeys.timelineItems(moveId), mode],
-    queryFn: () => getTimelineItems(moveId),
-    enabled: !!moveId && !!movingDate,
+    queryFn: () => getTimelineItems(moveId, userId),
+    enabled: !!moveId && !!userId && !!movingDate,
     select: (data) => {
       if (mode === 'urgent' || mode === 'critical') {
         return groupByUrgency(data, movingDate, mode)
@@ -346,7 +343,12 @@ function groupByUrgency(
       }
     }
 
-    const addGroup = (key: string, label: string, items: Record<string, unknown>[], isCurrent = false) => {
+    const addGroup = (
+      key: string,
+      label: string,
+      items: Record<string, unknown>[],
+      isCurrent = false,
+    ) => {
       if (items.length === 0) return
       periods.push({
         key,

@@ -2,10 +2,15 @@ import { useQuery } from '@tanstack/react-query'
 import { getDeletedPhotos, type PhotoType } from '@/services/photos'
 import { photoKeys } from './queryKeys'
 
-export function useDeletedPhotos(moveId: string, photoType: PhotoType, room: string) {
+export function useDeletedPhotos(
+  moveId: string,
+  photoType: PhotoType,
+  room: string,
+  userId: string,
+) {
   return useQuery({
     queryKey: photoKeys.deleted(moveId, photoType, room),
-    queryFn: () => getDeletedPhotos(moveId, photoType, room),
-    enabled: !!moveId,
+    queryFn: () => getDeletedPhotos(moveId, photoType, room, userId),
+    enabled: !!moveId && !!userId,
   })
 }

@@ -5,11 +5,11 @@ import { rescheduleOverdueItems, type UrgencyMode } from '@moving/shared'
 import { getDashboardItems } from '@/services/checklist'
 import { queryKeys } from './queryKeys'
 
-export function useDashboardItems(moveId: string) {
+export function useDashboardItems(moveId: string, userId: string) {
   return useQuery({
     queryKey: queryKeys.todayItems(moveId),
-    queryFn: () => getDashboardItems(moveId),
-    enabled: !!moveId,
+    queryFn: () => getDashboardItems(moveId, userId),
+    enabled: !!moveId && !!userId,
   })
 }
 
@@ -24,10 +24,11 @@ interface MasterLike {
  */
 export function useDashboardItemsWithMode(
   moveId: string,
+  userId: string,
   mode: UrgencyMode,
   movingDate: string,
 ) {
-  const query = useDashboardItems(moveId)
+  const query = useDashboardItems(moveId, userId)
 
   const data = useMemo(() => {
     if (!query.data) return query.data

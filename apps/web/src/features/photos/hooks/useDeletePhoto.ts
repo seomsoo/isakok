@@ -15,12 +15,12 @@ const MAX_DELETED_PER_ROOM = 3
  * 사진 soft delete 뮤테이션 (낙관적 업데이트)
  * 방별 최근 삭제 3개 초과 시 가장 오래된 것 영구삭제
  */
-export function useDeletePhoto(moveId: string, photoType: PhotoType, room: string) {
+export function useDeletePhoto(moveId: string, photoType: PhotoType, room: string, userId: string) {
   const queryClient = useQueryClient()
   const toast = useToast()
 
   return useMutation({
-    mutationFn: softDeletePhoto,
+    mutationFn: (photoId: string) => softDeletePhoto(photoId, userId),
     onMutate: async (photoId: string) => {
       const key = photoKeys.byMove(moveId, photoType)
       await queryClient.cancelQueries({ queryKey: key })
@@ -42,12 +42,10 @@ export function useDeletePhoto(moveId: string, photoType: PhotoType, room: strin
       queryClient.invalidateQueries({ queryKey: photoKeys.deleted(moveId, photoType, room) })
       queryClient.invalidateQueries({ queryKey: photoKeys.allDeleted(moveId, photoType) })
 
-      const deleted = await getDeletedPhotos(moveId, photoType, room)
+      const deleted = await getDeletedPhotos(moveId, photoType, room, userId)
       if (deleted.length > MAX_DELETED_PER_ROOM) {
         const toRemove = deleted.slice(MAX_DELETED_PER_ROOM)
-        await Promise.allSettled(
-          toRemove.map((p) => hardDeletePhoto(p.id, p.storage_path)),
-        )
+        await Promise.allSettled(toRemove.map((p) => hardDeletePhoto(p.id, p.storage_path, userId)))
         queryClient.invalidateQueries({ queryKey: photoKeys.deleted(moveId, photoType, room) })
         queryClient.invalidateQueries({ queryKey: photoKeys.allDeleted(moveId, photoType) })
       }
