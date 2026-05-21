@@ -1,10 +1,10 @@
 # 프로젝트 상태
 
-> 마지막 업데이트: 2026-05-08 (9↔10 단계 스왑 문서 반영 + PR #31)
+> 마지막 업데이트: 2026-05-21 (10-1 Codex 리뷰 수정 + user_id 필터 전면 추가)
 
 ## 현재 단계
 
-9단계: Expo 셸 + WebView 래핑 — 구현 완료, 커밋 정리 + 검증 대기
+10-1단계: 네이티브 인증 + 세션 브릿지 — 구현 + 리뷰 수정 완료, 커밋 분할 대기
 
 ## 완료된 것
 
@@ -530,17 +530,89 @@
 - iOS 26.3 시뮬레이터 런타임 다운로드 + 로컬 빌드 시도 → SimRuntime 검사 단계에서 부팅 실패 (검은 화면)
 - Apple Developer 계정 등록 대기 중 (실기기 테스트용)
 
+### 10-1 사전 작업 (2026-05-20 완료)
+
+- [x] Apple Developer: App ID + Sign in with Apple Capability + Services ID + Key
+- [x] Google Cloud: OAuth Client iOS / Android / Web 3개 + Android SHA-1 등록
+- [x] Kakao Developers: 네이티브 앱 키 + 플랫폼 키 등록 + 키해시
+- [x] Supabase dev 콘솔: Manual Linking ON, Anonymous ON, Confirm Email OFF
+- [x] Supabase dev Apple provider: Client IDs만 (Secret 비움, ADR-053)
+- [x] Supabase dev Google provider: Client IDs 3개 + Skip nonce checks ON (ADR-052)
+- [x] Vercel: production 환경변수 = dev Supabase 연결 (ADR-051)
+- [x] Expo apps/mobile/.env: Google/Kakao 키 채움
+
+### 10-1 Spike (2026-05-20 완료)
+
+- linkIdentity({ provider, token }) 실측 검증 ✅ 통과
+- 익명 user.id 유지 + is_anonymous false 전환 + Google identity 추가 확인
+- 본 구현은 메인 경로 (linkIdentity) 확정, `as any` 캐스트 유지
+- 결과: docs/specs/10-1-spike-result.md
+
+### 10-1 본 구현 (2026-05-21 코드 작성 완료, 커밋 대기)
+
+#### 신규 파일
+
+- apps/mobile/src/app/auth.tsx — 네이티브 로그인 화면
+- apps/mobile/src/auth/ — AuthService, bootstrap, broadcast, session, sessionState, supabaseNative, providers/ (Apple/Google/Kakao + types)
+- apps/web/src/auth/ — useSession, webSessionListener, authError (401 인터셉터)
+- supabase/migrations/00013_anonymous_users.sql, 00014_auth_provider_links.sql
+- supabase/functions/kakao-token-exchange/ — Kakao 토큰 교환 Edge Function
+
+#### 수정 파일
+
+- apps/mobile/app.json — config plugins 추가 (apple-auth, google-signin, kakao-login)
+- apps/mobile/eas.json — 빌드 프로파일별 env
+- apps/mobile/.env.example — Supabase/Google/Kakao 키 템플릿
+- apps/mobile/src/app/\_layout.tsx — bootstrapAuth + auth 라우트
+- apps/mobile/src/components/WebViewScreen.tsx — WEB_READY 시 세션 주입, localStorage 정리
+- apps/web/src/App.tsx — WebReadySignal에 setupWebSessionListener 추가
+- apps/web/src/lib/supabase.ts — 네이티브 환경 분기 (persistSession/autoRefreshToken)
+- apps/web/src/lib/queryClient.ts — QueryCache/MutationCache 401 인터셉터
+- apps/web/src/pages/OnboardingPage.tsx — 우상단 로그인 버튼
+- apps/web/src/pages/PhotosPage.tsx, PhotoRoomPage.tsx — userId 인자 전달
+- apps/web/src/features/dashboard/hooks/useCurrentMove.ts — userId 기반 조회
+- apps/web/src/features/onboarding/hooks/useCreateMove.ts — userId fallback fetch
+- apps/web/src/services/move.ts — TEMP_USER_ID 제거, userId 인자
+- packages/shared/src/types/bridge.ts — AUTH_SESSION/REQUEST_SESSION_REFRESH 메시지 추가
+
+#### 수동 셋업 완료 (2026-05-21)
+
+- [x] Edge Function 배포: `supabase functions deploy kakao-token-exchange`
+- [x] `npx expo prebuild --clean` (config plugins 반영)
+- [x] iOS 시뮬레이터 빌드 (`npx expo run:ios`) + 런타임 테스트
+- 상세 절차: docs/specs/10-1-manual-setup.md
+
+#### iOS 시뮬레이터 테스트 결과 (2026-05-21)
+
+- [x] anonymous 세션 → 온보딩 → 대시보드 정상
+- [x] 카카오 로그인 (Edge Function 경유) 성공
+- [x] 구글 로그인 (signInWithIdToken + conflict 메시지) 성공
+- [x] conflict 시 화면 유지 + "홈으로 돌아가기"
+- [x] 온보딩 우상단 로그인 버튼 → auth 화면 이동
+- [x] 탭 전환 시 세션 유지
+- [x] pnpm build / lint / test 통과
+- 상세 결과: docs/specs/10-1-test-result.md
+
+#### Codex 리뷰 + verify 수정 (2026-05-21)
+
+- P1 3건 + P2 3건 수정 완료 (queryKey 불일치, RLS 활성화, 접근성 3건, userId guard, .gitignore, Kakao orphan rollback)
+- user_id 필터 전면 추가: checklist.ts(7개), photos.ts(7개), settings.ts(RPC) — 서비스→훅(12개)→페이지(8개)→컴포넌트(5개) 관통 반영
+- 마이그레이션 00015: RPC 소유권 검증 (`create_move_with_checklist` auth.uid() 체크 활성화, `update_move_with_reschedule` p_user_id 파라미터 추가)
+- photos.ts JSDoc `@param` 태그 7개 함수 추가 (checklist.ts와 일치)
+- PhotoTrashPage mutation userId null guard 추가 (PhotoRoomPage/PhotosPage 패턴 일치)
+- move.ts stale JSDoc 갱신 ("RLS 꺼진 상태" → `@param userId`)
+- 검증 리포트: docs/specs/10-1-verify.md (종합 ✅ 통과)
+
 ## 진행 중인 것
 
-- 미커밋 변경사항 4개 파일 (WebViewScreen.tsx, \_layout.tsx, config.ts, package.json)
-- docs/DECISIONS.md, docs/STATUS.md 문서 업데이트
+- **10-1 커밋 + PR 준비** — Codex 리뷰 수정 + user_id 필터 반영 완료, 커밋 분할 대기
 
 ## 다음 할 것
 
-1. 커밋 정리 (파일 1~3개 단위 분할)
-2. /verify 스펙 검증
-3. Codex 리뷰 (/codex:review --background)
-4. PR 생성 (feat/expo-shell → main)
+1. **커밋 분할** (파일 1~3개 단위) → PR 작성
+2. **10-2 스펙 작성** — verify 리포트 미검증 항목 (토큰 만료, 디바이스 A/B, Apple 실기기, curl 테스트 등)을 검증 체크리스트로 포함
+3. **Apple 실기기 테스트** — 시뮬레이터에서 불가, 기기 등록 + 코드 서명 필요
+4. **Android 에뮬레이터 테스트** — 9단계 검증 완료 상태, auth 로직 추가 검증
 
 ## 알려진 문제
 
@@ -572,3 +644,7 @@
 - Android 에뮬레이터에서 adb reverse는 에뮬레이터 재시작/ADB 재연결 시 풀림 — 10.0.2.2 + Vite `--host 0.0.0.0` 조합이 더 안정적 (adb reverse 불필요)
 - Vite dev server를 `--host 0.0.0.0` 없이 기동하면 IPv6 `[::1]`에서만 리슨 — Android 에뮬레이터의 10.0.2.2는 IPv4 전용이라 접속 불가
 - iOS 26.3 시뮬레이터 런타임은 부팅 불안정 (SimRuntime 검사에서 무한 대기) — 안정 버전(iOS 18.x) 사용 권장
+- `@react-native-seoul/kakao-login` config plugin을 `app.json`에 누락하면 `RNKakaoLogins.init()` assertionFailure로 앱 크래시 — prebuild 전 config plugins 목록 반드시 확인
+- iOS 시뮬레이터에서 앱 삭제해도 WebView localStorage는 안 지워짐 — SecureStore도 앱 컨테이너와 별개로 유지될 수 있음. 세션 초기화 필요 시 `xcrun simctl erase <device-id>` 사용
+- `supabase.ts` 모듈 레벨에서 `isNativeWebView()` 호출하면 `window.__IS_NATIVE_WEBVIEW__`가 아직 설정 안 된 시점에 평가될 수 있음 — `typeof window !== 'undefined' && window.__IS_NATIVE_WEBVIEW__ === true`로 직접 체크
+- WebView `injectedJavaScriptBeforeContentLoaded`로 localStorage 정리해도 native SecureStore에 세션이 남아있으면 `WEB_READY` 응답 시 다시 주입됨 — localStorage 정리만으로는 세션 초기화 불충분
