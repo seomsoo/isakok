@@ -1,30 +1,39 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import {
-  createMoveWithChecklist,
-  getCurrentMove,
-  type Move,
-} from '@/services/move'
+import { createMoveWithChecklist, getCurrentMove, type Move } from '@/services/move'
 import { queryKeys } from '@/features/dashboard/hooks/queryKeys'
 import { useOnboardingStore } from '@/stores/onboardingStore'
 import { useMoveStore } from '@/stores/moveStore'
+import { useUserId } from '@/auth/useSession'
 import { ROUTES } from '@shared/constants/routes'
-
-const DEV_USER_ID = '00000000-0000-0000-0000-000000000000'
 
 export function useCreateMove() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const reset = useOnboardingStore((s) => s.reset)
   const setCurrentMoveId = useMoveStore((s) => s.setCurrentMoveId)
+  const { userId } = useUserId()
 
   return useMutation({
-    mutationFn: createMoveWithChecklist,
+    mutationFn: async (input: {
+      movingDate: string
+      housingType: string
+      contractType: string
+      moveType: string
+    }) => {
+      let uid = userId
+      if (!uid) {
+        const { data } = await import('@/lib/supabase').then((m) => m.supabase.auth.getSession())
+        uid = data.session?.user?.id ?? null
+      }
+      if (!uid) throw new Error('session missing')
+      return createMoveWithChecklist({ ...input, userId: uid })
+    },
     onSuccess: async (moveId, variables) => {
       const now = new Date().toISOString()
       const fallbackMove: Move = {
         id: moveId,
-        user_id: DEV_USER_ID,
+        user_id: userId ?? '',
         moving_date: variables.movingDate,
         housing_type: variables.housingType,
         contract_type: variables.contractType,
@@ -49,7 +58,7 @@ export function useCreateMove() {
       try {
         const refreshedMove = await queryClient.fetchQuery({
           queryKey: queryKeys.currentMove,
-          queryFn: getCurrentMove,
+          queryFn: () => getCurrentMove(userId as string),
           staleTime: 0,
         })
 
@@ -57,7 +66,7 @@ export function useCreateMove() {
           queryClient.setQueryData(queryKeys.currentMove, fallbackMove)
         }
       } catch (error) {
-        console.error('currentMove 재조회 실패, fallback 캐시 사용:', error)
+        console.error('currentMove refetch failed, using fallback cache:', error)
         queryClient.setQueryData(queryKeys.currentMove, fallbackMove)
       }
 
@@ -65,7 +74,7 @@ export function useCreateMove() {
       navigate(ROUTES.PRE_CHECK, { replace: true })
     },
     onError: (error) => {
-      console.error('체크리스트 생성 실패:', error)
+      console.error('checklist creation failed:', error)
     },
   })
 }

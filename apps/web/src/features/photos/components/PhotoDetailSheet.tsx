@@ -7,6 +7,7 @@ import { useDeletePhoto, MAX_DELETED_PER_ROOM } from '../hooks/useDeletePhoto'
 import { useDeletedPhotos } from '../hooks/useDeletedPhotos'
 import { DeletePhotoDialog } from './DeletePhotoDialog'
 import { cn } from '@/lib/cn'
+import { useUserId } from '@/auth/useSession'
 
 interface PhotoDetailSheetProps {
   photo: PropertyPhoto
@@ -35,12 +36,14 @@ export function PhotoDetailSheet({
   isOpen,
   onClose,
 }: PhotoDetailSheetProps) {
+  const { userId } = useUserId()
+  const uid = userId ?? ''
   const [memo, setMemo] = useState(photo.memo ?? '')
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
   const [deleteOpen, setDeleteOpen] = useState(false)
-  const updateMemo = useUpdatePhotoMemo(moveId, photoType)
-  const deletePhoto = useDeletePhoto(moveId, photoType, photo.room)
-  const { data: deletedPhotos = [] } = useDeletedPhotos(moveId, photoType, photo.room)
+  const updateMemo = useUpdatePhotoMemo(moveId, photoType, uid)
+  const deletePhoto = useDeletePhoto(moveId, photoType, photo.room, uid)
+  const { data: deletedPhotos = [] } = useDeletedPhotos(moveId, photoType, photo.room, uid)
   const isOverflow = deletedPhotos.length >= MAX_DELETED_PER_ROOM
 
   const lastSavedRef = useRef(photo.memo ?? '')

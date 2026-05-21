@@ -2,11 +2,11 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { updateItemMemo } from '@/services/checklist'
 import { queryKeys } from '@/features/dashboard/hooks/queryKeys'
 
-export function useUpdateMemo(itemId: string) {
+export function useUpdateMemo(itemId: string, userId: string) {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (memo: string) => updateItemMemo(itemId, memo),
+    mutationFn: (memo: string) => updateItemMemo(itemId, userId, memo),
 
     onMutate: async (newMemo) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.itemDetail(itemId) })

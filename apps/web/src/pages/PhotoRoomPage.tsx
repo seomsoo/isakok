@@ -13,10 +13,10 @@ import { PhotoUploadFab } from '@/features/photos/components/PhotoUploadFab'
 import { PhotoEmptyState } from '@/features/photos/components/PhotoEmptyState'
 import { RoomTipCard } from '@/features/photos/components/RoomTipCard'
 import { useToast } from '@/shared/components/ToastProvider'
+import { useUserId } from '@/auth/useSession'
 import type { PhotoType } from '@/services/photos'
 
 const MAX_BYTES = 10 * 1024 * 1024
-const TEMP_USER_ID = '00000000-0000-0000-0000-000000000000'
 
 export function PhotoRoomPage() {
   const { room } = useParams<{ room: string }>()
@@ -74,7 +74,8 @@ function Inner({
   toast,
 }: InnerProps) {
   const queryClient = useQueryClient()
-  const { data: allPhotos = [], isLoading } = usePhotos(moveId, photoType)
+  const { userId } = useUserId()
+  const { data: allPhotos = [], isLoading } = usePhotos(moveId, photoType, userId ?? '')
   const photos = allPhotos.filter((p) => p.room === room)
   const paths = photos.map((p) => p.storage_path)
   const { data: urlMap } = useSignedUrls(paths)
@@ -99,6 +100,10 @@ function Inner({
       return true
     })
     if (valid.length === 0) return
+    if (!userId) {
+      toast.error('로그인이 필요해요')
+      return
+    }
 
     setUploadingCount(valid.length)
 
@@ -106,7 +111,7 @@ function Inner({
       valid.map((file) =>
         uploadMutation.mutateAsync({
           moveId,
-          userId: TEMP_USER_ID,
+          userId,
           file,
           room,
           photoType,
@@ -149,10 +154,10 @@ function Inner({
         </h1>
         {!isEmpty && (
           <p className="mt-1.5 flex items-center gap-1.5 text-[14px] tracking-tight text-muted/70">
-            <span>{photos.length}장 / 최대 {roomMeta.maxCount}장</span>
-            {isAtMax && (
-              <span className="font-medium text-warning">· 가득 참</span>
-            )}
+            <span>
+              {photos.length}장 / 최대 {roomMeta.maxCount}장
+            </span>
+            {isAtMax && <span className="font-medium text-warning">· 가득 참</span>}
           </p>
         )}
       </div>

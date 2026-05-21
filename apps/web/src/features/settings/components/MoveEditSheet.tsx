@@ -6,6 +6,7 @@ import { Button } from '@/shared/components/Button'
 import { SelectionChip } from '@/features/onboarding/components/SelectionChip'
 import { CalendarPicker } from '@/features/onboarding/components/CalendarPicker'
 import { useUpdateMove } from '@/features/settings/hooks/useUpdateMove'
+import { useUserId } from '@/auth/useSession'
 
 interface MoveEditSheetProps {
   move: Move
@@ -13,19 +14,20 @@ interface MoveEditSheetProps {
 }
 
 export function MoveEditSheet({ move, onClose }: MoveEditSheetProps) {
+  const { userId } = useUserId()
   const [movingDate, setMovingDate] = useState(move.moving_date)
   const [housingType, setHousingType] = useState<HousingType>(move.housing_type as HousingType)
-  const [contractType, setContractType] = useState<ContractType>(
-    move.contract_type as ContractType,
-  )
+  const [contractType, setContractType] = useState<ContractType>(move.contract_type as ContractType)
   const [moveType, setMoveType] = useState<MoveType>(move.move_type as MoveType)
 
   const mutation = useUpdateMove()
 
   function handleSave() {
+    if (!userId) return
     mutation.mutate(
       {
         moveId: move.id,
+        userId,
         movingDate,
         housingType,
         contractType,
@@ -38,11 +40,7 @@ export function MoveEditSheet({ move, onClose }: MoveEditSheetProps) {
   return (
     <div className="flex min-h-dvh flex-col bg-neutral">
       <header className="flex h-14 items-center justify-between px-4">
-        <button
-          type="button"
-          onClick={onClose}
-          className="text-body-sm font-medium text-muted"
-        >
+        <button type="button" onClick={onClose} className="text-body-sm font-medium text-muted">
           취소
         </button>
         <h1 className="text-h3 font-bold text-secondary">이사 정보 수정</h1>

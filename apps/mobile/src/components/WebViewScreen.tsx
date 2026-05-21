@@ -3,11 +3,16 @@ import { View, BackHandler, Platform, StyleSheet, Linking, AccessibilityInfo } f
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { WebView } from 'react-native-webview'
 import type { WebViewMessageEvent, WebViewNavigation } from 'react-native-webview'
+import { router } from 'expo-router'
 import { WEB_APP_URL } from '../constants/config'
 import { useNetworkStatus } from '../hooks/useNetworkStatus'
 import { useWebViewRef } from '../hooks/useWebViewRef'
 import { hideSplashOnce } from '../utils/splash'
 import { isAllowedWebUrl } from '../utils/urlAllowlist'
+import { AuthService } from '../auth/AuthService'
+import { getCurrentSession } from '../auth/sessionState'
+import { registerWebView, sendSessionToWebView } from '../auth/broadcast'
+import type { BridgeMessage, WebToNativeMessage } from '@moving/shared/types/bridge'
 import { LoadingFallback } from './LoadingFallback'
 import { ErrorFallback } from './ErrorFallback'
 import { OfflineFallback } from './OfflineFallback'
@@ -20,6 +25,14 @@ interface WebViewScreenProps {
 const INJECTED_BEFORE_LOAD = `
   window.__IS_NATIVE_WEBVIEW__ = true;
   (function() {
+    try {
+      var keys = Object.keys(localStorage);
+      for (var i = 0; i < keys.length; i++) {
+        if (keys[i].indexOf('sb-') === 0 && keys[i].indexOf('-auth-token') > 0) {
+          localStorage.removeItem(keys[i]);
+        }
+      }
+    } catch(e) {}
     function addClass() {
       if (document.body) {
         document.body.classList.add('native-webview');
@@ -85,28 +98,54 @@ export function WebViewScreen({ path, onMessage }: WebViewScreenProps) {
     return () => clearTimeout(timeout)
   }, [hasError, isLoading])
 
+  useEffect(() => {
+    const wv = webViewRef.current
+    if (!wv) return
+    const unregister = registerWebView(wv)
+    return unregister
+  }, [webViewRef])
+
   const handleMessage = useCallback(
     (event: WebViewMessageEvent) => {
+      let wrapped: BridgeMessage<WebToNativeMessage>
       try {
-        const parsed = JSON.parse(event.nativeEvent.data)
-        if (parsed.version === 1 && parsed.data?.type === 'WEB_READY') {
+        wrapped = JSON.parse(event.nativeEvent.data)
+      } catch {
+        return
+      }
+      if (!wrapped || wrapped.version !== 1 || !wrapped.data?.type) return
+      const message = wrapped.data
+
+      switch (message.type) {
+        case 'WEB_READY': {
           setIsLoading(false)
           setHasError(false)
           hideSplashOnce()
-        }
-        if (parsed.version === 1 && parsed.data?.type === 'OPEN_EXTERNAL_LINK') {
-          const url = parsed.data.payload?.url
-          if (typeof url === 'string') {
-            Linking.openURL(url)
+          const session = getCurrentSession()
+          if (session && webViewRef.current) {
+            sendSessionToWebView(webViewRef.current, session)
           }
-        } else if (onMessage) {
-          onMessage(parsed)
+          return
         }
-      } catch {
-        // non-bridge message
+        case 'REQUEST_LOGIN':
+          router.push('/auth')
+          return
+        case 'REQUEST_LOGOUT':
+          AuthService.signOut().catch((err) => console.error('[signOut]', err))
+          return
+        case 'REQUEST_SESSION_REFRESH':
+          AuthService.refreshSession().catch((err) => console.error('[refresh]', err))
+          return
+        case 'OPEN_EXTERNAL_LINK':
+          Linking.openURL(message.payload.url).catch(() => undefined)
+          return
+      }
+
+      if (onMessage) {
+        onMessage(wrapped)
       }
     },
-    [onMessage],
+    [onMessage, webViewRef],
   )
 
   const handleNavigationStateChange = useCallback((navState: WebViewNavigation) => {

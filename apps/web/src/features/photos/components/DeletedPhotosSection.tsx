@@ -10,11 +10,17 @@ interface DeletedPhotosSectionProps {
   moveId: string
   photoType: PhotoType
   room: string
+  userId: string
 }
 
-export function DeletedPhotosSection({ moveId, photoType, room }: DeletedPhotosSectionProps) {
-  const { data: deletedPhotos = [] } = useDeletedPhotos(moveId, photoType, room)
-  const restoreMutation = useRestorePhoto(moveId, photoType, room)
+export function DeletedPhotosSection({
+  moveId,
+  photoType,
+  room,
+  userId,
+}: DeletedPhotosSectionProps) {
+  const { data: deletedPhotos = [] } = useDeletedPhotos(moveId, photoType, room, userId)
+  const restoreMutation = useRestorePhoto(moveId, photoType, room, userId)
   const paths = deletedPhotos.map((p) => p.storage_path)
   const { data: urlMap } = useSignedUrls(paths)
   const [expanded, setExpanded] = useState(false)

@@ -3,13 +3,13 @@ import { toggleChecklistItem } from '@/services/checklist'
 import { useToast } from '@/shared/components/ToastProvider'
 import { queryKeys } from './queryKeys'
 
-export function useToggleItem(moveId: string) {
+export function useToggleItem(moveId: string, userId: string) {
   const queryClient = useQueryClient()
   const toast = useToast()
 
   return useMutation({
     mutationFn: ({ itemId, isCompleted }: { itemId: string; isCompleted: boolean }) =>
-      toggleChecklistItem(itemId, moveId, isCompleted),
+      toggleChecklistItem(itemId, moveId, userId, isCompleted),
 
     onMutate: async ({ itemId, isCompleted }) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.todayItems(moveId) })
@@ -20,7 +20,15 @@ export function useToggleItem(moveId: string) {
 
       queryClient.setQueryData(
         queryKeys.todayItems(moveId),
-        (old: { today: Record<string, unknown>[]; overdue: Record<string, unknown>[]; upcoming: Record<string, unknown>[] } | undefined) => {
+        (
+          old:
+            | {
+                today: Record<string, unknown>[]
+                overdue: Record<string, unknown>[]
+                upcoming: Record<string, unknown>[]
+              }
+            | undefined,
+        ) => {
           if (!old) return old
           const toggleItem = (item: Record<string, unknown>) =>
             item.id === itemId

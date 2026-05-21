@@ -1,26 +1,30 @@
-import { Slot } from 'expo-router'
+import { useEffect, useState } from 'react'
+import { Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { SafeAreaProvider } from 'react-native-safe-area-context'
 import * as SplashScreen from 'expo-splash-screen'
-import { useEffect } from 'react'
-import { hideSplashOnce } from '../utils/splash'
-import { SPLASH_TIMEOUT_MS } from '../constants/config'
+import { bootstrapAuth } from '../auth/bootstrap'
 
-SplashScreen.preventAutoHideAsync()
+SplashScreen.preventAutoHideAsync().catch(() => undefined)
 
 export default function RootLayout() {
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      hideSplashOnce()
-    }, SPLASH_TIMEOUT_MS)
+  const [ready, setReady] = useState(false)
 
-    return () => clearTimeout(timeout)
+  useEffect(() => {
+    bootstrapAuth()
+      .catch((err) => console.error('[bootstrap]', err))
+      .finally(() => setReady(true))
   }, [])
+
+  if (!ready) return null
 
   return (
     <SafeAreaProvider>
       <StatusBar style="dark" />
-      <Slot />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="auth" options={{ presentation: 'modal' }} />
+      </Stack>
     </SafeAreaProvider>
   )
 }

@@ -16,7 +16,9 @@ interface CreateMoveInput {
  * @returns 생성된 이사 ID (uuid)
  * @throws RPC 실패 시 [createMoveWithChecklist] 접두사와 함께 throw
  */
-export async function createMoveWithChecklist(input: CreateMoveInput): Promise<string> {
+export async function createMoveWithChecklist(
+  input: CreateMoveInput & { userId: string },
+): Promise<string> {
   if (!input.movingDate || !input.housingType || !input.contractType || !input.moveType) {
     throw new Error('[createMoveWithChecklist] 필수 입력값이 누락되었습니다')
   }
@@ -29,7 +31,7 @@ export async function createMoveWithChecklist(input: CreateMoveInput): Promise<s
     p_is_first_move: false,
     p_from_address: null,
     p_to_address: null,
-    p_user_id: '00000000-0000-0000-0000-000000000000',
+    p_user_id: input.userId,
   })
 
   if (error) {
@@ -41,14 +43,15 @@ export async function createMoveWithChecklist(input: CreateMoveInput): Promise<s
 
 /**
  * 현재 진행 중인 이사 조회 (active 상태 1건)
- * RLS 꺼진 상태이므로 user_id 없이 조회
- * 8단계에서 auth.uid() 기반으로 전환
+ * @param userId - 유저 ID
  * @returns 현재 active 이사. 없으면 null
+ * @throws 쿼리 에러 시 [getCurrentMove] 접두사와 함께 throw
  */
-export async function getCurrentMove(): Promise<Move | null> {
+export async function getCurrentMove(userId: string): Promise<Move | null> {
   const { data, error } = await supabase
     .from('moves')
     .select('*')
+    .eq('user_id', userId)
     .eq('status', 'active')
     .is('deleted_at', null)
     .order('created_at', { ascending: false })

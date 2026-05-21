@@ -4,6 +4,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from '@/lib/queryClient'
 import { ROUTES } from '@shared/constants/routes'
 import { isNativeWebView, sendToNative } from '@moving/shared'
+import { setupWebSessionListener } from '@/auth/webSessionListener'
 import { EntryRedirect } from '@/pages/EntryRedirect'
 import { OnboardingPage } from '@/pages/OnboardingPage'
 import { DashboardPage } from '@/pages/DashboardPage'
@@ -20,6 +21,7 @@ import { ToastProvider } from '@/shared/components/ToastProvider'
 function WebReadySignal() {
   useEffect(() => {
     if (isNativeWebView()) {
+      setupWebSessionListener()
       sendToNative({ type: 'WEB_READY' })
     }
   }, [])

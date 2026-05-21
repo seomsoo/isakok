@@ -10,6 +10,7 @@ import { ReportHeader } from '@/features/photos/components/ReportHeader'
 import { ReportRoomSection } from '@/features/photos/components/ReportRoomSection'
 import { PhotoFullscreenViewer } from '@/features/photos/components/PhotoFullscreenViewer'
 import { useToast } from '@/shared/components/ToastProvider'
+import { useUserId } from '@/auth/useSession'
 import type { PhotoType, PropertyPhoto } from '@/services/photos'
 
 function photoDate(p: PropertyPhoto): Date | null {
@@ -34,12 +35,17 @@ export function PhotoReportPage() {
   const [searchParams] = useSearchParams()
   const toast = useToast()
   const [selected, setSelected] = useState<PropertyPhoto | null>(null)
+  const { userId } = useUserId()
 
   const { data: move, isPending } = useCurrentMove()
   const queryType = searchParams.get('type') as PhotoType | null
   const photoType: PhotoType = queryType === 'move_out' ? 'move_out' : 'move_in'
 
-  const { data: photos = [], isLoading: isPhotosLoading } = usePhotos(move?.id, photoType)
+  const { data: photos = [], isLoading: isPhotosLoading } = usePhotos(
+    move?.id,
+    photoType,
+    userId ?? '',
+  )
   const { data: urlMap } = useSignedUrls(photos.map((p) => p.storage_path))
 
   if (isPending || isPhotosLoading) {

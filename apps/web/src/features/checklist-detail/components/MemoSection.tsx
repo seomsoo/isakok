@@ -7,15 +7,16 @@ import { SectionTitle } from './SectionTitle'
 
 interface MemoSectionProps {
   itemId: string
+  userId: string
   initialMemo: string | null
 }
 
 type SaveStatus = 'idle' | 'saving' | 'saved'
 
-export function MemoSection({ itemId, initialMemo }: MemoSectionProps) {
+export function MemoSection({ itemId, userId, initialMemo }: MemoSectionProps) {
   const [memo, setMemo] = useState(initialMemo ?? '')
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle')
-  const updateMemo = useUpdateMemo(itemId)
+  const updateMemo = useUpdateMemo(itemId, userId)
   const toast = useToast()
   const lastSavedRef = useRef(initialMemo ?? '')
   const inFlightRef = useRef(false)
