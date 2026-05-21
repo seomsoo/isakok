@@ -3,11 +3,7 @@ import { Navigate, Link } from 'react-router-dom'
 import { differenceInCalendarDays, format, parseISO } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { Settings } from 'lucide-react'
-import {
-  ROUTES,
-  calculateProgress,
-  calculateEssentialProgress,
-} from '@moving/shared'
+import { ROUTES, calculateProgress, calculateEssentialProgress } from '@moving/shared'
 import { useCurrentMove } from '@/features/dashboard/hooks/useCurrentMove'
 import { useGenerateAiGuide } from '@/features/ai-guide/hooks/useGenerateAiGuide'
 import { useAiGuideStore } from '@/stores/aiGuideStore'
@@ -26,20 +22,24 @@ import { ModeTransitionBanner } from '@/features/dashboard/components/ModeTransi
 import { PageHeader } from '@/shared/components/PageHeader'
 import { DevTabBar } from '@/shared/components/DevTabBar'
 import { Skeleton } from '@/shared/components/Skeleton'
+import { useUserId } from '@/auth/useSession'
 
 export function DashboardPage() {
+  const { userId } = useUserId()
   const { data: move, isPending, isFetching } = useCurrentMove()
   const moveId = move?.id ?? ''
   const movingDate = move?.moving_date ?? ''
+  const uid = userId ?? ''
   const { mode, daysUntilMove, isTransitioned, transitionMessage } = useUrgencyMode(movingDate)
   const dismissTransition = useModeStore((s) => s.dismissTransition)
   const { data: dashboardData, isLoading: isDashLoading } = useDashboardItemsWithMode(
     moveId,
+    uid,
     mode,
     movingDate,
   )
-  const { data: allItems } = useTimelineItemsForProgress(moveId)
-  const toggleMutation = useToggleItem(moveId)
+  const { data: allItems } = useTimelineItemsForProgress(moveId, uid)
+  const toggleMutation = useToggleItem(moveId, uid)
   const generateAiGuide = useGenerateAiGuide()
   const { hasTriggered, markTriggered } = useAiGuideStore()
   const triggerKey = move

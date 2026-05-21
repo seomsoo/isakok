@@ -7,6 +7,7 @@ import { useDeletePhoto, MAX_DELETED_PER_ROOM } from '../hooks/useDeletePhoto'
 import { useDeletedPhotos } from '../hooks/useDeletedPhotos'
 import { DeletePhotoDialog } from './DeletePhotoDialog'
 import { PhotoFullscreenViewer } from './PhotoFullscreenViewer'
+import { useUserId } from '@/auth/useSession'
 
 const MEMO_MAX_LENGTH = 200
 
@@ -42,11 +43,13 @@ export function PhotoGrid({
   photoType,
   room,
 }: PhotoGridProps) {
+  const { userId } = useUserId()
+  const uid = userId ?? ''
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<PropertyPhoto | null>(null)
   const [fullscreenPhoto, setFullscreenPhoto] = useState<PropertyPhoto | null>(null)
 
-  const { data: deletedPhotos = [] } = useDeletedPhotos(moveId, photoType, room)
+  const { data: deletedPhotos = [] } = useDeletedPhotos(moveId, photoType, room, uid)
   const isTrashFull = deletedPhotos.length >= MAX_DELETED_PER_ROOM
 
   return (
@@ -59,6 +62,7 @@ export function PhotoGrid({
           moveId={moveId}
           photoType={photoType}
           room={room}
+          userId={uid}
           isMenuOpen={menuOpenId === p.id}
           onMenuToggle={() => setMenuOpenId(menuOpenId === p.id ? null : p.id)}
           onMenuClose={() => setMenuOpenId(null)}
@@ -86,6 +90,7 @@ export function PhotoGrid({
           moveId={moveId}
           photoType={photoType}
           room={room}
+          userId={uid}
           isOverflow={isTrashFull}
           onClose={() => setDeleteTarget(null)}
         />
@@ -108,6 +113,7 @@ interface PhotoCardProps {
   moveId: string
   photoType: PhotoType
   room: string
+  userId: string
   isMenuOpen: boolean
   onMenuToggle: () => void
   onMenuClose: () => void
@@ -120,6 +126,7 @@ function PhotoCard({
   url,
   moveId,
   photoType,
+  userId,
   isMenuOpen,
   onMenuToggle,
   onMenuClose,
@@ -131,7 +138,7 @@ function PhotoCard({
   const stampTime = formatStampTime(dateIso)
   const [memo, setMemo] = useState(photo.memo ?? '')
   const [isEditingMemo, setIsEditingMemo] = useState(false)
-  const updateMemo = useUpdatePhotoMemo(moveId, photoType)
+  const updateMemo = useUpdatePhotoMemo(moveId, photoType, userId)
   const lastSavedRef = useRef(photo.memo ?? '')
   const memoTextareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -276,6 +283,7 @@ function DeleteCardWrapper({
   moveId,
   photoType,
   room,
+  userId,
   isOverflow,
   onClose,
 }: {
@@ -283,10 +291,11 @@ function DeleteCardWrapper({
   moveId: string
   photoType: PhotoType
   room: string
+  userId: string
   isOverflow: boolean
   onClose: () => void
 }) {
-  const deletePhoto = useDeletePhoto(moveId, photoType, room)
+  const deletePhoto = useDeletePhoto(moveId, photoType, room, userId)
 
   return (
     <DeletePhotoDialog

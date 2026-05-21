@@ -7,14 +7,17 @@ import { useOverdueItems } from '@/features/pre-check/hooks/useOverdueItems'
 import { useBatchComplete } from '@/features/pre-check/hooks/useBatchComplete'
 import { PreCheckItem } from '@/features/pre-check/components/PreCheckItem'
 import { Button } from '@/shared/components/Button'
+import { useUserId } from '@/auth/useSession'
 import type { OverdueItem } from '@/services/checklist'
 
 export function PreCheckPage() {
   const navigate = useNavigate()
+  const { userId } = useUserId()
+  const uid = userId ?? ''
   const { data: move, isPending: isMovePending } = useCurrentMove()
   const moveId = move?.id ?? ''
-  const { data: overdueItems, isLoading, isError } = useOverdueItems(moveId)
-  const batchComplete = useBatchComplete()
+  const { data: overdueItems, isLoading, isError } = useOverdueItems(moveId, uid)
+  const batchComplete = useBatchComplete(uid)
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set())
 
   // 밀린 항목 없으면 바로 대시보드로

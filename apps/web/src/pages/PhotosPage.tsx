@@ -15,10 +15,10 @@ import { RoomSection } from '@/features/photos/components/RoomSection'
 import { DevTabBar } from '@/shared/components/DevTabBar'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { useToast } from '@/shared/components/ToastProvider'
+import { useUserId } from '@/auth/useSession'
 import type { PhotoType } from '@/services/photos'
 
 const MAX_BYTES = 10 * 1024 * 1024
-const TEMP_USER_ID = '00000000-0000-0000-0000-000000000000'
 
 export function PhotosPage() {
   const navigate = useNavigate()
@@ -26,12 +26,11 @@ export function PhotosPage() {
   const toast = useToast()
   const galleryRef = useRef<HTMLInputElement>(null)
   const [activeRoom, setActiveRoom] = useState<string | null>(null)
+  const { userId } = useUserId()
 
   const { data: move, isPending } = useCurrentMove()
 
-  const daysUntilMove = move
-    ? differenceInCalendarDays(parseISO(move.moving_date), new Date())
-    : 0
+  const daysUntilMove = move ? differenceInCalendarDays(parseISO(move.moving_date), new Date()) : 0
   const queryType = searchParams.get('type') as PhotoType | null
   const photoType: PhotoType =
     queryType === 'move_in' || queryType === 'move_out'
@@ -41,7 +40,7 @@ export function PhotosPage() {
         : 'move_in'
 
   const queryClient = useQueryClient()
-  const { data: photos = [], isLoading } = usePhotos(move?.id, photoType)
+  const { data: photos = [], isLoading } = usePhotos(move?.id, photoType, userId ?? '')
   const uploadMutation = useUploadPhoto()
 
   const photosByRoom = new Map<string, typeof photos>()
@@ -93,12 +92,16 @@ export function PhotosPage() {
       return true
     })
     if (valid.length === 0) return
+    if (!userId) {
+      toast.error('로그인이 필요해요')
+      return
+    }
 
     const results = await Promise.allSettled(
       valid.map((file) =>
         uploadMutation.mutateAsync({
           moveId: move.id,
-          userId: TEMP_USER_ID,
+          userId,
           file,
           room: activeRoom,
           photoType,
