@@ -14,8 +14,8 @@
 ## 모노레포 구조
 
 ```
-apps/web/          ← React Vite 웹앱 (현재 개발 중)
-apps/mobile/       ← Expo 앱 (현재 9단계에서 추가)
+apps/web/          ← React Vite 웹앱
+apps/mobile/       ← Expo 네이티브 셸 (WebView 래핑 + 네이티브 인증)
 packages/shared/   ← 타입, 상수, 유틸, 서비스 (앱 간 공유)
 supabase/          ← DB 마이그레이션, 시드, Edge Functions
 docs/              ← 기획 문서, 단계별 스펙 (SDD)
@@ -24,7 +24,7 @@ docs/              ← 기획 문서, 단계별 스펙 (SDD)
 
 ## 현재 단계
 
-> 9단계:
+> 10-2단계: RLS 활성화 + Edge Function/Storage 보안 (구현완료, 커밋/PR 대기)
 
 ## 개발 방법론
 
@@ -34,17 +34,19 @@ docs/              ← 기획 문서, 단계별 스펙 (SDD)
 
 ## 개발 순서 (0~10단계)
 
-0. 프로젝트 세팅 ← 현재
-1. Supabase 세팅 + 시드 데이터
-2. 온보딩 → 체크리스트 생성
-3. 대시보드 + 타임라인 + 설정
-4. 항목 상세 + 체크 토글
-5. 스마트 재배치 (5모드)
-6. 집 상태 기록 + 리포트
-7. AI 맞춤 가이드 (Edge Function + Claude API)
-8. 하네스 고도화 (CI + 교정 루프 + 워커 격리)
-9. Expo 셸 + WebView 래핑
-10. 인증 + 비회원 로컬 + RLS 켜기
+0. ✅ 프로젝트 세팅
+1. ✅ Supabase 세팅 + 시드 데이터
+2. ✅ 온보딩 → 체크리스트 생성
+3. ✅ 대시보드 + 타임라인 + 설정
+4. ✅ 항목 상세 + 체크 토글 + 메모
+5. ✅ 스마트 재배치 (5모드)
+6. ✅ 집 상태 기록 + 리포트
+7. ✅ AI 맞춤 가이드 (Edge Function + Claude API)
+   8-1. ✅ 하네스 코어 (로컬 커밋훅 + CI + /auto-fix)
+   8-2. ✅ 하네스 CI 봇 (PR 요약 + dry-run 분석 + 서브에이전트 6종)
+8. ✅ Expo 셸 + WebView 래핑
+   10-1. ✅ 네이티브 인증 + 세션 브릿지
+   10-2. 🔄 RLS 활성화 + Edge Function/Storage 보안 (구현완료, 커밋/PR 대기)
 
 ## 보안 규칙 (전역 — 절대 위반 금지)
 
@@ -61,7 +63,7 @@ docs/              ← 기획 문서, 단계별 스펙 (SDD)
 - 커밋: Conventional Commits (영어)
   - 형식: `type(scope): subject`
   - type: feat, fix, refactor, chore, docs, test, style
-  - scope: onboarding, dashboard, timeline, checklist, photos, settings, shared, supabase
+  - scope: onboarding, dashboard, timeline, checklist, photos, settings, auth, shared, mobile, supabase
   - subject: 소문자 시작, 마침표 없음, 명령형 (add/fix/remove)
   - 본문: 선택 (대부분 제목만으로 충분, 설계 판단은 PR에 작성)
   - Co-Authored-By 트레일러 금지 (커밋, PR 모두)
@@ -121,6 +123,7 @@ refactor(shared): extract date calc to pure utility
 ## 하위 CLAUDE.md 위치
 
 - apps/web/CLAUDE.md — 웹앱 코드 컨벤션, UI 규칙
+- apps/mobile/CLAUDE.md — Expo 네이티브 셸, WebView 브릿지, 인증
 - packages/shared/CLAUDE.md — 서비스/유틸/타입 규칙, 테스트
 - supabase/CLAUDE.md — Deno, RLS, RPC, DB 스키마
 - docs/CLAUDE.md — 기획 문서 목차, SDD 스펙 안내

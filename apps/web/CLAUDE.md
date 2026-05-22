@@ -282,13 +282,13 @@ import { TodayTasks } from '@/features/dashboard/components/TodayTasks'
 
 ## 개발 중 임시 처리
 
-| 임시 처리                             | 교체 시점 | 교체 대상                       |
-| ------------------------------------- | --------- | ------------------------------- |
-| DevTabBar (웹 임시 탭바)              | 9단계     | Expo 네이티브 탭바              |
-| 파일 선택 input                       | 9단계     | Expo 네이티브 카메라            |
-| anon key + RLS 끔 (모든 행 접근 가능) | 10단계    | anon key + RLS 켜기 + 유저 인증 |
-| 하드코딩 user_id                      | 10단계    | auth.uid()                      |
-| guide_content 직접 표시               | 7단계     | AI custom_guide 우선            |
+| 임시 처리                             | 교체 시점 | 상태                                            |
+| ------------------------------------- | --------- | ----------------------------------------------- |
+| DevTabBar (웹 임시 탭바)              | 9단계     | ✅ Expo 네이티브 탭바로 교체 완료               |
+| 파일 선택 input                       | 9단계     | WebView에서 input 유지 (네이티브 카메라 미전환) |
+| anon key + RLS 끔 (모든 행 접근 가능) | 10-2단계  | ⬜ 10-2에서 RLS 활성화 예정                     |
+| 하드코딩 user_id                      | 10-1단계  | ✅ auth.uid() 기반으로 전환 완료                |
+| guide_content 직접 표시               | 7단계     | ✅ AI custom_guide 우선 표시로 교체 완료        |
 
 > ⚠️ service_role key는 임시 개발 중에도 클라이언트(Vite 번들)에 절대 넣지 않음.
 > RLS를 끄면 anon key만으로 모든 데이터에 접근 가능하므로 service_role key가 불필요.
