@@ -22,7 +22,7 @@ export function DeletedPhotosSection({
   const { data: deletedPhotos = [] } = useDeletedPhotos(moveId, photoType, room, userId)
   const restoreMutation = useRestorePhoto(moveId, photoType, room, userId)
   const paths = deletedPhotos.map((p) => p.storage_path)
-  const { data: urlMap } = useSignedUrls(paths)
+  const { data: urlMap } = useSignedUrls(paths, userId)
   const [expanded, setExpanded] = useState(false)
   const [confirmId, setConfirmId] = useState<string | null>(null)
 
