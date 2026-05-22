@@ -49,9 +49,19 @@ export async function getSignedUrl(storagePath: string): Promise<string> {
 /**
  * 여러 사진의 signed URL 일괄 생성 (path → signedUrl Record)
  * Supabase JS v2의 createSignedUrls(복수형) 사용 → API 1회로 N개 URL 획득
+ * @param userId - 소유자 ID (prefix ownership 가드)
  */
-export async function getSignedUrls(storagePaths: string[]): Promise<Record<string, string>> {
+export async function getSignedUrls(
+  storagePaths: string[],
+  userId: string,
+): Promise<Record<string, string>> {
   if (storagePaths.length === 0) return {}
+
+  for (const path of storagePaths) {
+    if (!path.startsWith(`${userId}/`)) {
+      throw new Error('[getSignedUrls] storagePath ownership mismatch')
+    }
+  }
 
   const { data, error } = await supabase.storage
     .from(BUCKET)
@@ -86,15 +96,15 @@ export interface UploadPhotoParams {
  * - Storage ≠ PostgreSQL, 트랜잭션으로 묶을 수 없음
  * - DB 실패 시 Storage 파일 정리 시도 (best effort)로 orphan 최소화
  *
- * 경로 규칙: {moveId}/{photoType}/{room}_{timestamp}.{ext}
- * - userId 대신 moveId 기반: 8단계 인증 도입 시 경로 마이그레이션 불필요
+ * 경로 규칙: {userId}/{moveId}/{room}_{timestamp}.{ext}
+ * - 첫 세그먼트가 userId → Storage RLS 정책(foldername[1] = auth.uid()) 적용
  */
 export async function uploadPhoto(params: UploadPhotoParams): Promise<PropertyPhoto> {
   const { moveId, userId, file, room, photoType, memo, imageHash, takenAt } = params
 
   const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
   const timestamp = Date.now()
-  const storagePath = `${moveId}/${photoType}/${room}_${timestamp}.${ext}`
+  const storagePath = `${userId}/${moveId}/${room}_${timestamp}.${ext}`
 
   const { error: storageError } = await supabase.storage.from(BUCKET).upload(storagePath, file, {
     contentType: file.type || 'image/jpeg',
