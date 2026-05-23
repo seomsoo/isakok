@@ -74,9 +74,12 @@ export class AuthService {
     if (wasAnonymous) {
       const linked = await AuthService.tryLinkIdentity(result)
       if (linked) {
-        await AuthService.ensureUsersProviderUpdated(linked.userId, result.provider)
         return { mode: 'identity-linked', userId: linked.userId }
       }
+      console.warn('[AuthService] linkIdentity failed, falling back to signInWithIdToken', {
+        provider: result.provider,
+        anonymousUserId: currentUser?.id,
+      })
     }
 
     const { data, error } = await supabase.auth.signInWithIdToken({
@@ -90,7 +93,6 @@ export class AuthService {
     await session.save(data.session)
     setCurrentSession(data.session)
     broadcastSession(data.session)
-    await AuthService.ensureUsersProviderUpdated(data.session.user.id, result.provider)
 
     return {
       mode: 'signed-in',
@@ -170,21 +172,11 @@ export class AuthService {
     await session.save(sessionData.session)
     setCurrentSession(sessionData.session)
     broadcastSession(sessionData.session)
-    await AuthService.ensureUsersProviderUpdated(sessionData.session.user.id, 'kakao')
 
     return {
       mode: data.linked ? 'custom-linked' : 'signed-in',
       userId: sessionData.session.user.id,
       conflict: !data.linked && wasAnonymous,
-    }
-  }
-
-  // ADR-054: primary path is the DB trigger; this is a defensive fallback
-  private static async ensureUsersProviderUpdated(userId: string, provider: string) {
-    try {
-      await supabase.from('users').update({ provider }).eq('id', userId).eq('provider', 'anonymous')
-    } catch {
-      // best effort
     }
   }
 

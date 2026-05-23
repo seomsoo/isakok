@@ -78,7 +78,7 @@ function Inner({ moveId, photoType, onBack }: InnerProps) {
   }
 
   const paths = deletedPhotos.map((p) => p.storage_path)
-  const { data: urlMap } = useSignedUrls(paths)
+  const { data: urlMap } = useSignedUrls(paths, uid)
 
   const restoreMutation = useMutation({
     mutationFn: (photoId: string) => {

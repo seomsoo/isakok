@@ -12,12 +12,12 @@ import { photoKeys } from './queryKeys'
  * staleTime 30분: signed URL 유효(1시간)의 절반.
  * placeholderData: 사진 추가 시 키가 바뀌어도 이전 URL Map을 유지하여 기존 사진 스피너 방지.
  */
-export function useSignedUrls(storagePaths: string[]) {
+export function useSignedUrls(storagePaths: string[], userId: string) {
   const sorted = [...storagePaths].sort()
   return useQuery({
     queryKey: photoKeys.signedUrls(sorted),
-    queryFn: () => getSignedUrls(sorted),
-    enabled: sorted.length > 0,
+    queryFn: () => getSignedUrls(sorted, userId),
+    enabled: sorted.length > 0 && !!userId,
     staleTime: 30 * 60 * 1000,
     placeholderData: keepPreviousData,
   })

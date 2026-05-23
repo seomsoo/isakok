@@ -1,5 +1,7 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
-import { corsHeaders } from '../_shared/cors.ts'
+import { createClient } from 'npm:@supabase/supabase-js@2'
+import { resolveCorsOrigin, makeCorsHeaders } from '../_shared/cors.ts'
+import type { CorsResolved } from '../_shared/cors.ts'
 import { callAnthropic } from '../_shared/anthropic.ts'
 import { buildCacheKey } from '../_shared/cacheKey.ts'
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts'
@@ -17,11 +19,28 @@ interface AiGeneratedGuide {
   custom_guide: string
 }
 
-function json(body: Record<string, unknown>, status: number) {
+function json(body: Record<string, unknown>, status: number, cors: Record<string, string>) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    headers: { 'Content-Type': 'application/json', ...cors },
   })
+}
+
+async function extractUserId(req: Request): Promise<string | null> {
+  const authHeader = req.headers.get('Authorization')
+  if (!authHeader?.startsWith('Bearer ')) return null
+
+  const userClient = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_ANON_KEY')!,
+    {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false, autoRefreshToken: false },
+    },
+  )
+  const { data, error } = await userClient.auth.getUser()
+  if (error || !data.user) return null
+  return data.user.id
 }
 
 function sleep(ms: number) {
@@ -29,8 +48,18 @@ function sleep(ms: number) {
 }
 
 serve(async (req) => {
+  const resolved: CorsResolved = resolveCorsOrigin(req)
+  const cors = makeCorsHeaders(resolved)
+
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    if (resolved === 'DENY') {
+      return new Response(null, { status: 403, headers: cors })
+    }
+    return new Response(null, { status: 204, headers: cors })
+  }
+
+  if (resolved === 'DENY') {
+    return json({ status: 'error', code: 'CORS_DENIED' }, 403, cors)
   }
 
   const startedAt = Date.now()
@@ -56,11 +85,17 @@ serve(async (req) => {
   log({ event: 'request_start' })
 
   try {
+    errorStage = 'auth'
+    const jwtUserId = await extractUserId(req)
+    if (!jwtUserId) {
+      return json({ status: 'error', code: 'UNAUTHORIZED' }, 401, cors)
+    }
+
     errorStage = 'request_parse'
     const { moveId } = await req.json()
 
     if (!moveId || typeof moveId !== 'string' || !isUuid(moveId)) {
-      return json({ status: 'error', code: 'INVALID_INPUT' }, 400)
+      return json({ status: 'error', code: 'INVALID_INPUT' }, 400, cors)
     }
 
     errorStage = 'db_fetch'
@@ -69,19 +104,24 @@ serve(async (req) => {
 
     const { data: move, error: moveErr } = await supabaseAdmin
       .from('moves')
-      .select('housing_type, contract_type, move_type')
+      .select('user_id, housing_type, contract_type, move_type')
       .eq('id', moveId)
       .is('deleted_at', null)
       .maybeSingle()
 
     if (moveErr || !move) {
       logDbFetchEnd()
-      return json({ status: 'error', code: 'NOT_FOUND' }, 404)
+      return json({ status: 'error', code: 'NOT_FOUND' }, 404, cors)
+    }
+
+    if (move.user_id !== jwtUserId) {
+      logDbFetchEnd()
+      return json({ status: 'error', code: 'FORBIDDEN' }, 403, cors)
     }
 
     if (!isValidConditions(move)) {
       logDbFetchEnd()
-      return json({ status: 'error', code: 'INVALID_INPUT' }, 400)
+      return json({ status: 'error', code: 'INVALID_INPUT' }, 400, cors)
     }
 
     const { data: items, error: itemsErr } = await supabaseAdmin
@@ -96,7 +136,7 @@ serve(async (req) => {
 
     if (itemsErr || !items || items.length === 0) {
       logDbFetchEnd()
-      return json({ status: 'error', code: 'NOT_FOUND' }, 404)
+      return json({ status: 'error', code: 'NOT_FOUND' }, 404, cors)
     }
 
     const { data: versionRow } = await supabaseAdmin
@@ -166,7 +206,7 @@ serve(async (req) => {
             error_message: 'AI guide generation inflight timeout',
             total_ms: Date.now() - startedAt,
           })
-          return json({ status: 'error', code: 'TIMEOUT' }, 504)
+          return json({ status: 'error', code: 'TIMEOUT' }, 504, cors)
         }
       } else {
         logDbFetchEnd({ item_count: items.length, cache_status: 'miss_claimed' })
@@ -286,7 +326,7 @@ serve(async (req) => {
 
     const body: Record<string, unknown> = { status: 'ok', source, updated: updated ?? 0 }
     if (debugTiming) body.timings = timings
-    return json(body, 200)
+    return json(body, 200, cors)
   } catch (err) {
     const errorLog: Record<string, unknown> = {
       event: 'error',
@@ -340,6 +380,6 @@ serve(async (req) => {
       }
       errBody.timings = timings
     }
-    return json(errBody, status)
+    return json(errBody, status, cors)
   }
 })

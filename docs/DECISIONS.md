@@ -842,3 +842,58 @@ type NativeToWeb =
 - 히스토리 정리: 과거 커밋에 키가 남아있어 `git rebase -i`로 fix 커밋을 원래 커밋에 fixup. feature branch이므로 rewrite 안전.
 - 트레이드오프: EAS 빌드 전 `eas secret:create`로 키 등록 필요. 로컬 `.env` 파일 관리 필요.
 - 참고 (디버깅용): `linkIdentity` 응답의 `user.identities`는 빈 배열로 오지만, 직후 `getUser()` 조회 시 정상 표시됨. 응답 즉시 identity 개수를 신뢰하지 말 것.
+
+### ADR-056: RLS는 신규 마이그레이션(00016)에서 활성화, 00003 수정 안 함
+
+- 결정: 적용된 00003 파일을 수정하지 않고, 00016에서 충돌 정책을 DROP 후 작업별 분리 재CREATE. `deleted_at` 필터는 RLS에서 제거하고 service query가 담당.
+- 이유: 00003의 `FOR ALL ... AND deleted_at IS NULL`이 soft delete 복구/영구삭제를 깨뜨림(휴지통 기능). RLS는 소유권(`auth.uid()`)만 강제하고, active/deleted 구분은 service layer 책임.
+- 트레이드오프: 00003과 00016을 함께 봐야 최종 정책을 파악. 00003에 "00016에서 교체됨" 주석으로 보완.
+
+### ADR-057: Storage 경로를 `{userId}/{moveId}/{room}_{ts}` 표준화
+
+- 결정: 6단계의 `{moveId}/{photoType}/{room}_{ts}` → `{userId}/{moveId}/{room}_{ts}`. photoType 세그먼트 제거(DB `photo_type` 컬럼이 담당).
+- 이유: 인증 도입(10-2)이 6단계 단서 조건. 표준 Storage 정책(`foldername[1] = auth.uid()`)에 맞추려면 첫 세그먼트가 userId여야 함.
+- 마이그레이션 비용 0: 기존 사진은 전부 테스트 데이터로 wipe 선행.
+
+### ADR-058: rate limit을 DB 테이블 + 원자적 increment RPC로 구현
+
+- 결정: Redis 대신 DB(`rate_limit_log` + `increment_rate_limit` RPC). `ON CONFLICT DO UPDATE RETURNING`으로 원자적 증가.
+- 이유: 현재 트래픽 규모에서 폭주 차단 목적이지 정밀 통제가 아님. Redis는 외부 의존성·운영 복잡도 과다.
+- IP는 `sha256(ip + RATE_LIMIT_SALT)` 저장(평문 금지). 보존 2일.
+- 인터페이스 분리로 향후 Redis 전환 가능.
+
+### ADR-059: ai_guide_cache는 service_role only 비공개
+
+- 결정: 클라이언트 SELECT 정책 제거. RLS ENABLE + 정책 0개 = service_role만 접근.
+- 이유: 클라이언트는 `user_checklist_items.custom_guide`만 읽으면 됨. 캐시는 Edge Function 내부 디테일(관심사 분리 + 구조 노출 방지). cacheKey 재료는 소유권 검증된 move row에서 서버가 직접 조회(cache poisoning 방지).
+
+### ADR-060: 충돌 처리는 폴백 전용 안전망, RPC/contract/테스트만 10-2
+
+- 결정: `migrate_anonymous_to_user` RPC 정의 + `keep_target` no-op만 허용. 미구현 전략은 RAISE EXCEPTION. 실제 호출·선택 UI는 10-3.
+- 이유: linkIdentity가 메인 경로(user.id 유지 → 마이그레이션 불필요). 폴백 발동률을 모른 채 선택 UI를 만드는 건 과잉. conflict=true에서 조용한 병합/삭제/덮어쓰기 금지(데이터 손실 0).
+
+### ADR-061: 외부 공개를 RLS 완료 조건에서 분리 (release-gate)
+
+- 결정: prod 외부 공개(URL 공유, 환경변수 스위치)는 별도 release-gate로 분리. 10-2 완료 조건은 "RLS 켠 상태에서 내부 smoke test 통과"까지.
+- 이유: 코드 완료와 운영 검증(디바이스 격리, 실기기, 토큰 만료 등)은 리스크 성격이 다름.
+
+### ADR-062: public.users는 SELECT only (클라이언트 UPDATE/INSERT/DELETE 불허)
+
+- 결정: users 테이블은 SELECT 정책만 생성. INSERT는 트리거(00013), provider 갱신도 트리거(ADR-054).
+- 이유: `provider`는 migrate RPC의 anonymous 판정에 쓰이는 보안성 컬럼. RLS는 컬럼을 못 막으므로 UPDATE 자체를 닫아 provider 위조 차단. users UPDATE가 열리면 클라이언트가 provider를 'anonymous'로 위조해 검증 우회 가능.
+- Follow-up: display_name 등 유저 편집 컬럼이 생기면 컬럼 화이트리스트 RPC로.
+
+### ADR-063: moves는 클라이언트 DELETE 정책 미생성 (soft delete만)
+
+- 결정: moves DELETE 정책 없음. soft delete는 UPDATE(`deleted_at` 세팅)로 처리. hard delete는 10-3 계정삭제에서 service_role.
+- 이유: 쓰지 않는 권한을 닫아 공격면 축소. 클라이언트 hard delete 기능이 없음.
+
+### ADR-064: 인증 엔드포인트 rate limit은 fail-closed
+
+- 결정: rate limit 저장소(DB) 장애 시 503으로 차단(열어두지 않음). CORS는 `Vary: Origin` + 미허용 origin 403.
+- 이유: 인증 엔드포인트의 rate limit이 조용히 무력화되면 비용 폭주 방어가 풀림. 장애 시 열어두는 것(fail-open)보다 닫는 것(fail-closed)이 안전.
+
+### ADR-065: RPC 소유권 보강 — 옛 overload DROP 필수
+
+- 결정: `update_move_with_reschedule` 9인자 버전 도입 시 옛 8인자 overload를 반드시 `DROP FUNCTION IF EXISTS`로 제거. 별도 마이그레이션(00020)으로 분리.
+- 이유: PostgreSQL은 파라미터 수가 다르면 별개 함수로 취급(overloading). `CREATE OR REPLACE`는 같은 시그니처만 대체하므로, 옛 8인자 SECURITY DEFINER(소유권 검증 없음)가 잔존하면 RLS를 우회할 수 있음.

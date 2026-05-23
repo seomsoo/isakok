@@ -46,7 +46,10 @@ export function PhotoReportPage() {
     photoType,
     userId ?? '',
   )
-  const { data: urlMap } = useSignedUrls(photos.map((p) => p.storage_path))
+  const { data: urlMap } = useSignedUrls(
+    photos.map((p) => p.storage_path),
+    userId ?? '',
+  )
 
   if (isPending || isPhotosLoading) {
     return (
