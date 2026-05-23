@@ -1,10 +1,10 @@
 # 프로젝트 상태
 
-> 마지막 업데이트: 2026-05-21 (10-1 PR #45 CI 통과, gitleaks 해결)
+> 마지막 업데이트: 2026-05-22 (10-2 구현+verify 완료, 커밋/PR 대기)
 
 ## 현재 단계
 
-10-1단계: 네이티브 인증 + 세션 브릿지 — PR #45 CI 통과, 머지 대기
+10-2단계: RLS 활성화 + Edge Function/Storage 보안 — 구현완료, 커밋/PR 대기
 
 ## 완료된 것
 
@@ -613,19 +613,64 @@
 #### Git
 
 - feat/10-1-native-auth 브랜치, 18개 커밋 (1~3 파일/커밋 컨벤션)
-- PR #45: https://github.com/seomsoo/isakok/pull/45 (CI 통과, 머지 대기)
+- PR #45: https://github.com/seomsoo/isakok/pull/45 (2026-05-21 머지 완료)
+
+### 10-2: RLS 활성화 + Edge Function/Storage 보안
+
+#### 마이그레이션 (00016~00020)
+
+- 00016_enable_rls.sql: 7개 테이블 RLS ENABLE + 정책 생성 (users SELECT only, moves SELECT/INSERT/UPDATE, photos CRUD, ai_guide_cache/system_config 정책 정리, rate_limit_log service_role only)
+- 00017_storage_policy.sql: dev permissive 정책 DROP + photos_select_own/insert_own/delete_own (foldername[1] = auth.uid()::text), UPDATE 정책 없음
+- 00018_rate_limit.sql: rate_limit_log 테이블 + idx_rate_limit_log_window_start + increment_rate_limit RPC, RLS ENABLE + 0 정책 (service_role only)
+- 00019_migrate_anonymous.sql: migrate_anonymous_to_user RPC (auth.uid() 검증, source==target 체크, provider='anonymous' 체크, keep_target/replace_with_source/keep_both 전략), REVOKE FROM PUBLIC + GRANT TO authenticated
+- 00020_rpc_ownership_guard.sql: **옛 8인자 update_move_with_reschedule DROP** (P0 보안 수정) + 9인자 소유권 가드 재생성 + apply_ai_guides REVOKE/GRANT service_role only
+
+#### Edge Function 보안
+
+- generate-ai-guide/index.ts: JWT 인증 추가 (extractUserId + 401), move 소유권 검증 (403), CORS origin 제한 (resolveCorsOrigin/makeCorsHeaders 패턴 통일, 레거시 corsHeaders 제거)
+- kakao-token-exchange/index.ts: CORS origin 제한 + Vary:Origin, rate limit (user 분당 5회 + IP 시간당 30회, fail-closed 503), IP sha256 해시
+- \_shared/cors.ts: 레거시 `corsHeaders` export 제거, `x-debug-timing` 헤더를 공용 `makeCorsHeaders`에 추가
+
+#### Storage 경로 변경
+
+- apps/web/src/services/photos.ts: Storage 경로 `{userId}/{moveId}/{room}_{timestamp}` (photoType segment 제거), prefix ownership guard
+- apps/web/src/features/photos/hooks/useSignedUrls.ts: userId 파라미터 추가, enabled 조건 강화
+
+#### 검증 스크립트
+
+- scripts/verify/rls-smoke.ts: A/B 익명 세션 격리 테스트 (move/checklist/users/master/config/ai_cache), service_role 시드 행 삽입 후 cache 테스트 (false positive 방지), Storage signed URL 격리 테스트
+- scripts/dev-wipe.sql: child→parent 순서 DELETE, master/cache/config 보존, Storage 삭제, master_version 정합성 비교 쿼리
+
+#### Codex 리뷰 수정
+
+- [P1] 옛 8인자 update_move_with_reschedule overload DROP 누락 → 00020_rpc_ownership_guard.sql에 `DROP FUNCTION IF EXISTS` 추가 (PostgreSQL overloading으로 RLS 우회 가능했음)
+- [P2] rls-smoke.ts ai_guide_cache 빈 테이블 false positive → service_role로 시드 행 삽입 후 authenticated 읽기 검증
+
+#### spec-reviewer 수정 (🔴 3건 모두 완료)
+
+- 00020 마이그레이션 분리 + 옛 overload DROP
+- generate-ai-guide CORS origin 제한 (레거시 wildcard 제거)
+- 스펙 §8 마이그레이션 범위 불일치 해소 (00020 파일 생성)
+
+#### 문서
+
+- docs/specs/10-2-rls-security.md (스펙 v3, 979줄)
+- docs/specs/10-2-verify.md (검증 리포트 ✅ 통과)
+- docs/DECISIONS.md: ADR-065 (RPC 소유권 보강 — 옛 overload DROP 필수) 추가
+
+#### 브랜치
+
+- feat/10-2-rls-security (main 최신 위에 생성, 커밋 대기)
 
 ## 진행 중인 것
 
-- **10-1 PR #45 머지 대기**
+- 없음 (구현+verify 완료, 커밋/PR 생성 대기)
 
 ## 다음 할 것
 
-1. **PR #45 머지** (squash merge)
-2. **EAS Secrets 등록** — `eas secret:create`로 7개 키 등록 (EAS 빌드 전 필수)
-3. **10-2 스펙 작성** — verify 리포트 미검증 항목 (토큰 만료, 디바이스 A/B, Apple 실기기, curl 테스트 등)을 검증 체크리스트로 포함
-4. **Apple 실기기 테스트** — 시뮬레이터에서 불가, 기기 등록 + 코드 서명 필요
-5. **Android 에뮬레이터 테스트** — 9단계 검증 완료 상태, auth 로직 추가 검증
+1. **10-2 커밋 + PR 생성** — 파일 1~3개 단위 분할 커밋 후 squash merge PR
+2. **DB 적용 후 실측** — dev에 마이그레이션 적용 후 rls-smoke.ts 실행, Edge Function curl 테스트
+3. **EAS Secrets 등록** — `eas secret:create`로 7개 키 등록 (EAS 빌드 전 필수)
 
 ## 알려진 문제
 
@@ -633,6 +678,8 @@
 - previousMode는 현재 세션 단위. 10단계 인증 후 서버 영속 검토 (Follow-up)
 - CLAUDE.md import 별칭 `@shared/` vs 실제 `@moving/shared` 불일치 (빌드 문제 없음, 정리 필요)
 - shared/constants/aiGuide.ts dead code (VALID_HOUSING_TYPES 등 미사용 상수)
+- 10-2 폴백 발동(linkIdentity 실패→signInWithIdToken) 영속 로깅 미구현 — 현재 console.warn만, DB 카운트 테이블 추가 검토 필요
+- 웹 8개 페이지에서 Error 분기 누락 (ux-state-reviewer 지적, 기존 이슈, 별도 단계)
 
 ## 실패한 접근 (반복 금지)
 
@@ -661,3 +708,6 @@
 - iOS 시뮬레이터에서 앱 삭제해도 WebView localStorage는 안 지워짐 — SecureStore도 앱 컨테이너와 별개로 유지될 수 있음. 세션 초기화 필요 시 `xcrun simctl erase <device-id>` 사용
 - `supabase.ts` 모듈 레벨에서 `isNativeWebView()` 호출하면 `window.__IS_NATIVE_WEBVIEW__`가 아직 설정 안 된 시점에 평가될 수 있음 — `typeof window !== 'undefined' && window.__IS_NATIVE_WEBVIEW__ === true`로 직접 체크
 - WebView `injectedJavaScriptBeforeContentLoaded`로 localStorage 정리해도 native SecureStore에 세션이 남아있으면 `WEB_READY` 응답 시 다시 주입됨 — localStorage 정리만으로는 세션 초기화 불충분
+- PostgreSQL `CREATE OR REPLACE FUNCTION`은 동일 시그니처만 대체 — 파라미터 수가 다르면 별개 함수(overload)로 생성됨. SECURITY DEFINER 함수 시그니처 변경 시 반드시 `DROP FUNCTION IF EXISTS`로 옛 버전 제거 (안 하면 RLS 우회 가능)
+- Edge Function 레거시 CORS export(`corsHeaders = { 'Access-Control-Allow-Origin': '*' }`)를 남겨두면 새 함수가 실수로 import할 위험 — origin 제한 패턴(`resolveCorsOrigin`/`makeCorsHeaders`)으로 통일 후 레거시 export 즉시 제거
+- RLS smoke test에서 `data.length === 0` 단독 assertion은 "접근 거부"와 "빈 테이블"을 구분 못함 — service_role로 시드 행 삽입 후 authenticated로 읽기 시도하거나 error 존재 여부로 판정

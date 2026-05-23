@@ -78,7 +78,7 @@ function Inner({
   const { data: allPhotos = [], isLoading } = usePhotos(moveId, photoType, userId ?? '')
   const photos = allPhotos.filter((p) => p.room === room)
   const paths = photos.map((p) => p.storage_path)
-  const { data: urlMap } = useSignedUrls(paths)
+  const { data: urlMap } = useSignedUrls(paths, userId ?? '')
   const uploadMutation = useUploadPhoto()
 
   const showTip = photos.length < 3 && photos.length > 0

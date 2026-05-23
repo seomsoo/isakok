@@ -52,7 +52,7 @@ export function PhotosPage() {
   const previewPaths = ROOM_META.flatMap((r) =>
     (photosByRoom.get(r.type) ?? []).map((p) => p.storage_path),
   )
-  const { data: urlMap } = useSignedUrls(previewPaths)
+  const { data: urlMap } = useSignedUrls(previewPaths, userId ?? '')
 
   if (isPending) {
     return (

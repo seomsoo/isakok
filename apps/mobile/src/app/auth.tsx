@@ -42,9 +42,7 @@ export default function AuthScreen() {
       const result = await AuthService.signInWithProvider(name)
 
       if (result.mode === 'signed-in' && result.conflict) {
-        setError(
-          '이미 가입된 계정이에요. 다음 업데이트에서 이전 기기 데이터 합치기를 제공할 예정입니다.',
-        )
+        setError('이전에 작성한 내용을 옮기는 기능은 곧 제공돼요. 새 계정으로 시작할 수 있어요.')
         setConflictStuck(true)
         return
       }
