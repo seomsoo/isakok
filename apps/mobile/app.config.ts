@@ -43,9 +43,11 @@ export default ({ config }: ConfigContext) => ({
     'expo-font',
     'expo-apple-authentication',
     'expo-secure-store',
-    ['@react-native-seoul/kakao-login', { kakaoAppKey }],
-    ['@react-native-google-signin/google-signin', { iosUrlScheme: googleIosUrlScheme }],
-  ],
+    ...(kakaoAppKey ? [['@react-native-seoul/kakao-login', { kakaoAppKey }]] : []),
+    ...(googleIosUrlScheme
+      ? [['@react-native-google-signin/google-signin', { iosUrlScheme: googleIosUrlScheme }]]
+      : []),
+  ] as const,
   extra: {
     router: {},
     eas: {

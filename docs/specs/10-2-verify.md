@@ -1,8 +1,8 @@
 # 10-2 RLS 보안 — Verify 리포트
 
-> 검증 일시: 2026-05-22
+> 검증 일시: 2026-05-22 (코드 검증) / 2026-05-25 (런타임 실측 완료)
 > 스펙: `docs/specs/10-2-rls-security.md` (v3, 979줄)
-> 브랜치: `feat/10-1-native-auth` (10-2 작업 포함)
+> 브랜치: `feat/10-2-rls-security` → PR #47 머지 완료
 
 ---
 
@@ -31,9 +31,9 @@
 - [x] `ai_guide_cache`: 정책 3개 후보 DROP → service_role only
 - [x] `system_config`: SELECT public, write 불가
 - [x] `rate_limit_log`: 00018에서 ENABLE, 정책 0개 = service_role only
-- [ ] soft delete 복구 동작 — DB 적용 후 실측 필요 (코드 기준 정책에 deleted_at 없어 정상 동작 예상)
-- [ ] 익명 세션 본인 CRUD 정상 — DB 적용 후 실측 필요
-- [ ] 디바이스 B 익명 세션 격리 — DB 적용 후 실측 필요
+- [x] soft delete 복구 동작 — rls-smoke.ts A가 soft delete 후 정상 동작 확인 (2026-05-25)
+- [x] 익명 세션 본인 CRUD 정상 — 브라우저 테스트로 온보딩(move+checklist 생성) + 사진 업로드 성공 (2026-05-25)
+- [x] 디바이스 B 익명 세션 격리 — rls-smoke.ts 16/16 통과 (2026-05-25)
 
 ### 10-2. Edge Function (§4)
 
@@ -49,7 +49,7 @@
 - [x] rate limit DB 장애 시 503 (fail-closed, 429와 구분)
 - [x] rate_limit_log에 IP가 salt 해시로 저장 (`sha256(ip:salt)`)
 - [x] WebView(Origin null) 경유 호출 허용 (`resolved === null` 분기)
-- [ ] Edge Function JWT/rate limit 실동작 — curl 테스트 필요
+- [x] Edge Function JWT/rate limit 실동작 — curl 4건 통과: generate-ai-guide JWT없음→401, 잘못된origin→403 / kakao-token-exchange 잘못된origin→403, JWT없음→401 (2026-05-25)
 
 ### 10-3. Storage (§5)
 
@@ -58,11 +58,11 @@
 - [x] 클라이언트 prefix ownership 가드 (`path.startsWith(`${userId}/`)`)
 - [x] upsert=false 유지 (photos.ts:111)
 - [x] UPDATE 정책 없음 (00017에 미생성)
-- [ ] 본인 사진 createSignedUrls 발급 정상 — DB 적용 후 실측 필요
-- [ ] 타인 경로 createSignedUrl 발급 차단 — DB 적용 후 실측 필요
-- [ ] createSignedUrls 본인/타인 혼합 시 타인 경로 실패/null 처리 — 실측 필요
-- [ ] 타인 경로 업로드/삭제 차단 — 실측 필요
-- [ ] 버킷 private 유지 — 실측 필요
+- [x] 본인 사진 createSignedUrls 발급 정상 — 브라우저에서 사진 업로드 후 썸네일 정상 렌더링 (2026-05-25)
+- [x] 타인 경로 createSignedUrl 발급 차단 — rls-smoke.ts Storage 격리 테스트 통과 (2026-05-25)
+- [x] createSignedUrls 본인/타인 혼합 시 타인 경로 에러 반환 — 실측 통과 (2026-05-25)
+- [x] 타인 경로 업로드/삭제 차단 — B→A경로 upload 거부 + delete 0건 반환 확인 (2026-05-25)
+- [x] 버킷 private 유지 — getPublicUrl로 fetch 시 비정상 응답 확인 (2026-05-25)
 
 ### 10-4. 충돌 RPC (§6)
 
@@ -72,7 +72,7 @@
 - [x] keep_target no-op 확인 (RETURN jsonb `{migrated: false}`)
 - [x] `replace_with_source`/`keep_both` → not implemented 예외
 - [x] migrate RPC 함수 권한: REVOKE FROM PUBLIC + GRANT TO authenticated
-- [ ] linkIdentity 후 public.users.provider 갱신 실측 — 시뮬레이터/실기기 필요
+- [x] linkIdentity 후 public.users.provider 갱신 실측 — ✅ Apple/Google/Kakao 로그인 후 DB trigger handle_user_provider_update 동작 확인 (2026-05-25)
 - [x] 폴백 시 안내 배너 표시: auth.tsx "이전에 작성한 내용을 옮기는 기능은 곧 제공돼요"
 - [ ] 폴백 발동 로깅 — ⚠️ console.warn만 존재, 영속 로깅(DB 카운트 등) 미구현 (🟡)
 
@@ -80,7 +80,7 @@
 
 - [x] dev-wipe.sql 존재 (child→parent 순서, master/cache/config 보존, Storage 삭제 포함)
 - [x] dev wipe project-ref 가드: 주석으로 수동 확인 지시 (스펙과 일치)
-- [ ] dev: 사용자 데이터 0건 확인 — wipe 실행 후 검증 필요
+- [x] dev: 사용자 데이터 0건 확인 — dev-wipe.sql 실행, 6개 테이블 전부 0건 + 보존 대상 정상 (master 46, cache 4, config 1). Storage는 SQL 삭제 불가(protect_delete 트리거), 대시보드에서 수동 정리 (2026-05-25)
 - [x] dev: ai_guide_cache.master_version 정합성 — ~~⚠️ dev-wipe.sql에 확인 쿼리 누락 (🟡)~~ → ✅ 정합성 비교 쿼리 추가
 - [ ] prod: 마이그레이션 적용 — 미진행
 - [ ] prod: master 46개 seed — 미진행
@@ -258,4 +258,4 @@ P2 5건 / P3 4건 — auth.tsx 신규 로그인 화면 중심
 - web-a11y-reviewer 포커스 트랩/`<main>` 랜드마크 (기존 이슈)
 - native-a11y-reviewer accessibilityHint 추가 (개선)
 - 웹 번들 코드 스플리팅 (perf-budget)
-- DB 적용 후 실측 항목 (soft delete 복구, 익명 CRUD, 디바이스 격리, Edge Function curl 등)
+- ~~DB 적용 후 실측 항목 (soft delete 복구, 익명 CRUD, 디바이스 격리, Edge Function curl 등)~~ → ✅ 전체 실측 완료 (2026-05-25)

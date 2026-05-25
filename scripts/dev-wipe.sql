@@ -25,8 +25,11 @@ DELETE FROM public.moves;
 -- 2) public.users (auth.users FK CASCADE로 이미 삭제됐으면 0건)
 DELETE FROM public.users;
 
--- 3) Storage 파일 (SQL로 직접 삭제)
-DELETE FROM storage.objects WHERE bucket_id = 'property-photos';
+-- 3) Storage 파일
+-- ⚠️ SQL 직접 삭제 불가 (storage.protect_delete() 트리거가 차단)
+-- → Supabase 대시보드 > Storage > property-photos에서 수동 삭제
+-- → 또는 Storage API: supabase.storage.from('property-photos').remove([...paths])
+-- DELETE FROM storage.objects WHERE bucket_id = 'property-photos';
 
 -- 보존 확인
 SELECT 'master_checklist_items' AS "table", count(*) AS "count" FROM public.master_checklist_items

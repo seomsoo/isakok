@@ -2,7 +2,7 @@ import { differenceInCalendarDays, parseISO } from 'date-fns'
 import { ROUTES } from '@shared/constants/routes'
 import { Link } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
-import type { UrgencyMode } from '@moving/shared'
+import { type UrgencyMode, isNativeWebView, sendToNative } from '@moving/shared'
 
 interface UpcomingSectionProps {
   items: Record<string, unknown>[]
@@ -52,6 +52,12 @@ export function UpcomingSection({ items, mode }: UpcomingSectionProps) {
         <h2 className="text-h3 font-bold text-secondary">미리 준비하면 좋아요</h2>
         <Link
           to={ROUTES.TIMELINE}
+          onClick={(e) => {
+            if (isNativeWebView()) {
+              e.preventDefault()
+              sendToNative({ type: 'NAVIGATE_TAB', payload: { tab: 'timeline' } })
+            }
+          }}
           className="flex items-center gap-0.5 text-body-sm font-medium text-primary"
         >
           전체 보기

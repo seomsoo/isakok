@@ -16,6 +16,9 @@ export type WebToNativeMessage =
   | { type: 'SHARE_REPORT'; payload: { url: string } }
   | { type: 'WEB_READY' }
   | { type: 'ROUTE_CHANGE'; payload: { path: string } }
+  | { type: 'NAVIGATE_TAB'; payload: { tab: 'home' | 'timeline' | 'photos' } }
+  | { type: 'SET_TAB_BAR'; payload: { visible: boolean } }
+  | { type: 'SET_SAFE_AREA_STYLE'; payload: { top: 'default' | 'black' } }
 
 /**
  * 네이티브 → 웹 메시지

@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { queryClient } from '@/lib/queryClient'
 import type { BridgeMessage, NativeToWebMessage } from '@shared/types/bridge'
 
 let attached = false
@@ -34,6 +35,8 @@ export function setupWebSessionListener() {
       if (error) console.error('[webSessionListener] setSession', error)
     } else if (message.type === 'AUTH_LOGOUT') {
       await supabase.auth.signOut({ scope: 'local' })
+      queryClient.clear()
+      window.location.replace('/')
     }
   })
 }

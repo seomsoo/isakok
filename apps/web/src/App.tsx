@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from '@/lib/queryClient'
 import { ROUTES } from '@shared/constants/routes'
@@ -19,12 +19,21 @@ import { PhotoTrashPage } from '@/pages/PhotoTrashPage'
 import { ToastProvider } from '@/shared/components/ToastProvider'
 
 function WebReadySignal() {
+  const { pathname } = useLocation()
+
   useEffect(() => {
     if (isNativeWebView()) {
       setupWebSessionListener()
       sendToNative({ type: 'WEB_READY' })
     }
   }, [])
+
+  useEffect(() => {
+    if (isNativeWebView()) {
+      sendToNative({ type: 'ROUTE_CHANGE', payload: { path: pathname } })
+    }
+  }, [pathname])
+
   return null
 }
 

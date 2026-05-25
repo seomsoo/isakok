@@ -1,9 +1,9 @@
 # 10-1 검증 리포트
 
 > 스펙: `docs/specs/10-1-native-auth.md` §19 체크리스트 기준
-> 검증일: 2026-05-21
-> 환경: iOS 시뮬레이터 (iPhone, iOS 18.x) + localhost:5173 웹 서버
-> 테스트 결과 출처: iOS 시뮬레이터 수동 검증 (2026-05-21)
+> 검증일: 2026-05-21 (코드 검증 + 시뮬레이터) / 2026-05-25 (런타임 추가 검증)
+> 환경: iOS 시뮬레이터 (iPhone, iOS 18.x) + localhost:5173 웹 서버 + Supabase dev remote
+> 테스트 결과 출처: iOS 시뮬레이터 수동 검증 (2026-05-21) + rls-smoke/curl/DB 직접 검증 (2026-05-25)
 
 ---
 
@@ -37,9 +37,9 @@
 - [x] 마이그레이션 `00013_anonymous_users.sql` + `00014_auth_provider_links.sql` 적용
 - [x] 새 디바이스 첫 실행 → auth.users + public.users 자동 생성 (iOS 시뮬레이터 검증)
 - [x] 앱 재실행 시 세션 복구 + 같은 user.id 유지 (카카오 세션 복원 확인)
-- [ ] 만료 refresh token으로 재실행 시 자동 익명 재가입 — 미검증 (토큰 만료 대기 필요)
-- [ ] 디바이스 A/B 첫 실행 시 서로 다른 auth.uid() — 미검증 (단일 시뮬레이터)
-- [ ] 디바이스 A 데이터가 디바이스 B service layer에서 분리 — 미검증
+- [x] 만료 refresh token으로 재실행 시 자동 익명 재가입 — signOut으로 refresh token 무효화 후 새 익명 세션 생성 확인, 3/3 userId 모두 다름 (2026-05-25)
+- [x] 디바이스 A/B 첫 실행 시 서로 다른 auth.uid() — rls-smoke.ts A/B 다른 userId 확인 (2026-05-25)
+- [x] 디바이스 A 데이터가 디바이스 B service layer에서 분리 — rls-smoke.ts 16/16 격리 통과 (2026-05-25)
 
 ### §19-3. TEMP_USER_ID 제거
 
@@ -52,20 +52,20 @@
 
 - [x] `supabaseNative.ts` 존재, mobile에서 shared web client import 안 함
 - [x] `AuthProvider` 인터페이스 + 3개 구현체 (Apple nonce, Google iOS/Android 분기)
-- [ ] iOS 시뮬레이터/실기기: Apple 로그인 — **미검증 (실기기 필요)**
+- [x] iOS 실기기: Apple 로그인 — ✅ Sign in with Apple 성공, privaterelay 이메일 정상 등록 (2026-05-25)
 - [x] Google iOS 로그인 — ✅ 성공 (기존 계정 → signInWithIdToken → conflict 메시지)
 - [x] Kakao iOS 로그인 — ✅ 성공 (Edge Function 경유, anonymous 링킹)
 - [ ] 익명→Apple/Google `identity-linked` (user.id 유지) — 미검증 (새 Google 계정 필요)
 - [x] Kakao 익명→소셜 `custom-linked` (auth_provider_links 매핑 + user.id 유지)
-- [ ] linkIdentity/Kakao 후 `public.users.provider` 갱신 — 미검증 (DB 직접 조회 필요)
+- [x] linkIdentity/Kakao 후 `public.users.provider` 갱신 — DB trigger `handle_user_provider_update` 검증: auth.users.raw_app_meta_data.provider 변경 시 public.users.provider 자동 동기화 확인 (2026-05-25)
 - [x] iOS는 Apple 최상단 — auth 화면에서 Apple > Google > 카카오 순서 확인
 
 ### §19-5. Kakao Edge Function 보안
 
 - [x] Edge Function 배포 완료 (supabase functions deploy)
 - [x] Kakao 로그인 동작 → JWT 검증 정상 (401 없이 세션 발급)
-- [ ] Authorization 없이 호출 시 401 — 미검증 (수동 curl 테스트 필요)
-- [ ] POST 외 405 — 미검증
+- [x] Authorization 없이 호출 시 401 — curl 테스트 통과 (2026-05-25)
+- [x] POST 외 405 — curl GET→405 확인 (2026-05-25)
 - [x] verify_jwt: true 기본값 유지 (config.toml 변경 없음)
 - [x] email 충돌 시 409 → conflict: true 매핑 — 구글 기존 계정 테스트에서 확인
 - [x] auth_provider_links 매핑 사용 (listUsers 미사용)
@@ -75,8 +75,8 @@
 - [x] BridgeMessage wrapper 형식만 사용 (grep 확인, raw 형식 0건)
 - [x] WEB_READY 후 AUTH_SESSION 수신 — 온보딩 로그인 버튼 동작으로 확인
 - [x] 탭 전환 시 세션 유지 — 홈 → 전체일정 → 집기록 이동 정상
-- [ ] 로그아웃 시 WebView 3개 AUTH_LOGOUT — 미검증 (로그아웃 UI 없음)
-- [ ] 웹 401 → REQUEST_SESSION_REFRESH → Native 갱신 → 재시도 — 미검증
+- [x] 로그아웃 시 WebView 3개 AUTH_LOGOUT — ✅ 설정 화면 로그아웃 버튼 추가 후 실기기 검증: AUTH_LOGOUT → supabase.signOut + queryClient.clear + redirect('/') 동작 확인 (2026-05-25)
+- [~] 웹 401 → REQUEST_SESSION_REFRESH → Native 갱신 → 재시도 — 코드 경로 확인 완료 (authError.ts 401 감지→debounce→sendToNative, queryClient.ts onError 통합), JWT stateless 특성상 signOut만으로는 401 트리거 불가. 네이티브 WebView E2E에서만 완전 검증 가능 (2026-05-25)
 - [x] 웹 supabase autoRefreshToken: false — 코드 확인 (isNative 분기)
 - [x] 401 인터셉터 debounce 5초 — 코드 확인
 
