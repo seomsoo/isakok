@@ -3,7 +3,12 @@ import { Navigate, Link } from 'react-router-dom'
 import { differenceInCalendarDays, format, parseISO } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { Settings } from 'lucide-react'
-import { ROUTES, calculateProgress, calculateEssentialProgress } from '@moving/shared'
+import {
+  ROUTES,
+  GREETING_TEXT,
+  calculateProgress,
+  calculateEssentialProgress,
+} from '@moving/shared'
 import { useCurrentMove } from '@/features/dashboard/hooks/useCurrentMove'
 import { useGenerateAiGuide } from '@/features/ai-guide/hooks/useGenerateAiGuide'
 import { useAiGuideStore } from '@/stores/aiGuideStore'
@@ -12,14 +17,12 @@ import { useToggleItem } from '@/features/dashboard/hooks/useToggleItem'
 import { useTimelineItemsForProgress } from '@/features/dashboard/hooks/useTimelineItemsForProgress'
 import { useUrgencyMode } from '@/features/dashboard/hooks/useUrgencyMode'
 import { useModeStore } from '@/stores/modeStore'
-import { GreetingHeader } from '@/features/dashboard/components/GreetingHeader'
 import { DdayCard } from '@/features/dashboard/components/DdayCard'
 import { ActionSection } from '@/features/dashboard/components/ActionSection'
 import { MotivationCard } from '@/features/dashboard/components/MotivationCard'
 import { UpcomingSection } from '@/features/dashboard/components/UpcomingSection'
 import { PhotoPromptCard } from '@/features/dashboard/components/PhotoPromptCard'
 import { ModeTransitionBanner } from '@/features/dashboard/components/ModeTransitionBanner'
-import { PageHeader } from '@/shared/components/PageHeader'
 import { DevTabBar } from '@/shared/components/DevTabBar'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { useUserId } from '@/auth/useSession'
@@ -87,20 +90,16 @@ export function DashboardPage() {
 
   return (
     <div className="flex min-h-dvh flex-col bg-neutral pb-20">
-      <PageHeader
-        left={<span className="text-h3 font-bold text-primary">이사콕</span>}
-        right={
-          <Link
-            to={ROUTES.SETTINGS}
-            className="flex h-10 w-10 items-center justify-center rounded-xl text-muted"
-            aria-label="설정"
-          >
-            <Settings size={22} />
-          </Link>
-        }
-      />
-
-      <GreetingHeader mode={mode} />
+      <header className="flex items-center justify-between px-5 pt-4">
+        <h1 className="text-h1 font-bold tracking-tight text-secondary">{GREETING_TEXT[mode]}</h1>
+        <Link
+          to={ROUTES.SETTINGS}
+          className="flex h-10 w-10 items-center justify-center rounded-xl text-muted"
+          aria-label="설정"
+        >
+          <Settings size={22} />
+        </Link>
+      </header>
 
       {isTransitioned && transitionMessage && (
         <div className="mt-4">

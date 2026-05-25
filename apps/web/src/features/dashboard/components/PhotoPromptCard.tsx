@@ -1,6 +1,6 @@
 import { Camera } from 'lucide-react'
+import { ROUTES, type UrgencyMode, isNativeWebView, sendToNative } from '@moving/shared'
 import { useNavigate } from 'react-router-dom'
-import { ROUTES, type UrgencyMode } from '@moving/shared'
 
 interface PhotoPromptCardProps {
   daysRemaining: number
@@ -19,6 +19,10 @@ export function PhotoPromptCard({ daysRemaining, mode }: PhotoPromptCardProps) {
     daysRemaining > 0 ? '작은 흠집도 꼼꼼하게 기록해두세요.' : '사소한 흠집도 꼼꼼하게 기록하세요.'
 
   function handlePress() {
+    if (isNativeWebView()) {
+      sendToNative({ type: 'NAVIGATE_TAB', payload: { tab: 'photos' } })
+      return
+    }
     navigate(ROUTES.PHOTOS)
   }
 
