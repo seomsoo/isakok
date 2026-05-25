@@ -62,7 +62,7 @@ jobs:
         if: ${{ steps.actor.outputs.skip != 'true' && steps.fork.outputs.skip != 'true' }}
         uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Get PR diff stats (from workspace, trusted git command)
         if: ${{ steps.actor.outputs.skip != 'true' && steps.fork.outputs.skip != 'true' }}
