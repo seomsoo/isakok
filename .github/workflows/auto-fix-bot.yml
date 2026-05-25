@@ -245,7 +245,7 @@ jobs:
 
       - name: Upload result as artifact
         if: ${{ steps.proceed.outputs.ok == 'true' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: auto-fix-result-${{ steps.pr.outputs.number }}-${{ github.run_id }}
           path: |
