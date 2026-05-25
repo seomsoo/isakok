@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Loader2 } from 'lucide-react'
 import type { PropertyPhoto } from '@/services/photos'
+import { isNativeWebView, sendToNative } from '@moving/shared'
 
 interface PhotoFullscreenViewerProps {
   photo: PropertyPhoto
@@ -33,6 +34,17 @@ export function PhotoFullscreenViewer({ photo, signedUrl, onClose }: PhotoFullsc
       window.removeEventListener('keydown', onKey)
     }
   }, [onClose])
+
+  useEffect(() => {
+    if (!isNativeWebView()) return
+
+    sendToNative({ type: 'SET_TAB_BAR', payload: { visible: false } })
+    sendToNative({ type: 'SET_SAFE_AREA_STYLE', payload: { top: 'black' } })
+    return () => {
+      sendToNative({ type: 'SET_TAB_BAR', payload: { visible: true } })
+      sendToNative({ type: 'SET_SAFE_AREA_STYLE', payload: { top: 'default' } })
+    }
+  }, [])
 
   function getDistance(touches: React.TouchList): number {
     const t0 = touches.item(0)
