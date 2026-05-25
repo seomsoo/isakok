@@ -1,18 +1,14 @@
 import { ChevronRight } from 'lucide-react'
+import { isNativeWebView, sendToNative } from '@shared/utils/nativeBridge'
+import { useUserId } from '@/auth/useSession'
 
 interface MenuItem {
   label: string
   value?: string
   onClick?: () => void
   isDisabled?: boolean
+  isDanger?: boolean
 }
-
-const ACCOUNT_ITEMS: MenuItem[] = [
-  {
-    label: '로그인',
-    onClick: () => console.log('TODO: 로그인'),
-  },
-]
 
 const INFO_ITEMS: MenuItem[] = [
   {
@@ -50,7 +46,9 @@ function MenuSection({ title, items }: { title: string; items: MenuItem[] }) {
                 disabled={item.isDisabled}
                 className="flex w-full items-center justify-between px-4 py-3.5"
               >
-                <span className="text-body text-secondary">{item.label}</span>
+                <span className={`text-body ${item.isDanger ? 'text-critical' : 'text-secondary'}`}>
+                  {item.label}
+                </span>
                 <ChevronRight size={18} className="text-placeholder" />
               </button>
             ) : (
@@ -67,9 +65,37 @@ function MenuSection({ title, items }: { title: string; items: MenuItem[] }) {
 }
 
 export function SettingsMenuList() {
+  const { isAnonymous } = useUserId()
+
+  const accountItems: MenuItem[] | null =
+    isAnonymous === true
+      ? [
+          {
+            label: '로그인',
+            onClick: () => {
+              if (isNativeWebView()) {
+                sendToNative({ type: 'REQUEST_LOGIN' })
+              }
+            },
+          },
+        ]
+      : isAnonymous === false
+        ? [
+            {
+              label: '로그아웃',
+              isDanger: true,
+              onClick: () => {
+                if (isNativeWebView()) {
+                  sendToNative({ type: 'REQUEST_LOGOUT' })
+                }
+              },
+            },
+          ]
+        : null
+
   return (
     <div className="flex flex-col gap-6">
-      <MenuSection title="계정" items={ACCOUNT_ITEMS} />
+      {accountItems && <MenuSection title="계정" items={accountItems} />}
       <MenuSection title="정보" items={INFO_ITEMS} />
     </div>
   )
