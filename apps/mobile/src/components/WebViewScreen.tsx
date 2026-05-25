@@ -1,10 +1,18 @@
 import { useState, useEffect, useCallback } from 'react'
-import { View, BackHandler, Platform, StyleSheet, Linking, AccessibilityInfo } from 'react-native'
+import {
+  View,
+  BackHandler,
+  Platform,
+  StyleSheet,
+  Linking,
+  AccessibilityInfo,
+  StatusBar,
+} from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { WebView } from 'react-native-webview'
 import type { WebViewMessageEvent, WebViewNavigation } from 'react-native-webview'
-import { router } from 'expo-router'
-import { WEB_APP_URL } from '../constants/config'
+import { router, useNavigation } from 'expo-router'
+import { COLORS, WEB_APP_URL } from '../constants/config'
 import { useNetworkStatus } from '../hooks/useNetworkStatus'
 import { useWebViewRef } from '../hooks/useWebViewRef'
 import { hideSplashOnce } from '../utils/splash'
@@ -33,13 +41,35 @@ const INJECTED_BEFORE_LOAD = `
         }
       }
     } catch(e) {}
+    function isEditable(target) {
+      var el = target;
+      while (el && el !== document.body) {
+        if (el.isContentEditable) return true;
+        var tagName = el.tagName ? el.tagName.toLowerCase() : '';
+        if (tagName === 'textarea') return true;
+        if (tagName === 'input') {
+          var type = (el.getAttribute('type') || 'text').toLowerCase();
+          return type !== 'file' && type !== 'checkbox' && type !== 'radio';
+        }
+        el = el.parentElement;
+      }
+      return false;
+    }
+    function suppressSelection(event) {
+      if (isEditable(event.target)) return;
+      event.preventDefault();
+    }
     function addClass() {
+      document.documentElement.classList.add('native-webview');
       if (document.body) {
         document.body.classList.add('native-webview');
       }
     }
     addClass();
     document.addEventListener('DOMContentLoaded', addClass);
+    document.addEventListener('contextmenu', suppressSelection, true);
+    document.addEventListener('selectstart', suppressSelection, true);
+    document.addEventListener('dragstart', suppressSelection, true);
   })();
   true;
 `
@@ -52,14 +82,31 @@ const PATH_LABELS: Record<string, string> = {
   '/photos': '집기록',
 }
 
+const TAB_BAR_STYLE = {
+  backgroundColor: '#FFFFFF',
+  borderTopColor: '#F0EFED',
+  borderTopWidth: 0.5,
+  height: 56,
+  paddingBottom: 4,
+}
+const TAB_BAR_HIDDEN = { display: 'none' as const }
+const HIDE_TAB_ROUTES = ['/onboarding', '/pre-check']
+const TOP_SAFE_AREA_BACKGROUND = {
+  default: COLORS.neutral,
+  black: '#000000',
+} as const
+
 export function WebViewScreen({ path, onMessage }: WebViewScreenProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [hasError, setHasError] = useState(false)
   const [canGoBack, setCanGoBack] = useState(false)
+  const [topSafeAreaStyle, setTopSafeAreaStyle] =
+    useState<keyof typeof TOP_SAFE_AREA_BACKGROUND>('default')
   const insets = useSafeAreaInsets()
   const isConnected = useNetworkStatus()
   const { webViewRef, reload, goBack } = useWebViewRef()
   const [wasOffline, setWasOffline] = useState(false)
+  const navigation = useNavigation()
 
   useEffect(() => {
     if (!isConnected) {
@@ -139,13 +186,33 @@ export function WebViewScreen({ path, onMessage }: WebViewScreenProps) {
         case 'OPEN_EXTERNAL_LINK':
           Linking.openURL(message.payload.url).catch(() => undefined)
           return
+        case 'NAVIGATE_TAB': {
+          const tabMap = { home: '/', timeline: '/timeline', photos: '/photos' } as const
+          router.replace(tabMap[message.payload.tab])
+          return
+        }
+        case 'ROUTE_CHANGE': {
+          const shouldHide = HIDE_TAB_ROUTES.some((r) => message.payload.path.startsWith(r))
+          navigation.setOptions({
+            tabBarStyle: shouldHide ? TAB_BAR_HIDDEN : TAB_BAR_STYLE,
+          })
+          return
+        }
+        case 'SET_TAB_BAR':
+          navigation.setOptions({
+            tabBarStyle: message.payload.visible ? TAB_BAR_STYLE : TAB_BAR_HIDDEN,
+          })
+          return
+        case 'SET_SAFE_AREA_STYLE':
+          setTopSafeAreaStyle(message.payload.top)
+          return
       }
 
       if (onMessage) {
         onMessage(wrapped)
       }
     },
-    [onMessage, webViewRef],
+    [onMessage, webViewRef, navigation],
   )
 
   const handleNavigationStateChange = useCallback((navState: WebViewNavigation) => {
@@ -174,7 +241,19 @@ export function WebViewScreen({ path, onMessage }: WebViewScreenProps) {
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
+    <View
+      style={[
+        styles.container,
+        {
+          backgroundColor: TOP_SAFE_AREA_BACKGROUND[topSafeAreaStyle],
+          paddingTop: insets.top,
+        },
+      ]}
+    >
+      <StatusBar
+        barStyle={topSafeAreaStyle === 'black' ? 'light-content' : 'dark-content'}
+        backgroundColor={TOP_SAFE_AREA_BACKGROUND[topSafeAreaStyle]}
+      />
       {isLoading && (
         <View style={styles.loadingOverlay}>
           <LoadingFallback />
@@ -230,6 +309,7 @@ export function WebViewScreen({ path, onMessage }: WebViewScreenProps) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#F8F7F5',
   },
   loadingOverlay: {
     ...StyleSheet.absoluteFill,
