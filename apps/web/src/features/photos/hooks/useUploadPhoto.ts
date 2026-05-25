@@ -33,7 +33,7 @@ export function useUploadPhoto() {
     },
     onError: (error) => {
       console.error('[useUploadPhoto]', error)
-      toast.error('사진 저장에 실패했어요. 다시 시도해주세요.')
+      toast.error('사진 저장에 실패했어요')
     },
   })
 }

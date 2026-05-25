@@ -286,7 +286,7 @@ import { TodayTasks } from '@/features/dashboard/components/TodayTasks'
 | ------------------------------------- | --------- | ----------------------------------------------- |
 | DevTabBar (웹 임시 탭바)              | 9단계     | ✅ Expo 네이티브 탭바로 교체 완료               |
 | 파일 선택 input                       | 9단계     | WebView에서 input 유지 (네이티브 카메라 미전환) |
-| anon key + RLS 끔 (모든 행 접근 가능) | 10-2단계  | ⬜ 10-2에서 RLS 활성화 예정                     |
+| anon key + RLS 끔 (모든 행 접근 가능) | 10-2단계  | ✅ RLS 활성화 완료 (00016~00020)                |
 | 하드코딩 user_id                      | 10-1단계  | ✅ auth.uid() 기반으로 전환 완료                |
 | guide_content 직접 표시               | 7단계     | ✅ AI custom_guide 우선 표시로 교체 완료        |
 

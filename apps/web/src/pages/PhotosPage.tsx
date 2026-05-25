@@ -111,7 +111,9 @@ export function PhotosPage() {
     const succeeded = results.filter((r) => r.status === 'fulfilled').length
     const failed = results.length - succeeded
     queryClient.invalidateQueries({ queryKey: photoKeys.byMove(move.id, photoType) })
-    if (failed > 0) toast.error(`${failed}장 저장에 실패했어요`)
+    if (failed > 0) {
+      toast.error(`${failed}장 저장에 실패했어요`)
+    }
     if (succeeded > 0) toast.success(`${succeeded}장 저장 완료`)
     setActiveRoom(null)
   }

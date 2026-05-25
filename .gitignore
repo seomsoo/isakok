@@ -10,3 +10,4 @@ coverage/
 *.tsbuildinfo
 .vercel
 .claude/worktrees/
+.playwright-mcp/

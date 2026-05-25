@@ -1,6 +1,12 @@
 import { Link } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
-import { ROUTES, ACTION_SECTION_TITLE, type UrgencyMode } from '@moving/shared'
+import {
+  ROUTES,
+  ACTION_SECTION_TITLE,
+  type UrgencyMode,
+  isNativeWebView,
+  sendToNative,
+} from '@moving/shared'
 import { Badge } from '@/shared/components/Badge'
 
 interface ActionSectionProps {
@@ -29,12 +35,13 @@ function sortByUrgency(items: Record<string, unknown>[]) {
 
 export function ActionSection({ items, nextUpcomingDate, mode, onToggle }: ActionSectionProps) {
   // 초급한 모드: 필수 항목만
-  const filtered = mode === 'critical'
-    ? items.filter((item) => {
-        const master = item.master_checklist_items as Record<string, unknown> | null
-        return master?.is_skippable === false
-      })
-    : items
+  const filtered =
+    mode === 'critical'
+      ? items.filter((item) => {
+          const master = item.master_checklist_items as Record<string, unknown> | null
+          return master?.is_skippable === false
+        })
+      : items
 
   if (filtered.length === 0) {
     return (
@@ -62,6 +69,12 @@ export function ActionSection({ items, nextUpcomingDate, mode, onToggle }: Actio
         </div>
         <Link
           to={ROUTES.TIMELINE}
+          onClick={(e) => {
+            if (isNativeWebView()) {
+              e.preventDefault()
+              sendToNative({ type: 'NAVIGATE_TAB', payload: { tab: 'timeline' } })
+            }
+          }}
           className="flex items-center gap-1 py-3 text-body-sm font-medium text-primary"
         >
           전체 보기

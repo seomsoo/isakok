@@ -43,6 +43,7 @@
 }
 
 body {
+  background-color: var(--color-neutral);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   color: var(--color-secondary);
@@ -90,6 +91,24 @@ body {
   animation: check-pop 0.25s ease-out;
 }
 
+html.native-webview,
+html.native-webview *,
+body.native-webview,
+body.native-webview * {
+  -webkit-user-select: none !important;
+  -webkit-touch-callout: none !important;
+  user-select: none !important;
+}
+
+html.native-webview textarea,
+html.native-webview input:not([type='file']):not([type='checkbox']):not([type='radio']),
+body.native-webview textarea,
+body.native-webview input:not([type='file']):not([type='checkbox']):not([type='radio']) {
+  -webkit-user-select: text !important;
+  user-select: text !important;
+}
+
+html.native-webview #root,
 body.native-webview #root {
   padding-bottom: 0;
 }
