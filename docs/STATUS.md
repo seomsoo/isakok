@@ -1,10 +1,10 @@
 # 프로젝트 상태
 
-> 마지막 업데이트: 2026-05-22 (10-2 구현+verify 완료, 커밋/PR 대기)
+> 마지막 업데이트: 2026-05-25 (iOS 실기기 테스트 + UI 폴리시 + 10-1/10-2 미검증 항목 실측)
 
 ## 현재 단계
 
-10-2단계: RLS 활성화 + Edge Function/Storage 보안 — 구현완료, 커밋/PR 대기
+10-2단계: RLS 활성화 + Edge Function/Storage 보안 — 검증완료, 커밋/PR 대기
 
 ## 완료된 것
 
@@ -658,19 +658,98 @@
 - docs/specs/10-2-verify.md (검증 리포트 ✅ 통과)
 - docs/DECISIONS.md: ADR-065 (RPC 소유권 보강 — 옛 overload DROP 필수) 추가
 
-#### 브랜치
+#### Git
 
-- feat/10-2-rls-security (main 최신 위에 생성, 커밋 대기)
+- feat/10-2-rls-security 브랜치, 13개 커밋 (1~3 파일/커밋 컨벤션)
+- PR #47: https://github.com/seomsoo/isakok/pull/47 (2026-05-25 squash 머지 완료)
+
+#### 런타임 검증 (2026-05-25 완료)
+
+- [x] DB 마이그레이션: `supabase db push` — 00016~00020 적용 완료 (00012~00015는 10-1에서 이미 적용, `migration repair --status applied`로 동기화)
+- [x] RLS 스모크 테스트: `rls-smoke.ts` **16/16 통과** — A/B 유저 격리, 공개 테이블 읽기, ai_guide_cache 차단, users UPDATE 차단, Storage signed URL 격리
+- [x] Edge Function 보안: generate-ai-guide JWT없음→401, 잘못된origin→403 / kakao-token-exchange 잘못된origin→403, JWT없음→401
+- [x] Storage 테스트: 브라우저에서 사진 업로드 (userId prefix 경로) + signed URL 썸네일 정상 렌더링, 콘솔 에러 0건
+- [x] RATE_LIMIT_SALT 등록: `supabase secrets set` 완료 (openssl rand -hex 32)
+- [ ] EAS Secrets (모바일): Google Sign-In iosUrlScheme 설정 문제로 `eas env:list` CLI 실패 — EAS 빌드 설정 단계에서 같이 해결 예정
+- [x] 10-1 추가 검증 (2026-05-25): #40 만료 refresh token 재가입 (3/3 통과), #60 provider trigger 갱신 (DB 직접 검증), #79 401 인터셉터 코드 경로 확인 (네이티브 E2E만 잔존)
+- [x] 임시 테스트 스크립트 정리: check-provider.ts, check-provider-update.ts, test-expired-refresh.ts, test-401-response.ts 삭제 (rls-smoke.ts만 유지)
+
+### iOS 실기기 테스트 + UI 폴리시 (2026-05-25)
+
+#### 브릿지 확장
+
+- packages/shared/src/types/bridge.ts: `NAVIGATE_TAB`, `SET_TAB_BAR` 메시지 타입 추가
+- apps/mobile/src/components/WebViewScreen.tsx: NAVIGATE_TAB(탭 전환), ROUTE_CHANGE(온보딩/pre-check 탭바 숨김), SET_TAB_BAR(모달 탭바 숨김) 핸들러 + `useNavigation` + TAB_BAR_STYLE/TAB_BAR_HIDDEN 상수 + `onRouteChange` prop 제거
+- apps/web/src/App.tsx: WebReadySignal에 pathname 변경 시 `ROUTE_CHANGE` 전송 추가
+
+#### 크로스탭 네비게이션
+
+- apps/web/src/features/dashboard/components/UpcomingSection.tsx: "전체 보기" 링크에 네이티브 탭 전환 (`NAVIGATE_TAB: timeline`)
+- apps/web/src/features/dashboard/components/ActionSection.tsx: "전체 보기" 링크에 네이티브 탭 전환 (`NAVIGATE_TAB: timeline`)
+- apps/web/src/features/dashboard/components/PhotoPromptCard.tsx: "기록 시작하기" 버튼에 네이티브 탭 전환 (`NAVIGATE_TAB: photos`)
+
+#### 대시보드 헤더 개선
+
+- apps/web/src/pages/DashboardPage.tsx: PageHeader(이사콕 로고) 제거, greeting 텍스트 + 설정 아이콘을 단일 header로 통합
+
+#### 설정 화면 로그인/로그아웃
+
+- apps/web/src/features/settings/components/SettingsMenuList.tsx: 익명→로그인 버튼(REQUEST_LOGIN), 회원→로그아웃 버튼(REQUEST_LOGOUT, critical 컬러) 분기
+- apps/web/src/auth/webSessionListener.ts: AUTH_LOGOUT 수신 시 `queryClient.clear()` + `window.location.replace('/')` 추가
+
+#### 사진 상세 탭바 숨김
+
+- apps/web/src/features/photos/components/PhotoFullscreenViewer.tsx: mount 시 `SET_TAB_BAR visible:false`, unmount 시 `visible:true` (Codex 수정 — PhotoDetailSheet가 아닌 실제 사용 컴포넌트)
+- apps/web/src/features/photos/components/PhotoDetailSheet.tsx: 미사용 SET_TAB_BAR 코드 + isNativeWebView/sendToNative import 제거
+
+#### 키보드 확대 방지
+
+- apps/web/index.html: viewport meta에 `maximum-scale=1.0` 추가 (iOS WebView에서 font-size < 16px input 포커스 시 자동 확대 방지)
+
+#### 텍스트 선택/길게 누르기 차단
+
+- apps/web/src/index.css: `body.native-webview` + `html.native-webview` 스코프에 `-webkit-user-select: none`, `-webkit-touch-callout: none`, `user-select: none` + textarea/input만 선택 허용
+- apps/mobile/src/components/WebViewScreen.tsx: `contextmenu`, `selectstart`, `dragstart` 이벤트 capture 단계 차단 (textarea/input/contenteditable 예외) — CSS만으로 iOS WebView 일부 요소에서 새는 케이스 보완 (Codex 수정)
+
+#### EntryRedirect 세션 대기
+
+- apps/web/src/pages/EntryRedirect.tsx: 네이티브 WebView에서 세션 주입 전 onboarding으로 리다이렉트되는 문제 → SESSION_WAIT_MS(3초) 타임아웃 + userId 수신 시 즉시 진행
+
+#### app.config.ts 조건부 플러그인
+
+- apps/mobile/app.config.ts: kakaoAppKey/googleIosUrlScheme 없을 때 config plugin 스킵 (EAS CLI 실패 방지)
+
+#### 기타 수정
+
+- apps/web/src/features/photos/hooks/useUploadPhoto.ts: 디버그 에러 메시지 복원
+- apps/web/src/pages/PhotosPage.tsx: 디버그 에러 메시지 복원
+- packages/shared/src/utils/photoHash.ts: `crypto.subtle` 미지원 환경(HTTP non-localhost) FNV-1a 해시 폴백 추가
+- scripts/dev-wipe.sql: Storage SQL 직접 삭제 불가 (protect_delete 트리거) → 주석 처리 + 대시보드 수동 삭제 안내
+- apps/web/src/index.css: body에 `background-color: var(--color-neutral)` 추가 (사진탭 흰색 갭 수정)
+
+#### 10-1/10-2 verify 실측 완료 (이전 세션 포함, 2026-05-25)
+
+- 10-1 #55 Apple 로그인 ✅ (실기기 Sign in with Apple 성공)
+- 10-1 #57 Kakao 로그인 ✅ (Edge Function 경유 링킹)
+- 10-1 #59 Kakao custom-linked ✅
+- 10-1 #60 linkIdentity 후 provider 갱신 ✅ (DB trigger 확인)
+- 10-1 #78 로그아웃 AUTH_LOGOUT ✅ (설정 화면 로그아웃 + WebView 3개 broadcast)
+- 10-2 #75 linkIdentity 후 provider 갱신 실측 ✅
+- 10-2 #83 dev wipe 후 데이터 0건 확인 ✅
 
 ## 진행 중인 것
 
-- 없음 (구현+verify 완료, 커밋/PR 생성 대기)
+- 없음
 
 ## 다음 할 것
 
-1. **10-2 커밋 + PR 생성** — 파일 1~3개 단위 분할 커밋 후 squash merge PR
-2. **DB 적용 후 실측** — dev에 마이그레이션 적용 후 rls-smoke.ts 실행, Edge Function curl 테스트
-3. **EAS Secrets 등록** — `eas secret:create`로 7개 키 등록 (EAS 빌드 전 필수)
+1. **커밋 + PR** — 이번 세션 UI 폴리시 변경 커밋 (feat/10-2-rls-security 브랜치, 또는 별도 브랜치)
+2. **잔여 미검증 항목**:
+   - 10-1 #58 익명→Apple/Google identity-linked (새 Google 계정 필요)
+   - 10-1 #100 Android development build (에뮬레이터)
+   - 10-2 #85~88 prod 마이그레이션/시드/RLS/환경변수 (prod 전환 시)
+3. **EAS 빌드 설정 정리** — Google Sign-In iosUrlScheme 문제 해결 + EAS Secrets 등록
+4. **다음 단계 기획** — 10-3 (migrate_anonymous 전략) 또는 프로덕션 배포 준비
 
 ## 알려진 문제
 
@@ -680,6 +759,7 @@
 - shared/constants/aiGuide.ts dead code (VALID_HOUSING_TYPES 등 미사용 상수)
 - 10-2 폴백 발동(linkIdentity 실패→signInWithIdToken) 영속 로깅 미구현 — 현재 console.warn만, DB 카운트 테이블 추가 검토 필요
 - 웹 8개 페이지에서 Error 분기 누락 (ux-state-reviewer 지적, 기존 이슈, 별도 단계)
+- EAS CLI `eas env:list` 실행 시 Google Sign-In iosUrlScheme 누락으로 실패 — EAS 빌드 설정 정리 시 같이 해결 필요
 
 ## 실패한 접근 (반복 금지)
 
@@ -711,3 +791,9 @@
 - PostgreSQL `CREATE OR REPLACE FUNCTION`은 동일 시그니처만 대체 — 파라미터 수가 다르면 별개 함수(overload)로 생성됨. SECURITY DEFINER 함수 시그니처 변경 시 반드시 `DROP FUNCTION IF EXISTS`로 옛 버전 제거 (안 하면 RLS 우회 가능)
 - Edge Function 레거시 CORS export(`corsHeaders = { 'Access-Control-Allow-Origin': '*' }`)를 남겨두면 새 함수가 실수로 import할 위험 — origin 제한 패턴(`resolveCorsOrigin`/`makeCorsHeaders`)으로 통일 후 레거시 export 즉시 제거
 - RLS smoke test에서 `data.length === 0` 단독 assertion은 "접근 거부"와 "빈 테이블"을 구분 못함 — service_role로 시드 행 삽입 후 authenticated로 읽기 시도하거나 error 존재 여부로 판정
+- `supabase db push` 시 원격에만 있는 타임스탬프 마이그레이션(직접 적용한 것)이 로컬 마이그레이션과 충돌 — `migration repair --status reverted`로 원격 정리 후 `--status applied`로 이미 적용된 로컬 버전 동기화
+- 웹앱을 브라우저에서 직접 열면 세션이 없어 온보딩에서 "session missing" 에러 — 네이티브 Expo가 세션을 주입하는 구조이므로, 브라우저 테스트 시 수동으로 `signInAnonymously()` 호출 후 새로고침 필요
+- WebView에서 브릿지 메시지를 보내는 컴포넌트를 파일명으로 추측하지 말 것 — PhotoDetailSheet에 SET_TAB_BAR를 추가했으나 실제 화면은 PhotoFullscreenViewer였음. `grep -r 'import.*Component' src/` 등으로 import 그래프를 확인 후 작업
+- Expo Metro 서버를 `--host lan` 없이 시작하면 실기기에서 Metro에 접속 불가 — `npx expo start --host lan` 필수
+- `navigation.getParent().setOptions({ tabBarStyle })` 는 Stack navigator를 타겟하므로 탭바 제어 불가 — Tabs 화면에서는 `navigation.setOptions()` 직접 호출이 올바름
+- iOS WebView에서 `-webkit-user-select: none`과 `-webkit-touch-callout: none`을 CSS body에만 걸면 일부 하위 요소에서 long-press 메뉴가 새는 경우 있음 — `*` 셀렉터 + `!important` + JS 이벤트 차단(contextmenu/selectstart/dragstart capture) 세 겹 방어 필요
