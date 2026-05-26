@@ -1,0 +1,53 @@
+name: DB Backup
+
+on:
+  schedule:
+    # 매일 UTC 18:00 = KST 03:00
+    - cron: '0 18 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: pg_dump public schema → artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install psql client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends postgresql-client
+          pg_dump --version
+
+      - name: Dump public schema
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "::error::SUPABASE_DB_URL secret missing"
+            exit 1
+          fi
+          TS=$(date -u +"%Y%m%dT%H%M%SZ")
+          OUT="backup-${TS}.sql"
+          pg_dump "$SUPABASE_DB_URL" \
+            --schema=public \
+            --no-owner --no-acl \
+            --quote-all-identifiers \
+            --file="$OUT"
+          gzip "$OUT"
+          ls -la "${OUT}.gz"
+          echo "BACKUP_FILE=${OUT}.gz" >> "$GITHUB_ENV"
+
+      - name: Upload backup artifact (90 day retention)
+        uses: actions/upload-artifact@v7
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: ${{ env.BACKUP_FILE }}
+          retention-days: 90
+          if-no-files-found: error
