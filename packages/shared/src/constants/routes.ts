@@ -14,4 +14,22 @@ export const ROUTES = {
   PHOTO_REPORT: '/photos/report',
   PHOTO_TRASH: '/photos/trash',
   SETTINGS: '/settings',
+  PRIVACY: '/privacy',
+  TERMS: '/terms',
 } as const
+
+/**
+ * 네이티브 탭바의 루트 경로 목록
+ * WebView 스와이프백 가드, 탭바 표시 판단에 사용
+ */
+export const TAB_ROOT_PATHS = [
+  ROUTES.LANDING,
+  ROUTES.DASHBOARD,
+  ROUTES.TIMELINE,
+  ROUTES.PHOTOS,
+] as const
+
+/** 체크리스트 상세 페이지 경로 생성 */
+export function checklistDetailPath(itemId: string, from: 'dashboard' | 'timeline') {
+  return `/checklist/${itemId}?from=${from}`
+}
