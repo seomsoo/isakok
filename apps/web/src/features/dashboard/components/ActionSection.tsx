@@ -1,12 +1,12 @@
 import { Link } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
 import {
-  ROUTES,
   ACTION_SECTION_TITLE,
   type UrgencyMode,
   isNativeWebView,
   sendToNative,
 } from '@moving/shared'
+import { ROUTES, checklistDetailPath } from '@shared/constants/routes'
 import { Badge } from '@/shared/components/Badge'
 
 interface ActionSectionProps {
@@ -89,7 +89,7 @@ export function ActionSection({ items, nextUpcomingDate, mode, onToggle }: Actio
           return (
             <Link
               key={item.id as string}
-              to={`/checklist/${item.id as string}`}
+              to={checklistDetailPath(item.id as string, 'dashboard')}
               className="flex items-center gap-3 rounded-2xl bg-surface py-7 px-4"
             >
               <button

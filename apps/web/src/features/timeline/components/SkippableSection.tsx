@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { checklistDetailPath } from '@shared/constants/routes'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { CRITICAL_SKIPPABLE_HINT, URGENCY_GROUP_LABELS } from '@moving/shared'
 import { ChecklistItem } from '@/shared/components/ChecklistItem'
@@ -50,7 +51,7 @@ export function SkippableSection({ items, mode, onToggle }: SkippableSectionProp
                 isCompleted={item.is_completed as boolean}
                 guideType={master?.guide_type as 'tip' | 'warning' | 'critical' | undefined}
                 onToggle={onToggle}
-                onPress={() => navigate(`/checklist/${item.id as string}`)}
+                onPress={() => navigate(checklistDetailPath(item.id as string, 'timeline'))}
               />
             )
           })}
