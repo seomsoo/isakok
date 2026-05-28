@@ -24,7 +24,7 @@ docs/              ← 기획 문서, 단계별 스펙 (SDD)
 
 ## 현재 단계
 
-> 10-2단계: RLS 활성화 + Edge Function/Storage 보안 (구현완료, 커밋/PR 대기)
+> 10-3단계: 계정 삭제 + 약관 + release-gate (내부 테스트 트랙) — EAS production AAB 빌드 + Play Console 등록 + 실기기 검증 단계. ADR-075로 dev=prod 단일 프로젝트 운영 결정.
 
 ## 개발 방법론
 
@@ -46,7 +46,8 @@ docs/              ← 기획 문서, 단계별 스펙 (SDD)
    8-2. ✅ 하네스 CI 봇 (PR 요약 + dry-run 분석 + 서브에이전트 6종)
 8. ✅ Expo 셸 + WebView 래핑
    10-1. ✅ 네이티브 인증 + 세션 브릿지
-   10-2. 🔄 RLS 활성화 + Edge Function/Storage 보안 (구현완료, 커밋/PR 대기)
+   10-2. ✅ RLS 활성화 + Edge Function/Storage 보안 (PR #47 머지 완료)
+   10-3. 🔄 계정 삭제 + 약관 + release-gate (EAS 빌드 + Play Console + 실기기 검증 단계)
 
 ## 보안 규칙 (전역 — 절대 위반 금지)
 
