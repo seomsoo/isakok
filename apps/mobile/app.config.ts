@@ -28,6 +28,15 @@ export default ({ config }: ConfigContext) => ({
       NSPhotoLibraryUsageDescription: '집 상태 사진을 갤러리에서 선택하기 위해 접근이 필요합니다',
       LSApplicationQueriesSchemes: ['kakaokompassauth', 'kakaolink', 'kakaotalk'],
       CFBundleURLTypes: [{ CFBundleURLSchemes: [`kakao${kakaoAppKey}`] }],
+      // EAS production 빌드만 ATS 강제. dev/preview/로컬 expo run:ios 는 HTTP WebView 동작 유지.
+      NSAppTransportSecurity: {
+        NSAllowsArbitraryLoads: process.env.EAS_BUILD_PROFILE !== 'production',
+      },
+    },
+    splash: {
+      image: './assets/splash-icon-ios.png',
+      resizeMode: 'contain',
+      backgroundColor: '#F8F7F5',
     },
   },
   android: {
@@ -37,16 +46,20 @@ export default ({ config }: ConfigContext) => ({
     },
     package: 'com.isakok.app',
     usesCleartextTraffic: true,
+    permissions: ['CAMERA'],
   },
   plugins: [
     'expo-router',
     'expo-font',
     'expo-apple-authentication',
     'expo-secure-store',
-    ...(kakaoAppKey ? [['@react-native-seoul/kakao-login', { kakaoAppKey }]] : []),
+    ...(kakaoAppKey
+      ? [['@react-native-seoul/kakao-login', { kakaoAppKey, kotlinVersion: '2.0.21' }]]
+      : []),
     ...(googleIosUrlScheme
       ? [['@react-native-google-signin/google-signin', { iosUrlScheme: googleIosUrlScheme }]]
       : []),
+    './plugins/kakao-maven',
   ] as const,
   extra: {
     router: {},

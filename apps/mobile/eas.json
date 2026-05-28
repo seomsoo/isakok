@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 12.0.0"
+    "version": ">= 12.0.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "base": {
@@ -8,12 +9,20 @@
       "pnpm": "10.27.0"
     },
     "development": {
+      "extends": "base",
       "developmentClient": true,
       "distribution": "internal"
     },
     "preview": {
+      "extends": "base",
       "distribution": "internal"
     },
-    "production": {}
+    "production": {
+      "extends": "base",
+      "android": {
+        "buildType": "app-bundle",
+        "autoIncrement": true
+      }
+    }
   }
 }
