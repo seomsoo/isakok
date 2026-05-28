@@ -1,7 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
-import { ROUTES } from '@shared/constants/routes'
 import { useOnboardingStore } from '@/stores/onboardingStore'
 import { useSession } from '@/auth/useSession'
 import { sendToNative } from '@moving/shared'
@@ -33,7 +31,6 @@ function LoginEntryButton() {
 }
 
 export function OnboardingPage() {
-  const navigate = useNavigate()
   const { step, setStep, reset } = useOnboardingStore()
   const titleRef = useRef<HTMLHeadingElement>(null)
 
@@ -47,11 +44,7 @@ export function OnboardingPage() {
   }, [step])
 
   function handleBack() {
-    if (step === 1) {
-      navigate(ROUTES.LANDING)
-    } else {
-      setStep(step - 1)
-    }
+    setStep(step - 1)
   }
 
   return (
@@ -59,14 +52,18 @@ export function OnboardingPage() {
       {/* 헤더 */}
       <header className="px-4 pt-5 pb-3">
         <div className="flex items-center justify-between">
-          <button
-            type="button"
-            onClick={handleBack}
-            className="-ml-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl transition-colors hover:bg-secondary/5"
-            aria-label="이전 단계로 돌아가기"
-          >
-            <ChevronLeft className="h-9 w-9 text-secondary/80" />
-          </button>
+          {step > 1 ? (
+            <button
+              type="button"
+              onClick={handleBack}
+              className="-ml-1 flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl transition-colors hover:bg-secondary/5"
+              aria-label="이전 단계로 돌아가기"
+            >
+              <ChevronLeft className="h-9 w-9 text-secondary/80" />
+            </button>
+          ) : (
+            <div className="h-10 w-10" />
+          )}
           <LoginEntryButton />
         </div>
         <div className="mt-8 px-1">

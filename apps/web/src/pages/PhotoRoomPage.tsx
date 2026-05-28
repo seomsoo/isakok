@@ -14,6 +14,7 @@ import { PhotoEmptyState } from '@/features/photos/components/PhotoEmptyState'
 import { RoomTipCard } from '@/features/photos/components/RoomTipCard'
 import { useToast } from '@/shared/components/ToastProvider'
 import { useUserId } from '@/auth/useSession'
+import { useGoBack } from '@/shared/hooks/useGoBack'
 import type { PhotoType } from '@/services/photos'
 
 const MAX_BYTES = 10 * 1024 * 1024
@@ -24,6 +25,8 @@ export function PhotoRoomPage() {
   const navigate = useNavigate()
   const toast = useToast()
   const [uploadingCount, setUploadingCount] = useState(0)
+  const photoType = searchParams.get('type') === 'move_out' ? 'move_out' : 'move_in'
+  const goBack = useGoBack(`/photos?type=${photoType}`)
 
   const { data: move, isPending } = useCurrentMove()
 
@@ -32,8 +35,6 @@ export function PhotoRoomPage() {
   if (!move) return <Navigate to={ROUTES.LANDING} replace />
 
   const roomMeta = getRoomMeta(room)
-  const queryType = searchParams.get('type') as PhotoType | null
-  const photoType: PhotoType = queryType === 'move_out' ? 'move_out' : 'move_in'
 
   return (
     <Inner
@@ -43,8 +44,8 @@ export function PhotoRoomPage() {
       photoType={photoType}
       uploadingCount={uploadingCount}
       setUploadingCount={setUploadingCount}
-      onBack={() => navigate(`/photos?type=${photoType}`)}
-      onTrash={() => navigate(`/photos/trash?type=${photoType}`)}
+      onBack={goBack}
+      onTrash={() => navigate(`/photos/trash?type=${photoType}`, { replace: true })}
       toast={toast}
     />
   )

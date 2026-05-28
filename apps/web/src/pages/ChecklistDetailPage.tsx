@@ -1,5 +1,7 @@
 import { ChevronLeft } from 'lucide-react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useParams, useSearchParams } from 'react-router-dom'
+import { ROUTES } from '@shared/constants/routes'
+import { useGoBack } from '@/shared/hooks/useGoBack'
 import { PageHeader } from '@/shared/components/PageHeader'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { SectionDivider } from '@/shared/components/SectionDivider'
@@ -19,7 +21,9 @@ import { useUserId } from '@/auth/useSession'
 
 export function ChecklistDetailPage() {
   const { itemId } = useParams<{ itemId: string }>()
-  const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const from = searchParams.get('from')
+  const goBack = useGoBack(from === 'timeline' ? ROUTES.TIMELINE : ROUTES.DASHBOARD)
   const { userId } = useUserId()
   const uid = userId ?? ''
   const { data: item, isLoading, isError } = useChecklistItemDetail(itemId, uid)
@@ -31,7 +35,7 @@ export function ChecklistDetailPage() {
     <button
       type="button"
       aria-label="뒤로 가기"
-      onClick={() => navigate(-1)}
+      onClick={goBack}
       className="flex h-11 w-11 items-center justify-center -ml-3"
     >
       <ChevronLeft size={24} className="text-secondary" />
@@ -41,13 +45,37 @@ export function ChecklistDetailPage() {
   if (isLoading) {
     return (
       <div className="min-h-dvh bg-neutral">
-        <PageHeader title="항목 상세" left={backButton} />
+        <PageHeader title="" left={backButton} />
         <div className="mx-auto max-w-[430px] px-5 pb-8">
-          <Skeleton className="mt-2 h-5 w-24" />
-          <Skeleton className="mt-4 h-8 w-3/4" />
-          <Skeleton className="mt-2 h-4 w-32" />
-          <Skeleton className="mt-8 h-4 w-24" />
-          <Skeleton className="mt-4 h-16 w-full" />
+          {/* DetailHeader: badges + title + date */}
+          <div className="pt-2 pb-3">
+            <div className="flex items-center gap-1.5">
+              <Skeleton className="h-5 w-14 rounded-lg" />
+              <Skeleton className="h-5 w-12 rounded-lg" />
+            </div>
+            <Skeleton className="mt-3 h-8 w-4/5" />
+            <Skeleton className="mt-2 h-4 w-36" />
+          </div>
+          {/* GuideStepsSection: numbered steps */}
+          <div className="mt-3 space-y-4">
+            <Skeleton className="h-4 w-24" />
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="flex gap-3.5">
+                <Skeleton className="h-7 w-7 shrink-0 rounded-full" />
+                <Skeleton className="h-5 flex-1" />
+              </div>
+            ))}
+          </div>
+          {/* GuideNoteSection */}
+          <div className="mt-8 space-y-3">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-20 w-full rounded-2xl" />
+          </div>
+          {/* MemoSection */}
+          <div className="mt-8 space-y-3">
+            <Skeleton className="h-4 w-16" />
+            <Skeleton className="h-24 w-full rounded-2xl" />
+          </div>
         </div>
       </div>
     )
@@ -56,12 +84,12 @@ export function ChecklistDetailPage() {
   if (isError || !item) {
     return (
       <div className="min-h-dvh bg-neutral">
-        <PageHeader title="항목 상세" left={backButton} />
+        <PageHeader title="" left={backButton} />
         <div className="mx-auto flex max-w-[430px] flex-col items-center gap-4 px-5 py-16">
           <p className="text-body text-muted">항목을 불러올 수 없어요</p>
           <button
             type="button"
-            onClick={() => navigate(-1)}
+            onClick={goBack}
             className="rounded-xl bg-primary px-5 py-3 text-body-sm font-semibold text-white"
           >
             뒤로 가기

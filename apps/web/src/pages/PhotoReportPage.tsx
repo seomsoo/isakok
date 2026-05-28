@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
+import { Navigate, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, ShieldCheck, Upload } from 'lucide-react'
 import { ROUTES, ROOM_META } from '@moving/shared'
 import { useCurrentMove } from '@/features/dashboard/hooks/useCurrentMove'
@@ -11,6 +11,7 @@ import { ReportRoomSection } from '@/features/photos/components/ReportRoomSectio
 import { PhotoFullscreenViewer } from '@/features/photos/components/PhotoFullscreenViewer'
 import { useToast } from '@/shared/components/ToastProvider'
 import { useUserId } from '@/auth/useSession'
+import { useGoBack } from '@/shared/hooks/useGoBack'
 import type { PhotoType, PropertyPhoto } from '@/services/photos'
 
 function photoDate(p: PropertyPhoto): Date | null {
@@ -31,7 +32,6 @@ function formatGeneratedAt(): string {
 }
 
 export function PhotoReportPage() {
-  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const toast = useToast()
   const [selected, setSelected] = useState<PropertyPhoto | null>(null)
@@ -40,6 +40,7 @@ export function PhotoReportPage() {
   const { data: move, isPending } = useCurrentMove()
   const queryType = searchParams.get('type') as PhotoType | null
   const photoType: PhotoType = queryType === 'move_out' ? 'move_out' : 'move_in'
+  const goBack = useGoBack(`/photos?type=${photoType}`)
 
   const { data: photos = [], isLoading: isPhotosLoading } = usePhotos(
     move?.id,
@@ -99,7 +100,7 @@ export function PhotoReportPage() {
       <div className="flex h-[52px] shrink-0 items-center justify-between px-1">
         <button
           type="button"
-          onClick={() => navigate(`/photos?type=${photoType}`)}
+          onClick={goBack}
           aria-label="뒤로가기"
           className="flex h-11 w-11 items-center justify-center text-secondary"
         >

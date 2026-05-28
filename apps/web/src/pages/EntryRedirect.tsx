@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useCurrentMove } from '@/features/dashboard/hooks/useCurrentMove'
 import { useUserId } from '@/auth/useSession'
 import { isNativeWebView } from '@moving/shared'
+import { ROUTES } from '@shared/constants/routes'
 import { Loader2 } from 'lucide-react'
 
 const SESSION_TIMEOUT_MS = 5000
@@ -27,14 +28,14 @@ export function EntryRedirect() {
   useEffect(() => {
     if (!timedOut) return
     if (isNative && !userId) {
-      navigate('/onboarding', { replace: true })
+      navigate(ROUTES.ONBOARDING, { replace: true })
       return
     }
     if (isSessionLoading || isMoveLoading) return
     if (isError || !move) {
-      navigate('/onboarding', { replace: true })
+      navigate(ROUTES.ONBOARDING, { replace: true })
     } else {
-      navigate('/dashboard', { replace: true })
+      navigate(ROUTES.DASHBOARD, { replace: true })
     }
   }, [move, isSessionLoading, isMoveLoading, isError, timedOut, userId, isNative, navigate])
 
