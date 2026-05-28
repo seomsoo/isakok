@@ -1,4 +1,8 @@
-import { login as kakaoLogin, logout as kakaoLogout } from '@react-native-seoul/kakao-login'
+import {
+  login as kakaoLogin,
+  logout as kakaoLogout,
+  unlink as kakaoUnlink,
+} from '@react-native-seoul/kakao-login'
 import type { AuthProvider, KakaoProviderResult } from './types'
 
 export const KakaoProvider: AuthProvider = {
@@ -19,5 +23,9 @@ export const KakaoProvider: AuthProvider = {
     } catch {
       // already logged out
     }
+  },
+
+  revoke: async () => {
+    await kakaoUnlink()
   },
 }
