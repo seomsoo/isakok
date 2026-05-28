@@ -1,9 +1,19 @@
 import { useEffect } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  Outlet,
+  useLocation,
+  useNavigate,
+} from 'react-router-dom'
+import { Ssgoi, SsgoiTransition } from '@ssgoi/react'
+import { drill } from '@ssgoi/react/view-transitions'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from '@/lib/queryClient'
 import { ROUTES } from '@shared/constants/routes'
-import { isNativeWebView, sendToNative } from '@moving/shared'
+import { isNativeWebView, sendToNative, onNativeMessage } from '@moving/shared'
 import { setupWebSessionListener } from '@/auth/webSessionListener'
 import { EntryRedirect } from '@/pages/EntryRedirect'
 import { OnboardingPage } from '@/pages/OnboardingPage'
@@ -16,10 +26,35 @@ import { PhotosPage } from '@/pages/PhotosPage'
 import { PhotoRoomPage } from '@/pages/PhotoRoomPage'
 import { PhotoReportPage } from '@/pages/PhotoReportPage'
 import { PhotoTrashPage } from '@/pages/PhotoTrashPage'
+import { PrivacyPage } from '@/pages/PrivacyPage'
+import { TermsPage } from '@/pages/TermsPage'
 import { ToastProvider } from '@/shared/components/ToastProvider'
+
+const transitionConfig = {
+  transitions: [
+    drill({ enter: '/checklist/*', exit: '*' }),
+    drill({ enter: '/photos/*', exit: '/photos' }),
+    drill({ enter: '/privacy', exit: '/settings' }),
+    drill({ enter: '/terms', exit: '/settings' }),
+  ],
+}
+
+function TransitionLayout() {
+  const { pathname } = useLocation()
+  return (
+    <div className="h-dvh overflow-y-auto relative z-0 overflow-x-clip">
+      <Ssgoi config={transitionConfig}>
+        <SsgoiTransition key={pathname} id={pathname}>
+          <Outlet />
+        </SsgoiTransition>
+      </Ssgoi>
+    </div>
+  )
+}
 
 function WebReadySignal() {
   const { pathname } = useLocation()
+  const navigate = useNavigate()
 
   useEffect(() => {
     if (isNativeWebView()) {
@@ -34,6 +69,17 @@ function WebReadySignal() {
     }
   }, [pathname])
 
+  useEffect(() => {
+    if (!isNativeWebView()) return
+    return onNativeMessage((message) => {
+      if (message.type === 'NAVIGATE_TO') {
+        navigate(message.payload.path, {
+          replace: message.payload.replace ?? false,
+        })
+      }
+    })
+  }, [navigate])
+
   return null
 }
 
@@ -44,18 +90,22 @@ export function App() {
         <BrowserRouter>
           <WebReadySignal />
           <Routes>
-            <Route path={ROUTES.LANDING} element={<EntryRedirect />} />
-            <Route path={ROUTES.ONBOARDING} element={<OnboardingPage />} />
-            <Route path={ROUTES.PRE_CHECK} element={<PreCheckPage />} />
-            <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
-            <Route path={ROUTES.TIMELINE} element={<TimelinePage />} />
-            <Route path={ROUTES.SETTINGS} element={<SettingsPage />} />
-            <Route path={ROUTES.CHECKLIST_DETAIL} element={<ChecklistDetailPage />} />
-            <Route path={ROUTES.PHOTO_REPORT} element={<PhotoReportPage />} />
-            <Route path={ROUTES.PHOTO_TRASH} element={<PhotoTrashPage />} />
-            <Route path={ROUTES.PHOTOS} element={<PhotosPage />} />
-            <Route path="/photos/:room" element={<PhotoRoomPage />} />
-            <Route path="*" element={<Navigate to={ROUTES.LANDING} replace />} />
+            <Route element={<TransitionLayout />}>
+              <Route path={ROUTES.LANDING} element={<EntryRedirect />} />
+              <Route path={ROUTES.ONBOARDING} element={<OnboardingPage />} />
+              <Route path={ROUTES.PRE_CHECK} element={<PreCheckPage />} />
+              <Route path={ROUTES.DASHBOARD} element={<DashboardPage />} />
+              <Route path={ROUTES.TIMELINE} element={<TimelinePage />} />
+              <Route path={ROUTES.SETTINGS} element={<SettingsPage />} />
+              <Route path={ROUTES.CHECKLIST_DETAIL} element={<ChecklistDetailPage />} />
+              <Route path={ROUTES.PHOTO_REPORT} element={<PhotoReportPage />} />
+              <Route path={ROUTES.PHOTO_TRASH} element={<PhotoTrashPage />} />
+              <Route path={ROUTES.PHOTOS} element={<PhotosPage />} />
+              <Route path="/photos/:room" element={<PhotoRoomPage />} />
+              <Route path={ROUTES.PRIVACY} element={<PrivacyPage />} />
+              <Route path={ROUTES.TERMS} element={<TermsPage />} />
+              <Route path="*" element={<Navigate to={ROUTES.LANDING} replace />} />
+            </Route>
           </Routes>
         </BrowserRouter>
       </ToastProvider>

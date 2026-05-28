@@ -44,4 +44,8 @@ export const GoogleProvider: AuthProvider = {
   signOut: async () => {
     await GoogleSignin.signOut()
   },
+
+  revoke: async () => {
+    await GoogleSignin.revokeAccess()
+  },
 }

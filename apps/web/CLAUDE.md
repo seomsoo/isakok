@@ -282,13 +282,16 @@ import { TodayTasks } from '@/features/dashboard/components/TodayTasks'
 
 ## 개발 중 임시 처리
 
-| 임시 처리                             | 교체 시점 | 상태                                            |
-| ------------------------------------- | --------- | ----------------------------------------------- |
-| DevTabBar (웹 임시 탭바)              | 9단계     | ✅ Expo 네이티브 탭바로 교체 완료               |
-| 파일 선택 input                       | 9단계     | WebView에서 input 유지 (네이티브 카메라 미전환) |
-| anon key + RLS 끔 (모든 행 접근 가능) | 10-2단계  | ✅ RLS 활성화 완료 (00016~00020)                |
-| 하드코딩 user_id                      | 10-1단계  | ✅ auth.uid() 기반으로 전환 완료                |
-| guide_content 직접 표시               | 7단계     | ✅ AI custom_guide 우선 표시로 교체 완료        |
+| 임시 처리                                   | 교체 시점 | 상태                                                                                             |
+| ------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------ |
+| DevTabBar (웹 임시 탭바)                    | 9단계     | ✅ Expo 네이티브 탭바로 교체 완료                                                                |
+| 파일 선택 input                             | 9단계     | WebView에서 input 유지 (네이티브 카메라 미전환)                                                  |
+| anon key + RLS 끔 (모든 행 접근 가능)       | 10-2단계  | ✅ RLS 활성화 완료 (00016~00020)                                                                 |
+| 하드코딩 user_id                            | 10-1단계  | ✅ auth.uid() 기반으로 전환 완료                                                                 |
+| guide_content 직접 표시                     | 7단계     | ✅ AI custom_guide 우선 표시로 교체 완료                                                         |
+| Legacy HS256 JWT anon/service_role          | 10-3단계  | ✅ `sb_publishable_...`/`sb_secret_...` 체계로 전환 (ADR-075). Legacy JWT-based API keys disable |
+| 사진 저장 게이트 없음(익명도 업로드)        | 10-5+     | ⏳ ADR-074 회원 전용 하드 게이트 (공개 출시 전 적용 필수)                                        |
+| placeholder URL (개인정보처리방침/이용약관) | 10-3단계  | ✅ 실제 라우트(`/privacy`, `/terms`)로 교체 완료                                                 |
 
 > ⚠️ service_role key는 임시 개발 중에도 클라이언트(Vite 번들)에 절대 넣지 않음.
 > RLS를 끄면 anon key만으로 모든 데이터에 접근 가능하므로 service_role key가 불필요.

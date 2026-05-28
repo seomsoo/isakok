@@ -11,3 +11,8 @@ coverage/
 .vercel
 .claude/worktrees/
 .playwright-mcp/
+
+# Expo generated
+app.json
+apps/web/app.json
+apps/web/ios/

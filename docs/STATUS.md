@@ -1,10 +1,12 @@
 # 프로젝트 상태
 
-> 마지막 업데이트: 2026-05-25 (iOS 실기기 테스트 + UI 폴리시 + 10-1/10-2 미검증 항목 실측)
+> 마지막 업데이트: 2026-05-28 (10-3 완료 — 약관·계정삭제·dev→prod 하드닝·Play Console 등록·실기기 검증 완료, 커밋/PR 대기)
 
 ## 현재 단계
 
-10-2단계: RLS 활성화 + Edge Function/Storage 보안 — 검증완료, 커밋/PR 대기
+10-3단계: 계정 삭제 + 약관 + release-gate (내부 테스트 트랙) — **구현·배포·검증 완료**, 커밋 정리 + PR 대기
+
+ADR-075 결정으로 dev=prod 단일 프로젝트 운영 (분리 트리거 도달 시 Pro upgrade + 분리).
 
 ## 완료된 것
 
@@ -737,19 +739,265 @@
 - 10-2 #75 linkIdentity 후 provider 갱신 실측 ✅
 - 10-2 #83 dev wipe 후 데이터 0건 확인 ✅
 
+### 10-3 단계: 계정 삭제 + 약관 + release-gate (2026-05-26 ~ 2026-05-27)
+
+> ADR-075 결정으로 dev=prod 단일 프로젝트 운영. 분리 트리거(10-4 폐쇄 테스트·DB 50%·MAU 1000+·스키마 큰 변경) 도달 시 Pro upgrade + 분리.
+
+#### 약관 페이지 (②)
+
+- `apps/web/src/pages/PrivacyPage.tsx` (신규) — PIPC 구조 + §3-1 인벤토리 (소셜식별자/이사정보/사진EXIF·SHA-256/메모/익명세션/해시IP) + 처리위탁(Supabase Seoul·Vercel·Anthropic·Apple/Google/Kakao) + 정보주체 권리 + 만 14세 미만 제한 + 보호책임자 usnimoes@gmail.com
+- `apps/web/src/pages/TermsPage.tsx` (신규) — 11개 조항 (목적/정의/약관 효력/회원가입/서비스 제공/회원 의무/탈퇴·자격상실/면책/책임 제한/준거법/문의). 면책 조항에 "정보 제공 목적·법률 자문 아님" 명시
+- `packages/shared/src/constants/routes.ts` — PRIVACY, TERMS 추가 (공개 라우트, 세션 게이트 바깥)
+- `apps/web/src/App.tsx` — `/privacy`, `/terms` 라우트 추가
+- `apps/web/src/features/settings/components/SettingsMenuList.tsx` — placeholder URL 제거, 실제 라우트로 navigate + mailto 보호책임자 이메일로 교체
+
+#### 계정 삭제 Edge Function (①)
+
+- `supabase/functions/delete-account/index.ts` (신규) — service_role admin client, 스펙 §2-2 순서:
+  - CORS (resolveCorsOrigin/makeCorsHeaders) → 미허용 403, OPTIONS 204, POST 외 405
+  - JWT 검증 (anon client `getUser`) → 미인증 401
+  - **회원 전용 가드** — `is_anonymous`이면 403 (스펙 결정 #3 회원 전용 확정 + ADR-074 연계)
+  - rate limit `increment_rate_limit('delete-account:user:{id}', 분당 3회)` → 초과 429 (P1)
+  - **재귀 Storage `list()`** — `{userId}` → moveId 폴더들 → 파일들 (storage.objects 직접 조회 X, public Storage API만)
+  - chunk(100) `remove()` + 1~3회 retry → 최종 실패 시 stage='storage-remove' 500
+  - **삭제 후 prefix 재조회 잔여 0건 검증** → > 0 시 stage='storage-verify' 500 (deleteUser 진행 X)
+  - `auth_provider_links` 명시 삭제 (deleteUser 전; partial cleanup 시 로그)
+  - `auth.admin.deleteUser(userId)` → public.\* CASCADE 자동 (4 테이블)
+- `import 'npm:@supabase/supabase-js@2'` (jsr→npm) — admin SDK 호환 안정화 (Kakao 디버깅 과정에서 발견)
+- 에러 응답 트리밍: client엔 일반 메시지(`'DELETE_ACCOUNT_FAILED'` 등), server는 console.error로 상세 stage·code
+
+#### 브릿지 + Provider revoke (mobile)
+
+- `packages/shared/src/types/bridge.ts` — `REQUEST_DELETE_ACCOUNT` (web→native), `ACCOUNT_DELETE_RESULT { ok, stage? }` (native→web) 추가
+- `apps/mobile/src/auth/providers/types.ts` — `AuthProvider`에 optional `revoke()` 추가 (timeout으로 감싸야 함, PII 없는 errorCode만 warn 로그)
+- `apps/mobile/src/auth/providers/KakaoProvider.ts` — `revoke()` = `unlink()` (@react-native-seoul/kakao-login)
+- `apps/mobile/src/auth/providers/GoogleProvider.ts` — `revoke()` = `GoogleSignin.revokeAccess()`
+- `apps/mobile/src/auth/providers/AppleProvider.ts` — revoke 미구현 (10-4)
+
+#### AuthService.deleteAccount (mobile)
+
+- `apps/mobile/src/auth/AuthService.ts` — `deleteAccount(): Promise<DeleteAccountResult>` 추가:
+  - delete-account Edge Function 호출 (401/네트워크오류 시 stage='auth-expired'/'network'로 익명 복구 경로 진입)
+  - 모든 provider revoke best-effort + **5s timeout** (`withTimeout`) + PII 없는 짧은 warn 로그
+  - provider signOut + session.clear + clearCurrentSession
+  - `broadcastToWebViews({ type: 'AUTH_LOGOUT' })` + `broadcastToWebViews({ type: 'ACCOUNT_DELETE_RESULT', payload: { ok, stage } })`
+  - `ensureAnonymousSession()` → 새 anon id 발급 + AUTH_SESSION broadcast
+- `apps/mobile/src/components/WebViewScreen.tsx` — `REQUEST_DELETE_ACCOUNT` 케이스 추가
+
+#### 계정 삭제 UI (web)
+
+- `apps/web/src/features/settings/components/DeleteAccountSheet.tsx` (신규) — 2단계 confirm 시트:
+  - step `info` — 안내(무엇이 지워지나 4가지 + 되돌릴 수 없음) + 동의 체크박스 + "계정 삭제로 진행하기" critical CTA
+  - step `confirm` — "정말 삭제하시겠어요?" 경고 + "네, 삭제할게요" critical CTA + 취소
+  - step `pending` — 로딩 표시
+  - `ACCOUNT_DELETE_RESULT` 메시지 수신 시 useToast로 결과 표시 (ok/auth-expired/network/기타)
+- `apps/web/src/features/settings/components/SettingsMenuList.tsx` — 회원 전용 "계정 삭제" 항목 (danger). 익명 사용자는 노출 X
+- `apps/web/src/pages/SettingsPage.tsx` — DeleteAccountSheet 토글
+
+#### Android WebView 카메라 (§5-2)
+
+- `apps/mobile/app.config.ts` — `android.permissions: ['CAMERA']` 추가. `<input accept="image/*" capture>`가 카메라 띄울 수 있게. 실기기 결과로 적절성 최종 확인 (Task #11)
+
+#### dev→prod 하드닝 게이트 (다른 Claude 안전 분석 반영)
+
+ADR-075 채택과 함께 즉시 수행한 안전 게이트:
+
+##### 1. 마지막 클린 와이프 + dev-wipe.sql 삭제 ⚠️ 1순위
+
+- service_role 직접 호출로 Storage 48 paths + auth.users 22명(anon 19 + non-anon 3) + rate_limit_log 16건 + public.users·moves·user_checklist_items·property_photos·auth_provider_links 전부 CASCADE 정리
+- 보존: master_checklist_items 46, ai_guide_cache 4, system_config 1
+- **`scripts/dev-wipe.sql` 삭제** — dev=prod 결정으로 project-ref 가드가 prod를 가리켜 장전된 총. 일회용 cleanup 스크립트는 작업 후 함께 삭제
+
+##### 2. 자동 백업 워크플로우 ⚠️ 2순위
+
+- `.github/workflows/db-backup.yml` (신규) — 매일 KST 03:00 cron + workflow_dispatch
+- `pg_dump --schema=public --no-owner --no-acl --quote-all-identifiers` → gzip → `actions/upload-artifact@v7` (90일 retention)
+- GitHub Secret `SUPABASE_DB_URL` (사용자가 reset password 후 direct connection URI 등록)
+- 실행 검증은 PR 머지 후 (workflow_dispatch는 default branch 필수)
+
+##### 3. 키 rotation — Legacy JWT 무효화 + 새 체계 전환
+
+- Supabase Dashboard → API Keys → **"Disable JWT-based API keys"** 클릭 → 옛 `anon`/`service_role` Legacy HS256 JWT 영구 무효
+- 새 publishable/secret API key 체계로 전환:
+  - `.env.local`, `apps/web/.env.local`, `apps/mobile/.env`의 `*_SUPABASE_ANON_KEY` → `sb_publishable_***`
+  - secret key는 chat에 잠시 노출됐으나 향후 Edge Functions이 인프라 자동 inject — 추가 새 secret 발급은 사용자가 risk acceptance로 skip
+- supabase-js 2.106.1 — 새 publishable key 호환 확인 (RLS smoke 16/16 통과)
+
+##### 4. kakao-token-exchange 에러 응답 트리밍
+
+- 옛 client 응답: `{"error":"updateUser failed code=unexpected_failure status=500 msg=Error updating user"}` (server 내부 정보 노출)
+- 새 client 응답: `{"error":"KAKAO_USER_UPDATE_FAILED"}` 등 일반 코드만
+- server console.error는 `[kakao-exchange:updateUserById]`에 code/status/name/message/email/hasRealEmail 상세 (dashboard logs만 보임)
+
+##### 5. gitleaks 히스토리 전수 스캔
+
+- `gitleaks detect --log-opts="--all"` → 290 commits, **17건 누출 발견**:
+  - `apps/mobile/eas.json` (c17b2dc5): JWT × 3 + generic-api-key × 3
+  - `apps/mobile/app.json` (c17b2dc5): generic-api-key × 1
+  - `.gitleaksbaseline` (9d0336b2): JWT × 6 + generic-api-key × 4
+- 노출 키: Supabase anon JWT + Kakao native app key + Google client IDs
+- 대응: rotation으로 노출 키 무효(Legacy JWT disable로 anon/service_role 즉시 무효). git history rewrite는 Task #21 (작업 마지막).
+- service_role 키는 git history엔 없음 ✓ (다만 이번 세션 chat 컨텍스트에 노출됨 — Legacy disable로 무효화)
+
+##### 6. OAuth provider 콘솔 — internal URL 등록
+
+- **Google Cloud OAuth Web 클라이언트** — 승인된 JavaScript 원본 + 리디렉션 URI에 `https://isakok.vercel.app` 추가
+- **Supabase Auth URL Configuration** — Site URL + Redirect URLs에 `https://isakok.vercel.app` 추가
+- **Kakao Developers**는 native SDK + Edge Function exchange 흐름이라 콘솔 web 등록 불필요. 10-4 Kakao 웹훅 단계에서 함께 마무리
+- **Apple**은 native flow (expo-apple-authentication)라 콘솔 작업 없음
+- **Edge Function CORS** (`supabase/functions/_shared/cors.ts`) — `https://isakok.vercel.app` 이미 ALLOWED_ORIGINS에 포함됨
+
+##### 7. internal 웹 배포 (Vercel)
+
+- 기존 production Vercel deployment를 internal alias로 사용 (dev=prod). 고정 alias = `isakok.vercel.app` (스펙 §4-6 stable alias 요구 충족)
+- Vercel 환경변수 `VITE_SUPABASE_ANON_KEY` → `sb_publishable_***`로 갱신 + redeploy
+
+##### 8. EAS Secrets (production scope)
+
+ADR-055 정신("EAS Secrets + app.config.ts로 관리, eas.json env block 금지") 일관. Expo dashboard에서 production scope에 7개 등록:
+
+```
+EXPO_PUBLIC_WEB_APP_URL          = https://isakok.vercel.app
+EXPO_PUBLIC_SUPABASE_URL         = https://ybcqinanfcarhqkclvue.supabase.co
+EXPO_PUBLIC_SUPABASE_ANON_KEY    = sb_publishable_***   (Sensitive)
+EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID = (apps/mobile/.env 값)
+EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID = (.env 값)
+EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID = (.env 값)
+EXPO_PUBLIC_KAKAO_NATIVE_APP_KEY = (.env 값, Sensitive)
+```
+
+- `apps/mobile/.env`는 dev LAN URL (localhost:5173) 그대로 — 시뮬레이터 dev 흐름용
+- `apps/mobile/eas.json` 보강 — production profile에 `extends: 'base'` + `android.buildType: 'app-bundle'` + `autoIncrement: true` + `cli.appVersionSource: 'remote'` (versionCode EAS 서버 관리)
+
+#### 검증 — delete-account + Provider revoke (실기기/시뮬레이터)
+
+스펙 §8 핵심 항목 매트릭스 (Apple + Kakao + Google 3 provider):
+
+| 항목                                                               |                    Apple                    |         Kakao          |            Google            |
+| ------------------------------------------------------------------ | :-----------------------------------------: | :--------------------: | :--------------------------: |
+| 로그인 → 사진 업로드(선택) → 계정 삭제 → onboarding 복귀           |                     ✅                      |   ✅ (Codex fix 후)    |              ✅              |
+| `removed_paths=N` 로그 + Edge Function `OK` 응답                   |                ✅ (paths=2)                 |           ✅           |              ✅              |
+| **`protect_delete` 트리거가 Storage API `remove()`를 막는지 실측** | ✅ **우회 성공** (스펙 §2-2 #3 대응 불필요) |       — (사진 0)       |          — (사진 0)          |
+| `auth_provider_links` CASCADE 정리                                 |               N/A (link 없음)               |           ✅           |              ✅              |
+| `auth.admin.deleteUser` + public.\* CASCADE                        |                     ✅                      |           ✅           |              ✅              |
+| 새 anon id 발급 + AUTH_SESSION broadcast                           |                     ✅                      |           ✅           |              ✅              |
+| **revoke 동작** (warn 로그 유무)                                   |             N/A (10-4 deferred)             | **✅** `unlink()` 성공 | **✅** `revokeAccess()` 성공 |
+| JWT 없음 401 (gateway-level)                                       |               ✅ (curl 검증)                |         (동일)         |            (동일)            |
+| anonymous → 403 코드 검증                                          |              ✅ (코드 review)               |           —            |              —               |
+| 재귀 list nested 파일 수집                                         |                     ✅                      |           —            |              —               |
+| 잔여 prefix 재조회 0건 통과 후 deleteUser                          |               ✅ (Apple 흐름)               |           —            |              —               |
+
+미검증/deferred:
+
+- Apple revoke (10-4 token revoke endpoint 도입)
+- rate limit 429 (P1, 같은 user JWT로 4회 호출 불가 — 코드 review로 충분)
+
+검증 user들:
+
+- Apple: `2bf1334d-f825-4f2e-9784-4e0f63616c10` (사진 2장 → 모두 삭제)
+- Kakao: `d46fda66-c132-4354-a210-a7abb3f97bce` (kakao_id=4905562841, 고유 placeholder 이메일)
+- Google: `63ea462f-916f-4773-bf1d-3b12e648d754`
+- 검증 종료 후 모든 user 0건, auth_provider_links 0건, Storage 0건 확인
+
+자동 검증:
+
+- `scripts/verify/rls-smoke.ts` — 새 publishable key로 16/16 통과 (A/B 격리, 공개 테이블, ai_guide_cache 차단, users UPDATE 차단, Storage signed URL 격리)
+- supabase-js 2.106.1이 새 publishable key 호환 검증
+
+#### Codex 인계 작업 — Kakao 로그인 non-2xx 디버깅
+
+**문제**: Apple 계정 삭제 후 Kakao 로그인 시도 시 `status=500 / unexpected_failure (updateUser failed)`. Metro logs / dashboard / service_role DB 진단으로 추적.
+
+**1차 원인**: Supabase Edge Runtime의 `jsr:@supabase/supabase-js@2`에서 `admin.auth.admin.updateUserById()`가 `unexpected_failure` 반환. **같은 admin SDK 호출이 Node.js script로는 정상 동작** (격리 시도 5가지 payload 모두 OK) → Edge Function 환경 회귀.
+
+**2차 원인**: 옛 테스트에서 만든 orphan auth user가 placeholder 이메일 `kakao_${kakaoId}@isakok.invalid`를 점유 → 같은 placeholder로 새 user 만들려고 할 때 409 email duplicate. UI에서 "홈으로 돌아가기"는 conflict=true 처리 화면이지 진짜 성공이 아니었음.
+
+**Codex 수정** (`supabase/functions/kakao-token-exchange/index.ts`):
+
+- `jsr:@supabase/supabase-js@2` → `npm:@supabase/supabase-js@2`
+- `admin.auth.admin.updateUserById` SDK 호출 → **Auth Admin REST API 직접 호출** (`PUT /auth/v1/admin/users/{id}` with apikey + Bearer service_role)
+- Kakao placeholder 이메일을 고유값으로: `kakao_{kakaoId}_{anonymousUserId}@isakok.invalid`
+- `app_metadata: { provider: 'kakao', providers: ['kakao'] }` — providers 배열 추가 (새 GoTrue 형식)
+- 409 → 더 이상 conflict=true 성공처럼 처리 안 함. 클라이언트가 명확한 에러("이미 다른 계정에 연결된 카카오 계정이에요")로 처리
+- `apps/mobile/src/auth/AuthService.ts` — 임시 `[KakaoExchange:DEBUG]` console.error 제거
+
+**검증** (Codex 후 사용자 재시도): rate_limit_log에서 13:19~13:57 사이 6회 시도 모두 통과 (count=1만 추가). `d46fda66` user가 정상 anon=false 전환 + `auth_provider_links`에 (kakao, 4905562841) 매핑 추가. 그 후 계정 삭제까지 정상 완료.
+
+#### Conflict 확인 다이얼로그 (2026-05-27)
+
+익명 사용자가 이미 데이터가 있는 기존 계정으로 로그인할 때 사전 확인:
+
+- `apps/mobile/src/auth/AuthService.ts` — `SignInResult`에 `conflict-pending` 모드 추가. `confirm()` 클로저로 실제 전환 지연
+- `apps/mobile/src/app/auth.tsx` — `Alert.alert` 기반 네이티브 다이얼로그 (iOS HIG `style: 'destructive'`). 취소 시 익명 세션 유지
+- `conflictStuck` state + 기존 conflict 에러 메시지 제거
+- `docs/UI-POLISH.md` §8에 Before/After 패턴 문서화
+
+#### 앱 아이콘 + 스플래시 (2026-05-27)
+
+- `apps/mobile/assets/icon.png` — 1024×1024 실제 로고 (집+체크마크, 흰색 배경, 둥근 모서리). iOS 앱 아이콘용
+- `apps/mobile/assets/adaptive-icon.png` — 40% 투명 배경 버전 (Android adaptive icon foreground). 70%→50%→35%→40% 반복 후 확정
+- `apps/mobile/assets/splash-icon.png` — 70% 투명 배경 버전 (Android 스플래시)
+- `apps/mobile/assets/splash-icon-ios.png` (신규) — 30% 투명 배경 버전 (iOS 스플래시). 20%→30% 반복 후 확정
+- `apps/mobile/app.config.ts` — `ios.splash` 별도 설정 (iOS 전용 이미지 + 배경색)
+
+#### Kakao Maven 자동 주입 플러그인 (2026-05-27)
+
+- `apps/mobile/plugins/kakao-maven.js` (신규) — `withProjectBuildGradle` config plugin. `prebuild --clean` 시 자동으로 `build.gradle`에 Kakao Maven repo 주입
+- `apps/mobile/app.config.ts` — plugins 배열에 `'./plugins/kakao-maven'` 추가
+- `prebuild --clean`이 수동 build.gradle 수정을 날리는 문제 해결
+
+#### iOS ATS 예외 (2026-05-27)
+
+- `apps/mobile/app.config.ts` — `NSAppTransportSecurity: { NSAllowsArbitraryLoads: true }` 추가 (iOS WebView에서 HTTP dev 서버 접근용)
+
+#### Play Console 등록 (2026-05-27~28, Task #10 완료)
+
+- 앱 생성: `com.isakok.app`, 한국어, 무료
+- 앱 콘텐츠: 전체이용가 (IARC), 타겟 18+, 데이터 안전성 (계정식별자·이름·이메일·사진 수집, 제3자 공유 없음, 암호화 전송, 삭제 가능)
+- 개인정보처리방침 URL: `https://isakok.vercel.app/privacy`
+- 스토어 등록정보: 제목 "이사콕 - 이사 일정 관리", 설명, 카테고리 "도구", 스크린샷 (실기기 캡처)
+- EAS production AAB 빌드 → 내부 테스트 트랙 업로드 → 테스터 그룹 생성 → opt-in 링크 배포
+
+#### Play App Signing SHA-1 + OAuth/Kakao 등록 (2026-05-28, Task #9 완료)
+
+- Play Console → 앱 서명 → SHA-1 확인: `63:9D:67:E2:FD:AE:F1:61:92:F3:40:43:F2:49:61:89:21:BB:42:D3`
+- Google Cloud Console → "Isakok Android" OAuth 클라이언트에 Play App Signing SHA-1 추가 (기존 debug SHA-1과 별도)
+- Kakao Developers → 키 해시 추가: SHA-1 hex → binary → base64 변환 (`Y51n4v2u8WGS80BD8klhiSG7Qts=`)
+
+#### 실기기 검증 (2026-05-28, Task #11 완료)
+
+Play Store 내부 테스트 빌드 + iOS 실기기 빌드 검증:
+
+| 항목                    | Android (Play Store) |  iOS (실기기)  |
+| ----------------------- | :------------------: | :------------: |
+| Google 로그인           |          ✅          | ✅ (이전 세션) |
+| Kakao 로그인            |          ✅          | ✅ (이전 세션) |
+| 온보딩 → 대시보드       |          ✅          |       ✅       |
+| 탭 전환 (전체/집기록)   |          ✅          |       ✅       |
+| 계정 삭제 → 온보딩 복귀 |          ✅          | ✅ (이전 세션) |
+| 앱 아이콘 표시          |          ✅          |       ✅       |
+| 스플래시 스크린         |          ✅          |       ✅       |
+
+#### .gitignore 추가
+
+- `app.json`, `apps/web/app.json`, `apps/web/ios/` — Expo prebuild 생성 파일 제외
+
+#### Git
+
+- `feat/10-3-internal-release` 브랜치 (origin/main에서 분기)
+- 1개 commit pushed: `856f7d5 ci: add daily db backup workflow`
+- 나머지 변경 (12 modified + 5 untracked)은 working tree 보존 — 다른 세션에서 검증 + 커밋 분할 + 단일 squash PR 예정
+- 임시 디버그 코드 없음 (Codex가 정리). 일회용 진단 스크립트(`scripts/verify/kakao-debug.ts`, `kakao-update-test.ts`, `delete-test-user.ts`, `wipe-all.ts`) 삭제 완료. `rls-smoke.ts`만 보존 (검증 도구)
+
 ## 진행 중인 것
 
-- 없음
+- **10-3 커밋 정리 대기** — 구현·배포·검증 완료. `feat/10-3-internal-release` 브랜치에 12 modified + 5 untracked 보존. 다른 세션에서 검증 + 커밋 분할(1~3파일/커밋) + squash PR 예정.
 
 ## 다음 할 것
 
-1. **커밋 + PR** — 이번 세션 UI 폴리시 변경 커밋 (feat/10-2-rls-security 브랜치, 또는 별도 브랜치)
-2. **잔여 미검증 항목**:
-   - 10-1 #58 익명→Apple/Google identity-linked (새 Google 계정 필요)
-   - 10-1 #100 Android development build (에뮬레이터)
-   - 10-2 #85~88 prod 마이그레이션/시드/RLS/환경변수 (prod 전환 시)
-3. **EAS 빌드 설정 정리** — Google Sign-In iosUrlScheme 문제 해결 + EAS Secrets 등록
-4. **다음 단계 기획** — 10-3 (migrate_anonymous 전략) 또는 프로덕션 배포 준비
+1. **커밋 분할 + PR** — working tree 변경사항을 1~3파일/커밋 단위로 분할, squash merge PR 생성 (별도 세션에서 검증 후 진행)
+2. **Task #21 git history rewrite + branch 정리** ([PR 머지 직후]) — `git filter-repo --invert-paths`로 `apps/mobile/eas.json`, `apps/mobile/app.json`, `.gitleaksbaseline` 노출 흔적 제거 + 머지된 로컬 브랜치 일괄 정리
+3. **DB 백업 워크플로우 첫 실행 검증** — PR 머지 후 main에 workflow 도착 → workflow_dispatch 트리거 또는 다음날 KST 03:00 cron 자동 실행 → Artifact 다운로드 확인
 
 ## 알려진 문제
 
@@ -759,7 +1007,16 @@
 - shared/constants/aiGuide.ts dead code (VALID_HOUSING_TYPES 등 미사용 상수)
 - 10-2 폴백 발동(linkIdentity 실패→signInWithIdToken) 영속 로깅 미구현 — 현재 console.warn만, DB 카운트 테이블 추가 검토 필요
 - 웹 8개 페이지에서 Error 분기 누락 (ux-state-reviewer 지적, 기존 이슈, 별도 단계)
-- EAS CLI `eas env:list` 실행 시 Google Sign-In iosUrlScheme 누락으로 실패 — EAS 빌드 설정 정리 시 같이 해결 필요
+- EAS CLI `eas env:list` 실행 시 Google Sign-In iosUrlScheme 누락으로 실패 — EAS Secrets 등록은 Expo dashboard 웹 UI로 완료. CLI 이슈는 별도
+- **gitleaks 17건 노출 흔적 잔존** (apps/mobile/eas.json, apps/mobile/app.json, .gitleaksbaseline) — rotation으로 노출 키는 무효화. git filter-repo 정리는 Task #21 (PR 머지 직후 작업 마지막 단계)
+- **delete-account rate limit 429 동적 검증 미실시** (P1) — 같은 user JWT로 4회 호출 불가(1회 시 user 삭제). 코드 review로 충분
+- **Apple Sign in with Apple token revoke 미구현** — 10-4 deferred. 현재 Apple 삭제 흐름은 Supabase user + 앱 데이터만 삭제, Apple 측 앱 연결은 사용자가 설정에서 직접 해제 필요
+- **Kakao Developers 콘솔 web 플랫폼 등록 미실시** — native SDK + Edge Function exchange 흐름이라 영향 없음. 10-4 Kakao 웹훅 단계에서 함께 마무리
+- **service_role 키 이번 세션 chat 컨텍스트 노출** — Legacy JWT-based API keys disable로 즉시 무효화됨. 새 sb*secret*... 키도 chat에 잠시 노출 — 향후 보안 강박 시 dashboard에서 "+ New secret key" 발급 + 옛 secret disable로 재정리 가능
+- **익명 cleanup 작업 미구현** — 30일 미활동 + 이사 일정 도래 시 자동 파기 정책. 약관엔 명시되어 있지만 cron job 미구현. 사진 저장 게이트(ADR-074, 10-5+) 적용 전까지 익명 사진이 서버에 쌓일 수 있음
+- **Custom domain 미구매** — `isakok.vercel.app` 사용. WebView 앱이라 도메인 가시성 작아 지금은 ROI 낮음. 10-4 폐쇄 테스트 전 또는 GitHub README 강조 시점에 재검토 (ADR-075 분리 트리거 일부)
+- **DB 백업 워크플로우 첫 실행 검증 미실시** — workflow_dispatch는 default branch 필수라 PR 머지 후 검증. 머지 직후 또는 다음날 KST 03:00 cron 자동 실행으로 확인
+- **EAS Secrets visibility 분류** — 7개 변수 중 SUPABASE_ANON_KEY + KAKAO_NATIVE_APP_KEY는 Sensitive, 나머지는 Plain text 권장. 사용자가 모두 Sensitive로 통일했어도 안전한 default (동작은 동일)
 
 ## 실패한 접근 (반복 금지)
 
@@ -797,3 +1054,18 @@
 - Expo Metro 서버를 `--host lan` 없이 시작하면 실기기에서 Metro에 접속 불가 — `npx expo start --host lan` 필수
 - `navigation.getParent().setOptions({ tabBarStyle })` 는 Stack navigator를 타겟하므로 탭바 제어 불가 — Tabs 화면에서는 `navigation.setOptions()` 직접 호출이 올바름
 - iOS WebView에서 `-webkit-user-select: none`과 `-webkit-touch-callout: none`을 CSS body에만 걸면 일부 하위 요소에서 long-press 메뉴가 새는 경우 있음 — `*` 셀렉터 + `!important` + JS 이벤트 차단(contextmenu/selectstart/dragstart capture) 세 겹 방어 필요
+- **Supabase Edge Runtime의 `jsr:@supabase/supabase-js@2`에서 `admin.auth.admin.updateUserById()`가 `unexpected_failure` 반환하는 회귀** — 같은 호출이 Node.js 스크립트로는 정상 동작. **해결책**: (a) import를 `npm:@supabase/supabase-js@2`로 변경 (b) admin SDK 대신 raw `fetch`로 `PUT /auth/v1/admin/users/{id}` 직접 호출 (apikey + Bearer service_role 헤더). kakao-token-exchange가 이 두 패턴 모두 적용
+- **Kakao 익명→permanent 전환 시 placeholder 이메일 고정값 사용 금지** — `kakao_${kakaoId}@isakok.invalid` 고정이면 옛 테스트 잔재 orphan user가 같은 placeholder 점유 시 409 email duplicate. **해결책**: `kakao_${kakaoId}_${anonymousUserId}@isakok.invalid` 같은 고유값
+- **Edge Function 500 응답에 server 내부 에러 메시지 노출 금지** — `errorResponse(500, err.message)` 형태로 client에 server detail 전달하면 prod 부적합. **해결책**: client 응답은 일반 코드(`'KAKAO_USER_UPDATE_FAILED'` 등), server는 `console.error('[label]', { code, status, message, ... })`로 상세 logging. dashboard logs에서만 보임
+- **service_role 키를 chat에 직접 export 금지** (가능하면) — Claude bash에서 `SUPABASE_SERVICE_ROLE_KEY=eyJ...` inline export하면 chat history에 평문 노출. 대신 사용자가 .env.local에 추가 후 Claude는 process.env로 읽기. 단 진단·검증에 효율 우선이면 risk acceptance + 작업 후 rotation
+- **`listUsers({ perPage: 200 })`는 anonymous 사용자를 default exclude** — 새 supabase-js 버전 동작. 모든 user 보려면 raw HTTP (`GET /auth/v1/admin/users`) 또는 `getUserById(id)` 직접 호출
+- **`git filter-repo`는 작업 도중 실행 금지** — working tree 변경 + stash → filter → unstash 충돌 위험 + 모든 commit hash 변경으로 진행 흐름 꼬임. **해결책**: PR 머지 직후 작업 마지막 단계에서 진행 (Task #21). branch 정리도 함께
+- **아이콘/스플래시 에셋 교체 후 반드시 `npx expo prebuild --clean`** — icon.png, adaptive-icon.png 등 변경 시 "prebuild 안 해도 된다"는 틀린 조언. 양 플랫폼 모두 prebuild 필요
+- **Android adaptive-icon.png에 흰 배경 금지** — 풀 사이즈 로고+흰 배경이면 OS 마스크 후 아이콘 전체를 덮어버림. 투명 배경 + 40% 캔버스 크기 권장
+- **`expo-splash-screen` imageWidth 설정은 양 플랫폼 공통** — iOS만 줄이려고 설정하면 Android도 같이 줄어듦. 플랫폼별 분리는 `ios.splash`/`android.splash` 사용
+- **`npx expo run:ios --device` 설치 실패 시 xcodebuild + xcrun devicectl 대안** — `LockdowndClient TypeError: Cannot convert object to primitive value` 에러 발생 시 `xcodebuild -workspace ... -scheme ... -destination 'id=...'` 빌드 + `xcrun devicectl device install app --device ... --path ...` 설치로 우회
+- **dev=prod 결정 시 파괴적 스크립트(dev-wipe.sql 등) 즉시 삭제** — project-ref 가드가 이제 prod를 가리켜 실행하면 prod 와이프. "단순 잔재 정리"가 아니라 "dev→prod 하드닝 게이트"로 인식 필요
+- **Supabase Free tier project limit은 owner 계정 기준** — `seomsoo (Limit: 2 free projects)` — 같은 계정이 owner/admin인 모든 org를 합쳐 활성 2개. 새 free org 만들어도 동일 카운트. 회피책: 다른 사람 owner의 org에 collaborator(그레이존), Pro upgrade, 또는 dev=prod 통합(ADR-075)
+- **WebView 앱에서 custom domain은 사용자 가시성 작아 ROI 낮음** — 도메인은 약관 페이지 클릭/Play Console privacy URL/면접관 GitHub README 등 부수 시점에만 노출. 마케팅·SEO 본격화 또는 10-4 폐쇄 테스트 시점에 검토
+- **EAS Environment variables Visibility = `Secret`은 `EXPO_PUBLIC_*`에 부적합** — `Secret`은 빌드 worker만 접근, client bundle에 inline 안 됨 → `process.env`로 못 읽음. publishable·URL 같은 `EXPO_PUBLIC_*`는 `Plain text` 또는 `Sensitive`만
+- **GitHub Actions의 `workflow_dispatch`는 default branch에 workflow 파일 필수** — feature branch에만 있으면 404. PR 머지 후 트리거 또는 default branch에 일부 cherry-pick 필요

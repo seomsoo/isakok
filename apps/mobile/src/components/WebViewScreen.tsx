@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useContext, useRef } from 'react'
 import {
   View,
   BackHandler,
@@ -12,6 +12,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { WebView } from 'react-native-webview'
 import type { WebViewMessageEvent, WebViewNavigation } from 'react-native-webview'
 import { router, useNavigation } from 'expo-router'
+import { useIsFocused } from '@react-navigation/native'
+import * as Haptics from 'expo-haptics'
 import { COLORS, WEB_APP_URL } from '../constants/config'
 import { useNetworkStatus } from '../hooks/useNetworkStatus'
 import { useWebViewRef } from '../hooks/useWebViewRef'
@@ -20,7 +22,10 @@ import { isAllowedWebUrl } from '../utils/urlAllowlist'
 import { AuthService } from '../auth/AuthService'
 import { getCurrentSession } from '../auth/sessionState'
 import { registerWebView, sendSessionToWebView } from '../auth/broadcast'
-import type { BridgeMessage, WebToNativeMessage } from '@moving/shared/types/bridge'
+import { ROUTES, TAB_ROOT_PATHS } from '@moving/shared'
+import type { BridgeMessage, WebToNativeMessage } from '@moving/shared'
+import { sendToWeb } from '../utils/webBridge'
+import { TabBarContext } from '../app/(tabs)/_layout'
 import { LoadingFallback } from './LoadingFallback'
 import { ErrorFallback } from './ErrorFallback'
 import { OfflineFallback } from './OfflineFallback'
@@ -77,20 +82,23 @@ const INJECTED_BEFORE_LOAD = `
 const WEBVIEW_LOAD_TIMEOUT_MS = 15000
 
 const PATH_LABELS: Record<string, string> = {
-  '/': '홈',
-  '/timeline': '전체 일정',
-  '/photos': '집기록',
+  [ROUTES.LANDING]: '홈',
+  [ROUTES.ONBOARDING]: '이사 정보 입력',
+  [ROUTES.DASHBOARD]: '대시보드',
+  [ROUTES.TIMELINE]: '전체 일정',
+  [ROUTES.PHOTOS]: '집기록',
+  [ROUTES.SETTINGS]: '설정',
+  [ROUTES.PRIVACY]: '개인정보처리방침',
+  [ROUTES.TERMS]: '이용약관',
 }
 
-const TAB_BAR_STYLE = {
-  backgroundColor: '#FFFFFF',
-  borderTopColor: '#F0EFED',
-  borderTopWidth: 0.5,
-  height: 56,
-  paddingBottom: 4,
+function getPathLabel(path: string): string {
+  const exact = PATH_LABELS[path]
+  if (exact) return exact
+  if (path.startsWith('/checklist/')) return '체크리스트 상세'
+  if (path.startsWith('/photos/')) return '집기록 상세'
+  return '웹 콘텐츠'
 }
-const TAB_BAR_HIDDEN = { display: 'none' as const }
-const HIDE_TAB_ROUTES = ['/onboarding', '/pre-check']
 const TOP_SAFE_AREA_BACKGROUND = {
   default: COLORS.neutral,
   black: '#000000',
@@ -106,7 +114,23 @@ export function WebViewScreen({ path, onMessage }: WebViewScreenProps) {
   const isConnected = useNetworkStatus()
   const { webViewRef, reload, goBack } = useWebViewRef()
   const [wasOffline, setWasOffline] = useState(false)
+  const { setIsTabBarHidden } = useContext(TabBarContext)
   const navigation = useNavigation()
+  const isFocused = useIsFocused()
+
+  useEffect(() => {
+    const unsubscribe = (
+      navigation as unknown as { addListener: (event: string, cb: () => void) => () => void }
+    ).addListener('tabPress', () => {
+      if (isFocused && webViewRef.current) {
+        sendToWeb(webViewRef, {
+          type: 'NAVIGATE_TO',
+          payload: { path, replace: true },
+        })
+      }
+    })
+    return unsubscribe
+  }, [navigation, isFocused, path, webViewRef])
 
   useEffect(() => {
     if (!isConnected) {
@@ -145,6 +169,18 @@ export function WebViewScreen({ path, onMessage }: WebViewScreenProps) {
     return () => clearTimeout(timeout)
   }, [hasError, isLoading])
 
+  // 로드 완료를 한 번 announce — path 가 바뀌면 isLoading 이 true 로 돌아 자연스럽게 재공지.
+  const announcedRef = useRef(false)
+  useEffect(() => {
+    if (isLoading) {
+      announcedRef.current = false
+      return
+    }
+    if (hasError || announcedRef.current) return
+    AccessibilityInfo.announceForAccessibility(`${getPathLabel(path)} 페이지가 준비되었어요`)
+    announcedRef.current = true
+  }, [isLoading, hasError, path])
+
   useEffect(() => {
     const wv = webViewRef.current
     if (!wv) return
@@ -180,6 +216,11 @@ export function WebViewScreen({ path, onMessage }: WebViewScreenProps) {
         case 'REQUEST_LOGOUT':
           AuthService.signOut().catch((err) => console.error('[signOut]', err))
           return
+        case 'REQUEST_DELETE_ACCOUNT':
+          AuthService.deleteAccount().catch((err) =>
+            console.error('[deleteAccount]', err instanceof Error ? err.message : err),
+          )
+          return
         case 'REQUEST_SESSION_REFRESH':
           AuthService.refreshSession().catch((err) => console.error('[refresh]', err))
           return
@@ -187,32 +228,51 @@ export function WebViewScreen({ path, onMessage }: WebViewScreenProps) {
           Linking.openURL(message.payload.url).catch(() => undefined)
           return
         case 'NAVIGATE_TAB': {
-          const tabMap = { home: '/', timeline: '/timeline', photos: '/photos' } as const
-          router.replace(tabMap[message.payload.tab])
+          const tabMap = {
+            home: ROUTES.LANDING,
+            timeline: ROUTES.TIMELINE,
+            photos: ROUTES.PHOTOS,
+          } as const
+          router.navigate(tabMap[message.payload.tab])
           return
         }
         case 'ROUTE_CHANGE': {
-          const shouldHide = HIDE_TAB_ROUTES.some((r) => message.payload.path.startsWith(r))
-          navigation.setOptions({
-            tabBarStyle: shouldHide ? TAB_BAR_HIDDEN : TAB_BAR_STYLE,
-          })
+          const isTabRoot = (TAB_ROOT_PATHS as readonly string[]).includes(message.payload.path)
+          setIsTabBarHidden(!isTabRoot)
           return
         }
         case 'SET_TAB_BAR':
-          navigation.setOptions({
-            tabBarStyle: message.payload.visible ? TAB_BAR_STYLE : TAB_BAR_HIDDEN,
-          })
+          setIsTabBarHidden(!message.payload.visible)
           return
         case 'SET_SAFE_AREA_STYLE':
           setTopSafeAreaStyle(message.payload.top)
           return
+        case 'REQUEST_HAPTIC': {
+          const map = {
+            light: Haptics.ImpactFeedbackStyle.Light,
+            medium: Haptics.ImpactFeedbackStyle.Medium,
+            heavy: Haptics.ImpactFeedbackStyle.Heavy,
+            success: Haptics.NotificationFeedbackType.Success,
+            error: Haptics.NotificationFeedbackType.Error,
+          } as const
+          const style = map[message.payload.style]
+          if (
+            style === Haptics.NotificationFeedbackType.Success ||
+            style === Haptics.NotificationFeedbackType.Error
+          ) {
+            Haptics.notificationAsync(style)
+          } else {
+            Haptics.impactAsync(style)
+          }
+          return
+        }
       }
 
       if (onMessage) {
         onMessage(wrapped)
       }
     },
-    [onMessage, webViewRef, navigation],
+    [onMessage, webViewRef, setIsTabBarHidden],
   )
 
   const handleNavigationStateChange = useCallback((navState: WebViewNavigation) => {
@@ -262,13 +322,14 @@ export function WebViewScreen({ path, onMessage }: WebViewScreenProps) {
       <WebView
         ref={webViewRef}
         source={{ uri: `${WEB_APP_URL}${path}` }}
-        accessibilityLabel={`${PATH_LABELS[path] ?? path} 웹 콘텐츠`}
+        accessibilityLabel={`${getPathLabel(path)} 웹 콘텐츠`}
         accessibilityElementsHidden={isLoading}
         importantForAccessibility={isLoading ? 'no-hide-descendants' : 'auto'}
         javaScriptEnabled
         domStorageEnabled
-        bounces={false}
-        allowsBackForwardNavigationGestures={false}
+        bounces
+        allowsBackForwardNavigationGestures
+        pullToRefreshEnabled={Platform.OS === 'android'}
         allowFileAccess
         allowFileAccessFromFileURLs={false}
         showsVerticalScrollIndicator={false}

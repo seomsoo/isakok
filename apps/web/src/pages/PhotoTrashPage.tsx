@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
+import { Navigate, useSearchParams } from 'react-router-dom'
+import { useGoBack } from '@/shared/hooks/useGoBack'
 import { ChevronLeft, Loader2, Trash2 } from 'lucide-react'
 import { differenceInMinutes } from 'date-fns'
 import { ROUTES, ROOM_META, getRoomMeta, type RoomType } from '@moving/shared'
@@ -39,7 +40,7 @@ function daysLeft(iso: string | null): number {
 }
 
 export function PhotoTrashPage() {
-  const navigate = useNavigate()
+  const goBack = useGoBack('/photos')
   const [searchParams] = useSearchParams()
   const { data: move, isPending } = useCurrentMove()
 
@@ -49,7 +50,7 @@ export function PhotoTrashPage() {
   const queryType = searchParams.get('type') as PhotoType | null
   const photoType: PhotoType = queryType === 'move_out' ? 'move_out' : 'move_in'
 
-  return <Inner moveId={move.id} photoType={photoType} onBack={() => navigate(-1)} />
+  return <Inner moveId={move.id} photoType={photoType} onBack={goBack} />
 }
 
 interface InnerProps {

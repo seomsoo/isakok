@@ -13,7 +13,7 @@ export type {
 
 // 상수
 export { COLORS } from './constants/colors'
-export { ROUTES } from './constants/routes'
+export { ROUTES, TAB_ROOT_PATHS, checklistDetailPath } from './constants/routes'
 export { GREETINGS, getGreetingMessage } from './constants/greetings'
 export { CATEGORY_CHIP_MAP } from './constants/categories'
 export { LINK_META, getLinkMeta } from './constants/linkMeta'

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { View, Text, Pressable, Platform, ActivityIndicator, StyleSheet } from 'react-native'
+import { View, Text, Pressable, Platform, ActivityIndicator, Alert, StyleSheet } from 'react-native'
 import { router } from 'expo-router'
 import { AuthService } from '../auth/AuthService'
 import type { AuthProviderName } from '../auth/providers/types'
@@ -14,7 +14,6 @@ export default function AuthScreen() {
   const [available, setAvailable] = useState<AuthProviderName[]>([])
   const [loading, setLoading] = useState<AuthProviderName | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [conflictStuck, setConflictStuck] = useState(false)
 
   useEffect(() => {
     AuthService.listAvailableProviders().then(setAvailable)
@@ -41,11 +40,33 @@ export default function AuthScreen() {
     try {
       const result = await AuthService.signInWithProvider(name)
 
-      if (result.mode === 'signed-in' && result.conflict) {
-        setError('이전에 작성한 내용을 옮기는 기능은 곧 제공돼요. 새 계정으로 시작할 수 있어요.')
-        setConflictStuck(true)
+      if (result.mode === 'conflict-pending') {
+        setLoading(null)
+        Alert.alert(
+          '이미 계정이 있어요',
+          '로그인하면 비회원으로 작성한 내용은 삭제돼요.\n계속할까요?',
+          [
+            { text: '취소', style: 'cancel' },
+            {
+              text: '로그인',
+              style: 'destructive',
+              onPress: async () => {
+                setLoading(result.providerName)
+                try {
+                  await result.confirm()
+                  router.replace('/')
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : '로그인에 실패했어요')
+                } finally {
+                  setLoading(null)
+                }
+              },
+            },
+          ],
+        )
         return
       }
+
       router.replace('/')
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : '로그인에 실패했어요'
@@ -106,11 +127,11 @@ export default function AuthScreen() {
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={conflictStuck ? '홈으로 돌아가기' : '로그인 없이 계속하기'}
+        accessibilityLabel="로그인 없이 계속하기"
         onPress={() => router.replace('/')}
         style={styles.skip}
       >
-        <Text style={styles.skipText}>{conflictStuck ? '홈으로 돌아가기' : '나중에 할게요'}</Text>
+        <Text style={styles.skipText}>나중에 할게요</Text>
       </Pressable>
     </View>
   )

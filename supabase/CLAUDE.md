@@ -33,10 +33,13 @@ id (uuid PK), cache_key (text UNIQUE), master_version (integer), guides (jsonb),
 - soft delete: deleted_at IS NULL 조건으로 조회
 - user_id 비정규화: RLS에서 JOIN 없이 권한 체크용
 
-## RLS 정책 (10단계에서 켜기)
+## RLS 정책
 
-**지금(0~9단계): RLS 끔, 서비스키로 개발**
-**10단계: 아래 정책 전부 켜기 + 전수 검증**
+**10-2부터 RLS 활성화 완료** (마이그레이션 00016~00020). 7개 테이블 + storage.objects 정책 적용. 클라이언트는 anon/publishable key + 본인 데이터만 접근.
+
+> 이전 단계(0~10-1)는 RLS 끔 + 서비스키로 개발. 10-2부터 아래 정책 ON + 전수 검증(scripts/verify/rls-smoke.ts, 16/16 통과).
+
+10-3에서 추가: `delete-account` Edge Function이 service*role로 Storage·auth.users 삭제(클라이언트는 호출만, RLS 우회 X). 옛 anon/service_role Legacy JWT는 disable되고 새 `sb_publishable*...`/`sb*secret*...` 체계 사용 (ADR-075).
 
 ```sql
 -- 이름 규칙: {테이블}_{작업}_{조건}

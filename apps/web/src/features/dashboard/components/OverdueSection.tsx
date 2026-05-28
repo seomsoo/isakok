@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { checklistDetailPath } from '@shared/constants/routes'
 import { Badge } from '@/shared/components/Badge'
 import { ChecklistItem } from '@/shared/components/ChecklistItem'
 
@@ -29,12 +30,12 @@ export function OverdueSection({ items, onToggle }: OverdueSectionProps) {
               {index > 0 && <div className="mx-4 border-t border-border" />}
               <ChecklistItem
                 id={item.id as string}
-                title={master?.title as string ?? ''}
-                category={master?.category as string ?? ''}
+                title={(master?.title as string) ?? ''}
+                category={(master?.category as string) ?? ''}
                 isCompleted={item.is_completed as boolean}
                 guideType={master?.guide_type as 'tip' | 'warning' | 'critical' | undefined}
                 onToggle={onToggle}
-                onPress={() => navigate(`/checklist/${item.id as string}`)}
+                onPress={() => navigate(checklistDetailPath(item.id as string, 'dashboard'))}
               />
             </div>
           )
