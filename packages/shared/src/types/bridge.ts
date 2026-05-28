@@ -11,6 +11,7 @@ export type WebToNativeMessage =
       }
     }
   | { type: 'REQUEST_LOGOUT' }
+  | { type: 'REQUEST_DELETE_ACCOUNT' }
   | { type: 'REQUEST_SESSION_REFRESH' }
   | { type: 'OPEN_EXTERNAL_LINK'; payload: { url: string } }
   | { type: 'SHARE_REPORT'; payload: { url: string } }
@@ -19,6 +20,10 @@ export type WebToNativeMessage =
   | { type: 'NAVIGATE_TAB'; payload: { tab: 'home' | 'timeline' | 'photos' } }
   | { type: 'SET_TAB_BAR'; payload: { visible: boolean } }
   | { type: 'SET_SAFE_AREA_STYLE'; payload: { top: 'default' | 'black' } }
+  | {
+      type: 'REQUEST_HAPTIC'
+      payload: { style: 'light' | 'medium' | 'heavy' | 'success' | 'error' }
+    }
 
 /**
  * 네이티브 → 웹 메시지
@@ -36,6 +41,8 @@ export type NativeToWebMessage =
       }
     }
   | { type: 'AUTH_LOGOUT' }
+  | { type: 'ACCOUNT_DELETE_RESULT'; payload: { ok: boolean; stage?: string } }
+  | { type: 'NAVIGATE_TO'; payload: { path: string; replace?: boolean } }
   | {
       type: 'PHOTO_TAKEN'
       payload: { uri: string; exif: Record<string, unknown>; hash: string }
