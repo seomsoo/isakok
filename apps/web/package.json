@@ -12,15 +12,18 @@
   },
   "dependencies": {
     "@moving/shared": "workspace:*",
+    "@ssgoi/react": "^6.3.0",
     "@supabase/supabase-js": "^2.106.1",
     "@tanstack/react-query": "^5.100.14",
     "clsx": "^2.1.1",
     "date-fns": "^4.3.0",
     "exifreader": "^4.39.1",
+    "expo": "~55.0.26",
     "lucide-react": "^1.16.0",
     "react": "^19.2.6",
     "react-day-picker": "^10.0.1",
     "react-dom": "^19.2.6",
+    "react-native": "0.83.6",
     "react-router-dom": "^7.15.1",
     "tailwind-merge": "^3.6.0",
     "use-debounce": "^10.1.1",
@@ -40,5 +43,6 @@
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.59.4",
     "vite": "^6.4.2"
-  }
+  },
+  "version": "1.0.0"
 }
