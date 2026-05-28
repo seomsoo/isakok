@@ -1,11 +1,17 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts'
-import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2'
 import { resolveCorsOrigin, makeCorsHeaders } from '../_shared/cors.ts'
 
 const KAKAO_USER_API = 'https://kapi.kakao.com/v2/user/me'
 
 interface RequestBody {
   kakaoAccessToken: string
+}
+
+interface AuthAdminUpdateError extends Error {
+  code?: string
+  status?: number
+  body?: string
 }
 
 async function sha256(input: string): Promise<string> {
@@ -34,6 +40,65 @@ function extractClientIp(req: Request): string | null {
   const xff = req.headers.get('x-forwarded-for')
   if (xff) return xff.split(',')[0].trim()
   return req.headers.get('cf-connecting-ip') ?? req.headers.get('x-real-ip') ?? null
+}
+
+function resolveKakaoEmail(
+  kakaoId: string,
+  rawEmail: unknown,
+  stableSuffix: string,
+): {
+  email: string
+  hasRealEmail: boolean
+} {
+  const hasRealEmail =
+    typeof rawEmail === 'string' && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail.trim())
+  const safeKakaoId = kakaoId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 20)
+  const safeSuffix = stableSuffix.replace(/[^a-zA-Z0-9]/g, '').slice(0, 32)
+  return { email: `kakao_${safeKakaoId}_${safeSuffix}@isakok.invalid`, hasRealEmail }
+}
+
+async function updateAuthUserById(
+  supabaseUrl: string,
+  serviceRoleKey: string,
+  userId: string,
+  attributes: Record<string, unknown>,
+): Promise<void> {
+  const res = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}`, {
+    method: 'PUT',
+    headers: {
+      apikey: serviceRoleKey,
+      Authorization: `Bearer ${serviceRoleKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(attributes),
+  })
+
+  if (res.ok) return
+
+  const body = await res.text().catch(() => '')
+  let parsed: Record<string, unknown> = {}
+  try {
+    parsed = JSON.parse(body) as Record<string, unknown>
+  } catch {
+    parsed = {}
+  }
+
+  const message =
+    typeof parsed.message === 'string'
+      ? parsed.message
+      : typeof parsed.error_description === 'string'
+        ? parsed.error_description
+        : typeof parsed.error === 'string'
+          ? parsed.error
+          : body || res.statusText
+  const err = new Error(message) as AuthAdminUpdateError
+  err.name = 'AuthAdminUpdateError'
+  err.status = res.status
+  if (typeof parsed.code === 'string') err.code = parsed.code
+  if (!err.code && typeof parsed.error_code === 'string') err.code = parsed.error_code
+  if (!err.code && typeof parsed.error === 'string') err.code = parsed.error
+  err.body = body.slice(0, 500)
+  throw err
 }
 
 serve(async (req) => {
@@ -77,11 +142,12 @@ serve(async (req) => {
     const jwtUserId = userData.user.id
 
     // --- rate limit ---
-    const admin = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-      { auth: { autoRefreshToken: false, persistSession: false } },
-    )
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+
+    const admin = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    })
 
     const now = new Date()
     const userResult = await admin.rpc('increment_rate_limit', {
@@ -123,7 +189,28 @@ serve(async (req) => {
     if (!kakaoRes.ok) return errorResponse(401, 'Kakao token verification failed', cors)
     const kakaoUser = await kakaoRes.json()
     const kakaoId = String(kakaoUser.id)
-    const realEmail = kakaoUser.kakao_account?.email as string | undefined
+
+    // provider-level rate limit — 익명→실명 직후 user 키 리셋으로 user/IP 둘 다 우회 가능한 케이스
+    // 차단. kakaoId 평문은 식별자라 RATE_LIMIT_SALT 와 함께 해시 후 키로 사용.
+    const kakaoIdHash = await sha256(`kakao:${kakaoId}:${Deno.env.get('RATE_LIMIT_SALT') ?? ''}`)
+    const providerResult = await admin.rpc('increment_rate_limit', {
+      p_bucket_key: `kakao:provider:${kakaoIdHash}`,
+      p_window_start: truncateToHour(now),
+      p_limit: 30,
+    })
+    if (providerResult.error) {
+      console.error('[rate-limit:provider]', providerResult.error)
+      return errorResponse(503, 'rate limit unavailable', cors)
+    }
+    if (!providerResult.data) {
+      return errorResponse(429, 'rate limited', cors)
+    }
+
+    const { email: kakaoEmail, hasRealEmail } = resolveKakaoEmail(
+      kakaoId,
+      kakaoUser.kakao_account?.email,
+      currentAnonymousUserId ?? crypto.randomUUID(),
+    )
 
     const { data: existingLink } = await admin
       .from('auth_provider_links')
@@ -148,19 +235,29 @@ serve(async (req) => {
       const { data: existingUser } = await admin.auth.admin.getUserById(userId)
       loginEmail = existingUser.user?.email ?? `kakao_${kakaoId}@isakok.invalid`
     } else if (currentAnonymousUserId) {
-      const email = realEmail ?? `kakao_${kakaoId}@isakok.invalid`
-      const { error: updErr } = await admin.auth.admin.updateUserById(currentAnonymousUserId, {
-        email,
-        email_confirm: true,
-        user_metadata: { kakao_id: kakaoId, provider: 'kakao' },
-        app_metadata: { provider: 'kakao' },
-      })
-      if (updErr) {
-        const msg = updErr.message?.toLowerCase() ?? ''
+      try {
+        await updateAuthUserById(supabaseUrl, serviceRoleKey, currentAnonymousUserId, {
+          email: kakaoEmail,
+          email_confirm: true,
+          user_metadata: { kakao_id: kakaoId, provider: 'kakao' },
+          app_metadata: { provider: 'kakao', providers: ['kakao'] },
+        })
+      } catch (updErr) {
+        const err = updErr as AuthAdminUpdateError
+        // body 에 placeholder 이메일(kakaoId 평문 포함) 이 echo 될 수 있어 length 메타만 기록.
+        console.error('[kakao-exchange:updateUserById]', {
+          code: err.code,
+          status: err.status,
+          name: err.name,
+          message: err.message,
+          bodyLen: err.body?.length ?? 0,
+          hasRealEmail,
+        })
+        const msg = err.message?.toLowerCase() ?? ''
         if (msg.includes('already') || msg.includes('duplicate')) {
           return errorResponse(409, 'KAKAO_EMAIL_CONFLICT', cors)
         }
-        return errorResponse(500, `updateUser failed: ${updErr.message}`, cors)
+        return errorResponse(500, 'KAKAO_USER_UPDATE_FAILED', cors)
       }
 
       const { error: linkErr } = await admin.from('auth_provider_links').insert({
@@ -168,25 +265,28 @@ serve(async (req) => {
         provider_user_id: kakaoId,
         user_id: currentAnonymousUserId,
       })
-      if (linkErr) return errorResponse(500, `link failed: ${linkErr.message}`, cors)
+      if (linkErr) {
+        console.error('[kakao-exchange:link-insert-anon]', linkErr.message)
+        return errorResponse(500, 'KAKAO_LINK_FAILED', cors)
+      }
 
       userId = currentAnonymousUserId
-      loginEmail = email
+      loginEmail = kakaoEmail
       linked = true
     } else {
-      const email = realEmail ?? `kakao_${kakaoId}@isakok.invalid`
       const { data: created, error: createErr } = await admin.auth.admin.createUser({
-        email,
+        email: kakaoEmail,
         email_confirm: true,
         user_metadata: { kakao_id: kakaoId, provider: 'kakao' },
-        app_metadata: { provider: 'kakao' },
+        app_metadata: { provider: 'kakao', providers: ['kakao'] },
       })
       if (createErr) {
         const msg = createErr.message?.toLowerCase() ?? ''
         if (msg.includes('already') || msg.includes('duplicate')) {
           return errorResponse(409, 'KAKAO_EMAIL_CONFLICT', cors)
         }
-        return errorResponse(500, createErr.message, cors)
+        console.error('[kakao-exchange:createUser]', createErr.message)
+        return errorResponse(500, 'KAKAO_USER_CREATE_FAILED', cors)
       }
       userId = created.user.id
 
@@ -196,17 +296,31 @@ serve(async (req) => {
         user_id: userId,
       })
       if (newLinkErr) {
-        await admin.auth.admin.deleteUser(userId).catch(() => {})
-        return errorResponse(500, `link failed: ${newLinkErr.message}`, cors)
+        console.error('[kakao-exchange:link-insert-new]', newLinkErr.message)
+        // orphan auth.user 가 남으면 같은 kakaoId 재시도 시 placeholder 이메일 409 락아웃 발생.
+        // 정리 실패 시 메트릭으로 가시화해 수동 정리 가능하게 한다.
+        await admin.auth.admin
+          .deleteUser(userId)
+          .catch((delErr: { code?: string; message?: string } | null) =>
+            console.warn('[kakao-exchange:orphan-cleanup-failed]', {
+              userId,
+              code: delErr?.code,
+              message: delErr?.message?.slice(0, 80),
+            }),
+          )
+        return errorResponse(500, 'KAKAO_LINK_FAILED', cors)
       }
-      loginEmail = email
+      loginEmail = kakaoEmail
     }
 
     const { data: link, error: linkErr } = await admin.auth.admin.generateLink({
       type: 'magiclink',
       email: loginEmail,
     })
-    if (linkErr) return errorResponse(500, linkErr.message, cors)
+    if (linkErr) {
+      console.error('[kakao-exchange:generateLink]', linkErr.message)
+      return errorResponse(500, 'KAKAO_LOGIN_FAILED', cors)
+    }
     const tokenHash = link.properties.hashed_token
 
     const anon = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
@@ -216,8 +330,14 @@ serve(async (req) => {
       type: 'magiclink',
       token_hash: tokenHash,
     })
-    if (verifyErr) return errorResponse(500, verifyErr.message, cors)
-    if (!verified.session) return errorResponse(500, 'session creation failed', cors)
+    if (verifyErr) {
+      console.error('[kakao-exchange:verifyOtp]', verifyErr.message)
+      return errorResponse(500, 'KAKAO_LOGIN_FAILED', cors)
+    }
+    if (!verified.session) {
+      console.error('[kakao-exchange:verifyOtp] session missing')
+      return errorResponse(500, 'KAKAO_LOGIN_FAILED', cors)
+    }
 
     return new Response(
       JSON.stringify({
@@ -229,7 +349,8 @@ serve(async (req) => {
       { headers: { ...cors, 'Content-Type': 'application/json' } },
     )
   } catch (err) {
-    return errorResponse(500, err instanceof Error ? err.message : 'unknown', cors)
+    console.error('[kakao-exchange:unhandled]', err instanceof Error ? err.message : err)
+    return errorResponse(500, 'KAKAO_LOGIN_FAILED', cors)
   }
 })
 
