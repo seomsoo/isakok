@@ -780,6 +780,7 @@ type NativeToWeb =
 - 결정: 10-1 단계 전체를 dev Supabase 환경에서만 개발·테스트. prod는 10-2에서 마이그레이션 완성 후 일괄 생성·적용.
 - 이유: 마이그레이션이 00012까지만 적용된 prod를 10-2까지 방치하면 부분 적용 상태가 됨. dev에서 모든 마이그레이션을 검증한 뒤 prod에 일괄 적용이 깔끔.
 - 트레이드오프: prod 환경 검증이 10-2로 밀림.
+- ⚠️ **ADR-075로 대체 (10-3): prod Supabase 별도 미생성, 기존 dev 프로젝트를 prod로 통합 사용.**
 
 ### ADR-047: BridgeMessage wrapper 필수
 
@@ -812,6 +813,7 @@ type NativeToWeb =
 - 대안: (A) Vercel Deployment Protection (Pro $20/월). (B) production deployment 미생성. (C) dev 연결 (채택).
 - 근거: 비용 0원, 환경 분리 인프라는 미리 구축, 실제 데이터 분리만 10-2 완료 시점에 활성화.
 - 트레이드오프: production URL이 dev 데이터를 보여줌. 외부 비공개 정책으로 관리.
+- ⚠️ **ADR-075로 대체 (10-3): dev/prod 통합으로 "임시 연결"이 영구가 됨. internal Vercel 배포도 같은 Supabase 사용.**
 
 ### ADR-052: Google Skip nonce checks ON
 
@@ -897,3 +899,99 @@ type NativeToWeb =
 
 - 결정: `update_move_with_reschedule` 9인자 버전 도입 시 옛 8인자 overload를 반드시 `DROP FUNCTION IF EXISTS`로 제거. 별도 마이그레이션(00020)으로 분리.
 - 이유: PostgreSQL은 파라미터 수가 다르면 별개 함수로 취급(overloading). `CREATE OR REPLACE`는 같은 시그니처만 대체하므로, 옛 8인자 SECURITY DEFINER(소유권 검증 없음)가 잔존하면 RLS를 우회할 수 있음.
+
+### ADR-066: 계정 삭제 = 즉시 hard delete + 회원 전용
+
+- 결정: 유예기간 없는 즉시 hard delete. UI 2단계 확인으로 실수 방어. 로그인 회원만 노출(익명 직접 삭제 경로 미추가).
+- 구현 (`supabase/functions/delete-account`):
+  - service_role admin client. CORS → JWT 검증 → `is_anonymous` 403 가드 → rate limit(분당 3회, P1) → **재귀 Storage `list()`**(public Storage API, `storage.objects` 비의존) → chunk(100) `remove()` + 1~3회 retry → **삭제 후 prefix 재조회 잔여 0건 검증** → `auth_provider_links` 명시 삭제 → `auth.admin.deleteUser` → public.\* CASCADE.
+  - 서버 idempotency는 유효 JWT 한정. 클라가 401/네트워크오류 시 세션 정리 + `signInAnonymously()`로 복구.
+- 트리거 우회 검증: Apple 실측에서 `protect_delete` 트리거가 Storage API `remove()`를 막지 않음 확인 (스펙 §2-2 #3 대응책 불필요).
+- 연계: ADR-074 (사진 저장 회원 전용 — 익명 직접 삭제 경로 불필요 정합).
+
+### ADR-067: Provider 연결 해제 — best-effort + timeout
+
+- 결정: Kakao `unlink()` + Google `revokeAccess()` best-effort 호출. **5s timeout** 각각, 실패/타임아웃은 warn 로그(provider 이름 + 짧은 errorCode만, **토큰/이메일/PII 로그 금지**). signOut · session.clear · 익명 재가입은 revoke 실패와 무관하게 항상 진행.
+- Apple revoke는 10-4 (token revoke endpoint 도입 시).
+- 실패 시 상태: Supabase user·앱 데이터는 삭제 / provider 측 앱 연결은 남을 수 있음(같은 provider 재로그인 시 새 익명 user에 다시 연결). UI 안내: "앱 데이터는 삭제됐습니다. 소셜 연결 해제는 계정 제공자 설정에서 직접 하실 수 있습니다."
+- 검증: Kakao `unlink()` + Google `revokeAccess()` 실측에서 warn 로그 없음 (성공).
+
+### ADR-068: prod Supabase 리전 Seoul
+
+- 결정: 새 prod 프로젝트 만들 경우 Northeast Asia (Seoul, ap-northeast-2). 국내 사용자 latency + 데이터 위치 국내(개인정보 처리방침 §5 부합).
+- ⚠️ **ADR-075로 대체** (10-3): prod 신규 미생성, 기존 dev(Seoul)를 prod로 통합 사용 — Seoul 리전 결정은 자동 충족.
+
+### ADR-069: AI 캐시 dev→prod 복사 (P1)
+
+- 결정: `ai_guide_cache`만 복사 허용(공용 캐시). users/auth.users/moves/user_checklist_items/property_photos/auth_provider_links/rate_limit_log/storage.objects 복사 금지.
+- ⚠️ **ADR-075로 대체** (10-3): dev=prod라 복사 작업 자체가 의미 X. 기존 ai_guide_cache 그대로 활용.
+
+### ADR-070: 내부 테스트 = production EAS 빌드 프로파일
+
+- 결정: Google Play 내부 테스트에 development/preview가 아닌 **production 빌드 프로파일**의 AAB 사용. 실 사용자 빌드와 동일 환경에서 검증해야 의미 있음.
+- `eas.json` production: `extends: 'base'` + `android.buildType: 'app-bundle'` + `autoIncrement: true` + `cli.appVersionSource: 'remote'`. EAS 서버가 versionCode 자동 관리.
+- env는 EAS Secrets production scope (ADR-055와 일치).
+
+### ADR-071: Play Console — 타깃 18+ + 전체이용가 + Restrict Minor Access off
+
+- 결정: Play Console App content에서 타깃 연령 18세 이상 명시 + 콘텐츠 등급은 전체이용가(제재 사유 없음). Restrict Minor Access는 off(타깃이 성인이지만 콘텐츠는 모든 연령에 안전).
+- 근거: 만 14세 미만 아동의 개인정보 수집 금지(약관 §9). 18+ 타깃은 약관 동의·계약·이사 의사결정 등 성인 행위 위주.
+- Data Safety 폼은 내부 트랙 면제(10-3 완료 조건 제외). 폐쇄/공개/프로덕션은 10-4.
+
+### ADR-072: 약관 하이브리드 (PIPC 구조)
+
+- 결정: 개인정보처리방침은 PIPC(개인정보보호위원회) "개인정보처리방침 만들기" 도구의 구조 + §3-1 인벤토리 내용. 이용약관은 11개 조항(목적/정의/효력·변경/회원가입/서비스 제공/회원 의무/탈퇴·자격상실/면책/책임 제한/준거법/문의).
+- 면책 핵심: "정보 제공 목적·법률 자문 아님" 명시 — 체크리스트·맞춤 가이드의 책임 한계 명확화.
+- 만 14세 미만 아동 가입 제한 명시. 보호책임자: usnimoes@gmail.com.
+- 공개 라우트: `/privacy`, `/terms` — 세션 게이트 바깥, Play Console·App Store 심사관 직접 접근 가능.
+
+### ADR-073: 10-3 = 내부 테스트 트랙 + 공개 production 도메인 미스위치
+
+- 결정: 10-3 범위는 내부 테스트 트랙(최대 100명) + 내부 배포만 prod 연결. 공개 production 도메인은 미스위치. 폐쇄 테스트(N명/14일)→프로덕션 접근 / iOS TestFlight / 대중 공개 = 10-4.
+- internal 웹 배포의 `VITE_SUPABASE_URL`/`ANON_KEY` 도 prod로 빌드 (혼합 금지) + 고정 alias(ephemeral Preview URL 금지).
+- ⚠️ **ADR-075로 부분 대체** (10-3): dev=prod 결정으로 "internal 웹 = prod Supabase로 빌드"는 자동 충족(같은 환경). "공개 production 도메인 미스위치" 정신은 유지 — internal alias `isakok.vercel.app`는 테스터에게만 공유.
+
+### ADR-074: 사진 저장 = 로그인 회원 전용 (하드 게이트)
+
+- 결정: 비회원(익명)은 앱 전체(온보딩·체크리스트·타임라인·대시보드·AI 가이드)를 자유롭게 쓰되, **사진 "저장(서버 업로드)"은 소셜 로그인 회원만**. 게이트는 "사진 기능 노출/보기"가 아니라 **"저장" 행위 시점**에 건다(가치 노출 후 로그인 시트). 비회원용 IndexedDB 로컬 저장은 제공하지 않는다.
+- 배경: ADR-042(Anonymous Sign-In)로 익명도 서버에 데이터를 갖는다. DECISIONS §3-2의 "소프트 넛지 + IndexedDB" 모델은 (a) 로컬 경로가 실제 구현된 적 없고(placeholder), (b) 익명 사진이 그냥 서버로 올라가는 상태라 반쯤 무효화돼 있었다. 본 ADR이 이를 하드 게이트로 대체.
+- 근거:
+  - 전환: 사진 촬영 = 의도 최고점(증거 보호 동기) → 게이트가 이 순간 가입을 강하게 끈다. 비회원은 이미 체크리스트(1차 가치)를 받은 뒤 도달.
+  - 가치 일관성: 사진의 핵심은 증거력(서버 타임스탬프·해시·리포트). 로컬 사진은 2등급. 게이트면 "모든 사진 = 진짜 증거".
+  - 구현 단순화: IndexedDB 저장·오프라인 동기화 큐·로컬→서버 마이그레이션·경고 배너 일괄 제거.
+  - 프라이버시: 익명 서버 사진 0 → 계정 삭제 회원 전용과 정합(스펙 결정 #3 종결).
+- 정책 (Apple 5.1.1(v) / Google Play): 5.1.1(v)는 *비계정 기능*에 로그인 강제 금지하나, "나중에 참조하려 저장(saving for future reference)" 같은 **계정 종속 기능**엔 가입 요구 허용. 서버 사진 보관이 이에 해당해 적합. ① 나머지 기능은 로그인 없이 사용 가능, ② 게이트는 저장 시점(브라우즈 차단 금지), ③ Apple 로그인 제공(4.8, 10-1 충족), ④ 계정 삭제 제공(10-3) 만족해야 함.
+- 트레이드오프: 비회원 이탈 가능성 — 높은 의도 + 1차 가치 선경험 + 저장 시점 게이트로 상쇄.
+- 구현: 10-5+ "가입 유도 CTA"가 소프트→하드로 단순화 (IndexedDB·동기화 큐 삭제). **공개 출시(10-4/10-5) 전 반드시 켜져 있어야** 과도기 익명 사진 공백 안 생긴다.
+- 연계: DECISIONS §3-2 가입 유도 모델 대체 / 스펙 결정 #3(익명 계정 삭제) = 회원 전용 확정 / 개인정보처리방침 인벤토리에서 익명 서버 사진 제거(장기).
+
+### ADR-075: dev=prod 단일 프로젝트 (Free 제약 + 분리 트리거)
+
+- 결정: 10-3 단계에서 prod Supabase를 별도 생성하지 않고 기존 dev 프로젝트(ybcqinanfcarhqkclvue, Seoul)를 그대로 prod로 사용. 사용자 성장 또는 위험 임계 도달 시 분리.
+- 배경:
+  - Supabase Free tier 정책: 계정(seomsoo)이 owner/admin인 모든 org를 합쳐 활성 free 프로젝트 2개 한도. 새 free org 만들어도 같은 카운트에 잡힘.
+  - 현재 활성: isakok(dev) + 다른 1개. 새 prod를 별도로 만들려면 Pro($25/mo) 또는 dev pause(7일 자동 삭제 위험) 필요.
+  - 10-3 internal 테스트는 ~12명, 1인 인디 첫 출시 단계라 dev/prod 분리의 폭발 반경 작음.
+- 대안:
+  - (A) dev=prod 단일 프로젝트 **(채택)** — 비용 0, 마이그레이션·OAuth·시드 재실행 불필요, AI 캐시 자동 활용
+  - (B) Pro upgrade $25/mo — 분리 깔끔하지만 수익화 불확실한 출시 전 비용 부담
+  - (C) dev 일시 pause + 새 free prod — 7일 자동 삭제 위험, 작업 중 dev 불가
+- 분리 트리거 (다음 중 하나 도달 시 Pro upgrade + dev/prod 분리 검토):
+  1. **10-4 폐쇄 테스트 시작 직전** (N명/14일 + production approval) — 실 외부 사용자 영역
+  2. **DB 사용량 free 한도 50% 도달** (500 MB 중 250 MB)
+  3. **MAU 1000+** — 사용자 영향 폭발 반경 본격 커짐
+  4. **데이터 손상 가능성 있는 변경**(스키마 큰 변경, RLS 정책 수정 등)을 dev에서 미리 시도 못 해서 답답해질 때
+- 안전 게이트 (이 ADR 채택과 함께 즉시 수행 — "단순 잔재 정리가 아니라 dev→prod 하드닝"):
+  1. **scripts/dev-wipe.sql 삭제** — project-ref 가드가 이제 prod를 가리킴 (장전된 총)
+  2. **자동 백업** GitHub Actions + pg_dump — Free tier 자동 백업 없음, 테스터 데이터 전 켜둠
+  3. **service_role 키 rotation** + 영향 시 anon 키도 갱신 (web `VITE_SUPABASE_ANON_KEY` + native `EXPO_PUBLIC_SUPABASE_ANON_KEY`)
+  4. **kakao-token-exchange 에러 응답 트리밍** — code/status가 HTTP body로 새지 않게, server log만 상세
+  5. **gitleaks 히스토리 전수 스캔** — 공개 레포라 anon/DB password/Anthropic 누출 검증
+  6. **OAuth provider 콘솔에 internal URL + Play App Signing SHA-1** 일괄 등록
+  7. **RLS smoke 재검증**
+- 트레이드오프:
+  - 비용 0원 vs 격리된 dev 환경 부재 — local Docker `supabase start`로 일부 보완 가능
+  - 출시 후 분리 시점 마이그레이션 비용 (사용자 데이터 dump/restore, DNS 변경) — 트리거 임박 시 미리 진행
+- 전제 변경:
+  - ADR-046 (10-1은 dev 전용 / prod 10-2 일괄 생성) → 본 ADR로 대체
+  - ADR-051 (prod Vercel을 10-1 동안 dev에 임시 연결) → 본 ADR로 영구화 (internal Vercel 배포도 같은 Supabase)
