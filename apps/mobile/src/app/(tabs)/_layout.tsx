@@ -1,57 +1,45 @@
-import { Tabs } from 'expo-router'
-import { Ionicons } from '@expo/vector-icons'
+import { createContext, useState } from 'react'
+import { NativeTabs } from 'expo-router/unstable-native-tabs'
+import * as Haptics from 'expo-haptics'
 import { COLORS } from '../../constants/config'
 
+export const TabBarContext = createContext<{
+  setIsTabBarHidden: (hidden: boolean) => void
+}>({ setIsTabBarHidden: () => {} })
+
 export default function TabLayout() {
+  const [isTabBarHidden, setIsTabBarHidden] = useState(false)
+
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.placeholder,
-        tabBarStyle: {
-          backgroundColor: COLORS.surface,
-          borderTopColor: COLORS.border,
-          borderTopWidth: 0.5,
-          height: 56,
-          paddingBottom: 4,
-        },
-        tabBarLabelStyle: {
-          fontSize: 11,
-          fontWeight: '600',
-        },
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: '홈',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" size={size} color={color} />
-          ),
-          tabBarAccessibilityLabel: '홈',
+    <TabBarContext.Provider value={{ setIsTabBarHidden }}>
+      <NativeTabs
+        hidden={isTabBarHidden}
+        tintColor={COLORS.primary}
+        screenListeners={{
+          tabPress: () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+          },
         }}
-      />
-      <Tabs.Screen
-        name="timeline"
-        options={{
-          title: '전체',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="list-outline" size={size} color={color} />
-          ),
-          tabBarAccessibilityLabel: '전체',
-        }}
-      />
-      <Tabs.Screen
-        name="photos"
-        options={{
-          title: '집기록',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="camera-outline" size={size} color={color} />
-          ),
-          tabBarAccessibilityLabel: '집기록',
-        }}
-      />
-    </Tabs>
+      >
+        <NativeTabs.Trigger name="index">
+          <NativeTabs.Trigger.Icon sf={{ default: 'house', selected: 'house.fill' }} md="home" />
+          <NativeTabs.Trigger.Label>홈</NativeTabs.Trigger.Label>
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="timeline">
+          <NativeTabs.Trigger.Icon
+            sf={{ default: 'list.bullet', selected: 'list.bullet' }}
+            md="list"
+          />
+          <NativeTabs.Trigger.Label>전체</NativeTabs.Trigger.Label>
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="photos">
+          <NativeTabs.Trigger.Icon
+            sf={{ default: 'camera', selected: 'camera.fill' }}
+            md="camera_alt"
+          />
+          <NativeTabs.Trigger.Label>집기록</NativeTabs.Trigger.Label>
+        </NativeTabs.Trigger>
+      </NativeTabs>
+    </TabBarContext.Provider>
   )
 }
