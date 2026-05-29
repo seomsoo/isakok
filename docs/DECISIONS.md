@@ -995,3 +995,59 @@ type NativeToWeb =
 - 전제 변경:
   - ADR-046 (10-1은 dev 전용 / prod 10-2 일괄 생성) → 본 ADR로 대체
   - ADR-051 (prod Vercel을 10-1 동안 dev에 임시 연결) → 본 ADR로 영구화 (internal Vercel 배포도 같은 Supabase)
+
+### ADR-076: 익명 cleanup = Supabase Cron + Edge Function + Vault
+
+- 결정: 익명 user 파기 + 휴지통 30일 + orphan 청소를 단일 cleanup Edge Function이 처리. 스케줄은 **Supabase Cron**(pg_cron + pg_net), 호출 토큰은 **Vault**.
+- 이유: cleanup은 DB/Storage 삭제(데이터 작업)라 데이터 플랫폼에 가까운 Supabase Cron이 관심사 일치 + 호출 토큰 외부 노출 0(Vault). 약관 보유/파기 정책을 코드로 이행.
+- 보완: 익명 기준 고정(last_activity_at = greatest(last_sign_in_at, max updated_at들); 이사일 도래 = 모든 active move.moving_date < current_date). orphan 삭제는 DRY_RUN으로 첫 검증 후 EXECUTE. 매 실행 structured log. 후보 선정은 `get_anonymous_cleanup_candidates` RPC(auth.users PostgREST 미노출 + admin.listUsers 익명 제외 회피).
+- 대안: GitHub Actions cron(기존 백업 패턴 일관) — 호출 토큰 외부 보관 + 관심사 분리라 미채택.
+
+### ADR-077: Apple token revoke — refresh_token은 service_role only 컬럼에 보관
+
+- 결정: 로그인 흐름에 authorization code 단계 추가해 Apple refresh_token 수신, `auth_provider_links.apple_refresh_token`에 **service_role only 컬럼**으로 저장(클라이언트 접근 불가, Edge Function만 읽음). `delete-account`에서 client_secret JWT + refresh_token으로 revoke를 best-effort 호출(5s). `.p8`는 Edge Function secret. token exchange 실패 시 로그인 성공 유지 + 재시도 + 로깅.
+- 이유: per-user OAuth 토큰은 DB + service_role only RLS가 표준. **pgsodium TCE는 신규 도입하지 않음** — Supabase가 pgsodium 신규 사용을 비권장(deprecation 예정)하고 TCE는 운영 복잡도·오설정 위험이 높으며, Supabase는 기본 at-rest 암호화를 제공하므로 service_role only로 충분. (초안에서 pgsodium TCE를 검토했으나 Supabase 공식 비권장 확인 후 철회.)
+- 구현: provider CHECK를 `('kakao','apple')`로 완화(00021), Apple 행 provider_user_id=Apple sub. client_secret은 ES256(Web Crypto) + 단기 캐시.
+- Follow-up: `.p8` key rotation, Apple S2S notification(ADR-078).
+
+### ADR-078: provider 역방향 통지는 Kakao 웹훅만 구현
+
+- 결정: 역방향 연결 해제 통지는 **Kakao 연결 끊기 웹훅만** 구현. Apple S2S Notification / Google RISC는 제외, lazy detection(다음 로그인 시 invalid 처리).
+- 검증 방식 (2차 정정 2026-05-29, 공식 문서 확인): Kakao 연결 끊기 콜백은 **GET/POST**(app_id, user_id, referrer_type = 쿼리 또는 form body)로 오며 3초 내 200 OK 요구. 본문 서명(HMAC/SET)은 없으나 **Kakao가 `Authorization: KakaoAK ${SERVICE_APP_ADMIN_KEY}` 헤더를 함께 보낸다**(Admin Key=비밀값). 위조 방어: (0) 이 KakaoAK 헤더 검증(핵심) → (1) app_id 검증 → (2) Admin Key로 user 연결 상태 재조회(반환 id echo 일치 확인) 후에만 삭제, 확정 불가 시 보류. provider count 확인 후 전체 삭제/매핑 제거 분기. (초안 'HMAC 서명 검증'과 1차 정정 '별도 서명 헤더 없음' 둘 다 정정 — 실제로는 Admin Key Authorization 헤더가 존재해 이를 1차 방어로 검증.)
+- 이유: 세 provider 모두 역방향 메커니즘이 있으나 한국 인디 서비스 규모에선 Kakao 웹훅만이 표준. Apple S2S·Google RISC는 글로벌 중대형 패턴이라 1인 일정 대비 ROI 낮음.
+- Follow-up: 1000+ MAU 시 Apple S2S 재검토.
+
+### ADR-079: 네이티브 미디어 입력 — 네이티브 직접 Storage 업로드 + 웹 DB INSERT
+
+- 결정: 카메라·갤러리 모두 `expo-image-picker`로 통일(웹 `<input>` 제거). 사진 파일은 **네이티브가 Storage에 직접 업로드**(EXIF·해시 네이티브 추출), 메타데이터만 WebView로 전달해 **웹이 DB INSERT**. 파일은 WebView 미통과.
+- 이유: 하이브리드 앱에서 파일을 WebView로 통과시키는 것(base64/file:// URI)은 메모리·안정성·iOS WKWebView 제약으로 함정이 많음 → 네이티브 직접 업로드가 표준. DB 작업을 웹에 모으는 건 책임 분리(네이티브=미디어, 웹=DB)와 기존 코드 재사용에 부합. iOS PHPicker로 사진 라이브러리 권한 자체가 불필요해져 Privacy 개선.
+- 보완: native user.id와 WebView user.id 일치 검증(broadcast race 방어) 후 INSERT. 업로드 전 리사이즈+압축(ADR-083). 다중 선택 부분 실패는 성공분 저장 + 실패 안내.
+- 약점: Storage 성공 + 웹 INSERT 실패 시 orphan → cleanup(ADR-076)의 orphan 청소로 사후 정리(eventual consistency).
+
+### ADR-080: 익명→회원 충돌은 conflict-pending 동작 유지, merge/로깅 미도입
+
+- 결정: 현재 `conflict-pending` + OS destructive Alert 동작 확정 유지. merge(keep_both)와 발동률 영속 로깅은 만들지 않음. Alert 문구 명확성만 점검("사라짐+되돌릴 수 없음+취소 시 보존"). (ADR-060 종결.)
+- 이유: conflict는 정의상 기존 계정 보유자에게만 발생하고, 현재 선택권 다이얼로그가 두 케이스를 이미 커버. 사진 게이트로 익명 손실 데이터가 저민감 데이터로 축소. 발동률 데이터 없이 merge 충돌 규칙·선택 UI를 짓는 건 오버엔지니어링.
+- 대안: merge 풀 구현 — 발동률 측정 후 빈번할 때만 정당. 현재 미도입.
+
+### ADR-081: RLS CI — rls-smoke를 GitHub Actions PR required check로
+
+- 결정: 수동 `rls-smoke.ts`를 GitHub Actions에 연결. 실행은 임시 Supabase local stack(dev=prod라 실제 DB 사용 불가). PR open/push + **required status check**(통과 못 하면 머지 차단). **CI 범위는 DB RLS 격리 테스트로 제한** — Cron/Vault/pg_net/Apple revoke/Kakao 웹훅 실동작은 CI 필수에서 제외(별도 manual smoke).
+- 이유: RLS는 깨지면 개인정보(주소·사진) 유출로 이어지는 치명적 보안 경계라, 마이그레이션 변경에 의한 격리 회귀를 수동 검증에 의존하지 않고 CI로 자동 차단. 외부·확장 요소까지 CI에서 재현하면 불안정해지므로 범위 제한.
+- 구현: 로컬 스택은 `enable_anonymous_sign_ins`를 config.toml에서 활성(로컬/CI 전용, prod는 대시보드). rls-smoke에 `auth_provider_links`(apple_refresh_token 포함)·`rate_limit_log` 격리 추가.
+
+### ADR-082: 사용자 삭제 로직은 `_shared/deleteUserData.ts`로 통합
+
+- 결정: delete-account / cleanup / kakao-unlink-webhook이 삭제 로직을 중복 구현하지 않고 `supabase/functions/_shared/deleteUserData.ts`(`deleteUserCompletely` 등)를 재사용.
+- 이유: 세 경로가 같은 삭제(Storage prefix 정리·chunk retry·protect_delete 대응·auth_provider_links 삭제·사후 검증)를 수행하므로, 중복 구현 시 세 곳이 서로 다른 삭제 로직으로 갈라져 누락/불일치 위험. 단일 코어로 유지보수성·일관성 확보(DRY).
+
+### ADR-083: 사진 업로드 = 네이티브 리사이즈+압축 (무료 티어 스토리지 우선, 초안 "무압축" 정정)
+
+- 결정: 네이티브 업로드 시 **긴 변 1920px 다운스케일 + WebP 80% 압축(JPEG 폴백)** → 장당 ~300KB로 저장. 스펙 §2-3 초안과 ADR-079의 "원본 보존·압축 안 함"을 **정정**. 촬영일시(taken_at)는 압축 전 EXIF에서 추출해 DB 보존, `image_hash`는 압축본 SHA-256.
+- 배경: §2 초안은 증거력 위해 무압축(quality 1) → 장당 3~5MB. Supabase Free 1GB + dev=prod(ADR-075)에서 사용자당 ~30장이면 **~8명**에 한도 도달 → 사실상 Pro 강제. 6단계 웹은 원래 리사이즈(1920px/WebP 80%, ~300KB)였고 그 설정이 **~110명** 수용.
+- 근거:
+  - 증거력 핵심은 **촬영일시 + 시각적 식별성 + 무결성**: taken_at는 DB 보존, 1920px/80%면 방 상태(흠집·곰팡이·얼룩) 식별 충분, SHA-256은 저장본 무결성 증명. 리사이즈가 줄이는 "원본 해상도"는 분쟁 기록 용도엔 과잉.
+  - 대안 비교: 원본+압축썸네일 병행·Supabase 이미지 변환은 **원본을 그대로 저장**해 정작 스토리지를 못 줄임(변환은 대역폭만 + Pro 전용) → 무료 티어 목표에 역효과. 스토리지 백엔드 교체(R2 등)는 인프라 추가라 스코프 외(향후 레버).
+  - WebP 우선 + JPEG 폴백 → iOS WebP 인코딩 미지원 시에도 업로드 실패 방지.
+- 트레이드오프: 파일 내 부가 EXIF(GPS·기기모델) 손실 + 재인코딩 — 분쟁 기록 수준에선 수용. 법적 포렌식급 원본이 필요해지면 유료 전환 후 원본 병행(10-5+) 재검토.
+- 구현: `expo-image-manipulator` 컨텍스트 API(`manipulate().resize().renderAsync().saveAsync()`). taken_at은 picker EXIF에서 압축 전 추출.
