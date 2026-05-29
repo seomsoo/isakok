@@ -16,7 +16,7 @@
 
 - [x] `auth_provider_links.apple_refresh_token` 컬럼 (service_role only, pgsodium 불요) — `00021_apple_refresh_token.sql` (RLS 활성 + 정책 0개 유지, provider CHECK를 kakao→kakao/apple 확장)
 - [x] `_shared/deleteUserData.ts` 삭제 코어 (delete-account/cleanup/kakao 3곳 재사용 확인, chunk retry + 잔여 0건 검증 + stage별 에러)
-- [ ] 마이그레이션 prod 적용 — **운영 대기** (STATUS: 배포 대기)
+- [x] 마이그레이션 prod 적용 — ✅ **2026-05-30** `supabase db push` (00021/00022 적용)
 
 ### §1 사진 게이트
 
@@ -46,7 +46,7 @@
 - [x] `cleanup` Edge Function: 익명 user(`get_anonymous_cleanup_candidates`: last_activity_at 30일 AND 미래 active move 없음) + 휴지통 30일 + orphan 24h
 - [x] `_shared/deleteUserData` 재사용
 - [x] DRY_RUN 모드 + structured 실행 로그 (started_at/mode/anonymousUsersDeleted/trashPhotosDeleted/orphansDeleted/errors, 207 멀티상태)
-- [ ] Supabase Cron 스케줄 + Vault 토큰 + pg_net — `cleanup/cron-setup.sql` 작성 완료, **실제 스케줄 등록은 운영 대기** (SQL 에디터 수동 적용)
+- [x] Supabase Cron 스케줄 + Vault 토큰 + pg_net — ✅ **2026-05-30** 등록 (`daily-cleanup` active, Vault `cleanup_token`/`project_url`, 수동 호출 200·DRY_RUN 확인)
 - [x] 회원 미대상 확인 (RPC `is_anonymous=true`만 선정)
 
 ### §4 Apple revoke
@@ -55,11 +55,11 @@
 - [x] `apple-token-exchange` (client_secret JWT ES256, code 교환, refresh_token service_role only upsert)
 - [x] token exchange 실패 시 로그인 성공 유지 + 재시도 + 로깅 (`AuthService.exchangeAppleToken` best-effort, 2회 시도, 3경로 모두 호출)
 - [x] delete-account에서 revoke 호출 (best-effort 5s, invalid_grant 무시) — 호출 위치/invalid_grant 처리 ✓ + 2026-05-29 `revokeAppleToken`/호출부를 try/catch로 감싸 throw가 삭제를 막지 않게 수정 (Codex P1 해소)
-- [x] `.p8` Edge Function secret + rotation 기준 — 코드/주석 ✓, secret 실제 등록은 운영 대기
+- [x] `.p8` Edge Function secret + rotation 기준 — 코드/주석 ✓ + ✅ **2026-05-30** Apple 시크릿 4개 등록(식별자 해시 검증 일치) + 함수 배포
 
 ### §5 Kakao 웹훅
 
-- [ ] Kakao 콘솔 연결 끊기 콜백 URL + Web 플랫폼 등록 — **운영 대기**
+- [x] Kakao 콘솔 연결 해제 웹훅 URL 등록 — ✅ **2026-05-30** (도메인+경로 `/functions/v1/kakao-unlink-webhook`, GET. 엔드포인트·위조방어 curl 확인 → `skipped:auth`)
 - [x] Authorization(KakaoAK) 검증 + app_id 검증 + Admin Key 재조회 — 2026-05-29 **Kakao가 콜백에 싣는 `Authorization: KakaoAK ${ADMIN_KEY}` 헤더 검증을 1차 방어로 추가**(공식 문서 확인, Admin Key는 비밀값) + 재조회에 id echo 체크 + GET/POST 파라미터 모두 지원 (security-auditor 🔴 해소)
 - [x] 검증 확정 불가 시 삭제 보류 (`unlinked !== true` → held, 삭제 안 함)
 - [x] provider count 분기 → kakao만이면 `deleteUserCompletely`, 아니면 매핑만 제거 (native identity + link 둘 다 확인)
@@ -73,7 +73,7 @@
 ### §7 RLS CI
 
 - [x] `.github/workflows/rls-ci.yml` (PR/push → supabase start → 마이그레이션+seed → rls-smoke.ts → non-zero exit)
-- [ ] PR required check 등록 — **운영 대기** (GitHub 브랜치 보호 설정, 워크플로 파일은 완비)
+- [x] PR required check 등록 — ✅ **2026-05-30** main ruleset `main-protection`에 `RLS isolation (Supabase local stack)` 추가 (기존 `Verify` + 2개 필수)
 - [x] CI 범위 = DB RLS 격리만 (Cron/Vault/외부 provider 제외 주석 명시)
 - [x] `auth_provider_links`(apple_refresh_token 포함) 격리 테스트 (`rls-smoke.ts:165-182` — service_role 시드 후 anon 차단 검증, false-positive 방지)
 
@@ -198,10 +198,12 @@
 - 🟡 **gen-oss 전이 의존성** 포함 여부 출시 전 점검 / revoke 실패 메트릭·orphan 서킷브레이커 DECISIONS 기록.
 - 📄 **문서 정정 필요**: 스펙 §5-1 / ADR-078의 "Kakao unlink 콜백은 별도 서명 헤더 없음" 서술 → 실제로 `Authorization: KakaoAK` 헤더가 존재하므로 정정(이번 보안 수정의 근거).
 
-### 운영 대기 (코드 외 — 스펙 §0·§12에서 분리, 누락 아님)
+### 운영 배포 (2026-05-30 진행 / 코드 외 — 스펙 §0·§12)
 
-- §8 App Store Connect 앱 생성·App Privacy / EAS iOS production 빌드·Submit·TestFlight Internal / Data Safety(Google) 폼
-- Supabase Cron 스케줄 실등록 + Vault/CLEANUP_TOKEN/DRY_RUN secret 설정
-- Apple `.p8`/TEAM_ID/KEY_ID/CLIENT_ID secret + Kakao 콘솔 콜백 URL·Web 플랫폼 등록
-- 마이그레이션(00021/00022) prod 적용, RLS CI PR required status check 등록
+**완료 ✅**: ① 마이그레이션 prod 적용(`db push`) · ② Edge Function 4개 배포(apple-token-exchange·delete-account·cleanup·kakao-unlink-webhook) · ③ 시크릿 8개(cleanup·Apple·Kakao, 식별자 해시 검증) · ④ Supabase Cron+Vault(`daily-cleanup`, 200·DRY_RUN 확인) · ⑤ Kakao 연결 해제 웹훅 등록(엔드포인트·위조방어 확인) · ⑥ RLS CI required check(main ruleset)
+
+**남음**:
+
+- cleanup `DRY_RUN=true`→`false` 전환 (첫 주 후보 로그 확인 후 — 안 바꾸면 후보만 보고 실삭제 안 함)
+- §8 출시 트랙: App Store Connect 앱 생성·App Privacy / EAS iOS production 빌드·Submit·TestFlight Internal(본인 폰) / Data Safety(Google) 폼
 - 계정 삭제 후 새 anon user.id 이전 사진 미표시 실측 검증
