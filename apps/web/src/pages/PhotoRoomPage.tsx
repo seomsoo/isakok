@@ -1,30 +1,25 @@
-import { useState } from 'react'
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
-import { useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, History } from 'lucide-react'
-import { ROUTES, isValidRoomType, getRoomMeta } from '@moving/shared'
+import { ROUTES, isValidRoomType, getRoomMeta, sendToNative } from '@moving/shared'
 import { useCurrentMove } from '@/features/dashboard/hooks/useCurrentMove'
 import { usePhotos } from '@/features/photos/hooks/usePhotos'
 import { useSignedUrls } from '@/features/photos/hooks/useSignedUrls'
-import { useUploadPhoto } from '@/features/photos/hooks/useUploadPhoto'
-import { photoKeys } from '@/features/photos/hooks/queryKeys'
+import { useMediaUploadListener } from '@/features/photos/hooks/useMediaUploadListener'
 import { PhotoGrid } from '@/features/photos/components/PhotoGrid'
 import { PhotoUploadFab } from '@/features/photos/components/PhotoUploadFab'
 import { PhotoEmptyState } from '@/features/photos/components/PhotoEmptyState'
 import { RoomTipCard } from '@/features/photos/components/RoomTipCard'
+import { ErrorMessage } from '@/shared/components/ErrorMessage'
 import { useToast } from '@/shared/components/ToastProvider'
 import { useUserId } from '@/auth/useSession'
 import { useGoBack } from '@/shared/hooks/useGoBack'
 import type { PhotoType } from '@/services/photos'
-
-const MAX_BYTES = 10 * 1024 * 1024
 
 export function PhotoRoomPage() {
   const { room } = useParams<{ room: string }>()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const toast = useToast()
-  const [uploadingCount, setUploadingCount] = useState(0)
   const photoType = searchParams.get('type') === 'move_out' ? 'move_out' : 'move_in'
   const goBack = useGoBack(`/photos?type=${photoType}`)
 
@@ -42,8 +37,6 @@ export function PhotoRoomPage() {
       room={room}
       roomMeta={roomMeta}
       photoType={photoType}
-      uploadingCount={uploadingCount}
-      setUploadingCount={setUploadingCount}
       onBack={goBack}
       onTrash={() => navigate(`/photos/trash?type=${photoType}`, { replace: true })}
       toast={toast}
@@ -56,75 +49,49 @@ interface InnerProps {
   room: string
   roomMeta: ReturnType<typeof getRoomMeta>
   photoType: PhotoType
-  uploadingCount: number
-  setUploadingCount: (n: number) => void
   onBack: () => void
   onTrash: () => void
   toast: ReturnType<typeof useToast>
 }
 
-function Inner({
-  moveId,
-  room,
-  roomMeta,
-  photoType,
-  uploadingCount,
-  setUploadingCount,
-  onBack,
-  onTrash,
-  toast,
-}: InnerProps) {
-  const queryClient = useQueryClient()
-  const { userId } = useUserId()
-  const { data: allPhotos = [], isLoading } = usePhotos(moveId, photoType, userId ?? '')
+function Inner({ moveId, room, roomMeta, photoType, onBack, onTrash, toast }: InnerProps) {
+  const { userId, isAnonymous } = useUserId()
+  const {
+    data: allPhotos = [],
+    isLoading,
+    isError,
+    refetch,
+  } = usePhotos(moveId, photoType, userId ?? '')
   const photos = allPhotos.filter((p) => p.room === room)
   const paths = photos.map((p) => p.storage_path)
   const { data: urlMap } = useSignedUrls(paths, userId ?? '')
-  const uploadMutation = useUploadPhoto()
+
+  // 네이티브가 Storage 업로드를 마치면 MEDIA_UPLOADED 수신 → DB INSERT (ADR-079).
+  // requestPicker가 in-flight 가드를 들고 OPEN_MEDIA_PICKER 전송 (왕복 중 중복 업로드로 maxCount 초과 방지).
+  const { isUploading, requestPicker } = useMediaUploadListener()
 
   const showTip = photos.length < 3 && photos.length > 0
-  const isEmpty = photos.length === 0 && !isLoading
+  const isEmpty = photos.length === 0 && !isLoading && !isError
   const isAtMax = photos.length >= roomMeta.maxCount
 
-  async function handleUpload(files: File[]) {
-    if (uploadingCount > 0) return
+  // 사진 저장 게이트(ADR-074): 익명 → 로그인 시트 (컴포넌트 내부에서 isAnonymous로 분기)
+  const requestLogin = () =>
+    sendToNative({ type: 'REQUEST_LOGIN', payload: { source: 'photo_gate' } })
+
+  // 회원: 네이티브 미디어 피커 요청 (ADR-079). 네이티브가 업로드 후 MEDIA_UPLOADED 회신
+  function handlePick(kind: 'camera' | 'gallery') {
     if (isAtMax) {
       toast.error(`최대 ${roomMeta.maxCount}장까지 저장할 수 있어요`)
       return
     }
-    const remaining = roomMeta.maxCount - photos.length
-    const valid = files.slice(0, remaining).filter((f) => {
-      if (f.size > MAX_BYTES) {
-        toast.error(`${f.name}은(는) 10MB를 초과해서 건너뛰었어요`)
-        return false
-      }
-      return true
+    requestPicker({
+      kind,
+      multi: kind === 'gallery',
+      moveId,
+      room,
+      photoType,
+      maxSelect: roomMeta.maxCount - photos.length,
     })
-    if (valid.length === 0) return
-    if (!userId) {
-      toast.error('로그인이 필요해요')
-      return
-    }
-
-    setUploadingCount(valid.length)
-
-    const results = await Promise.allSettled(
-      valid.map((file) =>
-        uploadMutation.mutateAsync({
-          moveId,
-          userId,
-          file,
-          room,
-          photoType,
-        }),
-      ),
-    )
-    const succeeded = results.filter((r) => r.status === 'fulfilled').length
-    const failed = results.length - succeeded
-    setUploadingCount(0)
-    queryClient.invalidateQueries({ queryKey: photoKeys.byMove(moveId, photoType) })
-    if (failed > 0) toast.error(`${failed}장 저장에 실패했어요`)
-    if (succeeded > 0) toast.success(`${succeeded}장 저장 완료`)
   }
 
   return (
@@ -153,7 +120,7 @@ function Inner({
         <h1 className="text-[28px] font-bold tracking-tight text-secondary leading-tight">
           {roomMeta.label}
         </h1>
-        {!isEmpty && (
+        {!isEmpty && !isError && (
           <p className="mt-1.5 flex items-center gap-1.5 text-[14px] tracking-tight text-muted/70">
             <span>
               {photos.length}장 / 최대 {roomMeta.maxCount}장
@@ -164,23 +131,25 @@ function Inner({
       </div>
 
       <div className="flex-1">
-        {showTip && (
+        {showTip && !isError && (
           <div className="mt-2">
             <RoomTipCard tip={roomMeta.tip} />
           </div>
         )}
-        {isEmpty ? (
+        {isError ? (
+          <ErrorMessage onRetry={() => refetch()} />
+        ) : isEmpty ? (
           <PhotoEmptyState
             tipDetail={roomMeta.tipDetail}
-            onCapture={(file) => handleUpload([file])}
-            onGallerySelect={(files) => handleUpload(files)}
+            onPick={handlePick}
+            isAnonymous={isAnonymous === true}
+            onRequestLogin={requestLogin}
           />
         ) : (
           <div className="mt-4">
             <PhotoGrid
               photos={photos}
               urlMap={urlMap}
-              uploadingCount={uploadingCount}
               moveId={moveId}
               photoType={photoType}
               room={room}
@@ -188,11 +157,12 @@ function Inner({
           </div>
         )}
       </div>
-      {!isEmpty && (
+      {!isEmpty && !isError && (
         <PhotoUploadFab
-          disabled={uploadingCount > 0 || isAtMax}
-          onCapture={(file) => handleUpload([file])}
-          onGallerySelect={(files) => handleUpload(files)}
+          disabled={isAtMax || isUploading}
+          onPick={handlePick}
+          isAnonymous={isAnonymous === true}
+          onRequestLogin={requestLogin}
         />
       )}
     </main>
