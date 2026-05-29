@@ -44,7 +44,7 @@ export default function AuthScreen() {
         setLoading(null)
         Alert.alert(
           '이미 계정이 있어요',
-          '로그인하면 비회원으로 작성한 내용은 삭제돼요.\n계속할까요?',
+          '기존 계정으로 로그인하면 지금 이 기기에서 작성한 내용은 사라지고 되돌릴 수 없어요.\n취소하면 지금 내용을 그대로 보관해요.',
           [
             { text: '취소', style: 'cancel' },
             {
