@@ -1,11 +1,13 @@
 # 프로젝트 상태
 
-> 마지막 업데이트: 2026-05-28 (10-3 완료 — 약관·계정삭제·dev→prod 하드닝·Play Console 등록·실기기 검증 완료, 커밋/PR 대기)
+> 마지막 업데이트: 2026-05-29 (10-4 코드 구현 + /verify + 🔴 수정 반영 완료 — Phase A + §1~§8 + ADR-083. 🟡는 별도 PR. 커밋/PR → 배포·콘솔 작업 대기)
 
 ## 현재 단계
 
-10-3단계: 계정 삭제 + 약관 + release-gate (내부 테스트 트랙) — **구현·배포·검증 완료**, 커밋 정리 + PR 대기
+10-4단계: 정식 출시 준비 (공개 전 하드닝 + 부가 기능) — **코드 구현 + /verify + 🔴 수정 완료, 커밋/PR·배포 대기**
 
+pnpm lint/typecheck/test(16/16)/build 통과 (Deno Edge Functions는 Node 빌드 제외 → deno check/배포 시 검증). feat/10-4-public-release 브랜치.
+/verify 결과 docs/specs/10-4-public-release-verify.md: 🔴 5건 + dead code 모두 수정 반영 — (1) Kakao 웹훅 Authorization(KakaoAK) 헤더 검증 추가(공식 문서 확인, 스펙§5/ADR-078 정정), (2) Apple revoke best-effort(try/catch로 삭제 비차단), (3) 세션 불일치 시 pendingRef 재INSERT(orphan 방지), (4) 동시 업로드 가드(requestPicker), (5) 사진 조회 에러 상태(ErrorMessage). 🟡(a11y·perf·로그인 후 업로드 자동재개)는 follow-up PR로 분리.
 ADR-075 결정으로 dev=prod 단일 프로젝트 운영 (분리 트리거 도달 시 Pro upgrade + 분리).
 
 ## 완료된 것
@@ -989,15 +991,91 @@ Play Store 내부 테스트 빌드 + iOS 실기기 빌드 검증:
 - 나머지 변경 (12 modified + 5 untracked)은 working tree 보존 — 다른 세션에서 검증 + 커밋 분할 + 단일 squash PR 예정
 - 임시 디버그 코드 없음 (Codex가 정리). 일회용 진단 스크립트(`scripts/verify/kakao-debug.ts`, `kakao-update-test.ts`, `delete-test-user.ts`, `wipe-all.ts`) 삭제 완료. `rls-smoke.ts`만 보존 (검증 도구)
 
+### 10-4단계: 정식 출시 준비 (공개 전 하드닝 + 부가 기능) (2026-05-29)
+
+> 스펙: docs/specs/10-4-public-release.md (v2). 코드 구현 완료, /verify·Codex 리뷰·커밋 분할·배포·콘솔 작업 대기.
+> 전 섹션 검증: pnpm lint/typecheck/test(16/16)/build 통과. supabase/functions(Deno)는 Node 빌드 제외라 deno check/배포 시 검증.
+
+#### Phase A: 스키마/공통 기반
+
+- supabase/migrations/00021_apple_refresh_token.sql: auth_provider_links에 `apple_refresh_token` 컬럼(service_role only) + provider CHECK `('kakao','apple')` 완화 (ADR-077)
+- supabase/functions/\_shared/deleteUserData.ts (신규): 삭제 코어 — listUserStoragePaths / deleteUserStorage / deleteUserDatabaseRows / deleteUserCompletely + DeleteUserError(stage). delete-account/cleanup/kakao-unlink-webhook 공용 (ADR-082)
+- delete-account/index.ts: 코어 재사용 리팩터링 (CORS/JWT/익명가드/rate limit/stage별 응답 동작 보존)
+
+#### §1 사진 저장 게이트 (ADR-074 구현)
+
+- PhotoUploadFab.tsx, PhotoEmptyState.tsx: `isAnonymous`/`onRequestLogin` prop — 익명이면 촬영/갤러리 탭 시 **파일 선택 전** REQUEST_LOGIN(source: photo_gate). EmptyState에 "보증금 분쟁 증거" 가치 문구
+- PhotoRoomPage.tsx, PhotosPage.tsx: `isAnonymous` 주입 + 게이트 분기 (handleAddTrigger/handlePick)
+- bridge.ts: REQUEST_LOGIN payload에 'photo_gate'가 이미 존재 → 변경 불필요
+
+#### §2 네이티브 미디어 입력 (ADR-079, ADR-083)
+
+- bridge.ts: 미사용 OPEN_CAMERA/PHOTO_TAKEN → `OPEN_MEDIA_PICKER{kind,multi,moveId,room,photoType,maxSelect}` / `MEDIA_UPLOADED{moveId,room,photoType,items[],failed}`로 교체
+- apps/mobile/src/media/mediaUpload.ts (신규): expo-image-picker → EXIF taken_at 추출(압축 전) → expo-image-manipulator 리사이즈(긴 변 1920px)+압축(WebP 80%/JPEG 폴백, ~300KB) → SHA-256 → createAuthedClient로 Storage 직접 업로드. 다중 부분 실패는 failed 카운트
+- apps/mobile/src/auth/supabaseNative.ts: createAuthedClient(accessToken) 추가 (사용자 JWT로 Storage RLS 통과)
+- WebViewScreen.tsx: OPEN_MEDIA_PICKER 핸들러 → pickAndUploadMedia → MEDIA_UPLOADED 회신
+- apps/web/src/services/photos.ts: uploadPhoto(Storage+DB) 제거 → insertUploadedPhotos(DB INSERT only) 추가
+- apps/web/src/features/photos/hooks/useMediaUploadListener.ts (신규): MEDIA_UPLOADED 수신 → 세션 일치 검증(storage_path userId == 세션 userId, 불일치 시 REQUEST_SESSION_REFRESH + toast) → insertUploadedPhotos → invalidate + toast
+- 제거: useUploadPhoto.ts, features/photos/utils/exif.ts, resizeImage.ts (웹 업로드 경로 대체) + apps/web exifreader 의존성
+- app.config.ts: NSPhotoLibraryUsageDescription 제거(PHPicker 권한 불필요), NSCameraUsageDescription 유지, expo-image-picker 플러그인(photosPermission:false, cameraPermission:false)
+- 의존성 추가: expo-image-picker(~55.0.20), expo-image-manipulator(~55.0.17), base64-arraybuffer
+
+#### §3 cleanup (ADR-076)
+
+- supabase/functions/cleanup/index.ts (신규): 익명 user 파기 + 휴지통 30일 hard delete + orphan 24h, 단일 함수 3처리. DRY_RUN 모드 + structured log + CLEANUP_TOKEN 검증. \_shared/deleteUserData 재사용. 한 처리 실패해도 나머지 진행
+- migrations/00022_cleanup.sql: get_anonymous_cleanup_candidates RPC (last_activity_at 30일 경과 + 미래 active move 없음, is_anonymous만, service_role only)
+- supabase/functions/cleanup/cron-setup.sql: Supabase Cron(pg_cron+pg_net+Vault) 수동 설정 SQL + 사전 준비(verify_jwt=false 배포, CLEANUP_TOKEN/DRY_RUN secret, Vault cleanup_token/project_url)
+
+#### §4 Apple token revoke (ADR-077)
+
+- supabase/functions/\_shared/apple.ts (신규): createAppleClientSecret(ES256 Web Crypto, .p8, 5분 캐시) / exchangeAppleAuthCode / revokeAppleToken(best-effort 5s, invalid_grant 무시) / decodeJwtSub
+- supabase/functions/apple-token-exchange/index.ts (신규): code 교환 → refresh_token을 auth_provider_links upsert(provider=apple, provider_user_id=Apple sub, onConflict)
+- AppleProvider.ts: authorizationCode 반환 / providers/types.ts: OidcProviderResult.authorizationCode 추가
+- AuthService.ts: exchangeAppleToken 헬퍼 + Apple 로그인 3경로(identity-linked / conflict confirm / 직접 signed-in)에서 호출 (best-effort 1회 재시도)
+- delete-account/index.ts: deleteUserCompletely 전 apple_refresh_token 조회 → revokeAppleToken (best-effort)
+
+#### §5 Kakao 연결 끊기 웹훅 (ADR-078)
+
+- supabase/functions/kakao-unlink-webhook/index.ts (신규): GET app_id/user_id/referrer_type 파싱 + app_id 검증 + Admin Key 연결 재조회(confirmKakaoUnlinked → **확정 불가 시 보류**) + provider count 분기(kakao만→deleteUserCompletely, 다른 provider 있으면 매핑만 제거) + idempotent + 항상 200
+
+#### §6 충돌 Alert 문구 점검 (ADR-080)
+
+- apps/mobile/src/app/auth.tsx: conflict Alert 문구 보강 ("기존 계정으로 로그인하면 이 기기에서 작성한 내용 사라지고 되돌릴 수 없음 + 취소하면 보관"), destructive 스타일 유지
+
+#### §7 RLS CI (ADR-081)
+
+- .github/workflows/rls-ci.yml (신규): PR/push → supabase/setup-cli + supabase start(로컬 스택) → jq로 로컬 키 파싱 → rls-smoke.ts. CI 범위 = DB RLS 격리만
+- scripts/verify/rls-smoke.ts: auth_provider_links(apple_refresh_token 포함) + rate_limit_log 격리 테스트 추가 (service_role로 시드 후 authenticated 차단 확인 — 빈 테이블 false-positive 방지)
+- supabase/config.toml: enable_anonymous_sign_ins = true (로컬/CI 전용, prod는 대시보드)
+
+#### §8 OSS 고지 (코드)
+
+- scripts/gen-oss-licenses.mjs (신규): web+mobile+shared production 의존성 → apps/web/src/data/ossLicenses.ts (36~37개) 자동 생성 (devDeps 제외)
+- apps/web/src/pages/OssLicensesPage.tsx (신규) + ROUTES.OSS_LICENSES + App.tsx 라우트/drill + SettingsMenuList "오픈소스 라이선스" 링크
+
+#### 사진 압축 결정 (ADR-083 — 대화 중 정정)
+
+- 초안 "무압축"(quality 1, 3~5MB) → 무료 티어 1GB 기준 **~8명**에 소진 발견 → 6단계 방식(긴 변 1920px + WebP 80%, ~300KB, **~110명**)으로 정정. 증거력 핵심(촬영일시 DB 보존 + 식별성 + 압축본 SHA-256) 유지. 대안(원본+썸네일/Supabase 변환)은 원본을 그대로 저장해 저장 못 줄여 역효과 → 기각
+
+#### 문서 (ADR + 스펙)
+
+- docs/DECISIONS.md: ADR-076~083 추가 (10-4 세트 + 압축 정정 ADR-083). 스펙 §10이 "복붙용"이라 번호 공백 방지 위해 세트로 동기화
+- docs/specs/10-4-public-release.md: §2 압축 정정(원래 "무압축" 결정은 취소선으로 보존), ADR-079 보완·ADR-083 추가, §11 체크리스트 갱신
+
+#### Git (10-4)
+
+- feat/10-4-public-release 브랜치 (origin/main에서 분기). 미커밋 — /verify 후 커밋 분할(1~3파일/커밋) + squash PR 예정
+
 ## 진행 중인 것
 
-- **10-3 커밋 정리 대기** — 구현·배포·검증 완료. `feat/10-3-internal-release` 브랜치에 12 modified + 5 untracked 보존. 다른 세션에서 검증 + 커밋 분할(1~3파일/커밋) + squash PR 예정.
+- **10-4 코드 구현 완료, 검증·배포 대기** — feat/10-4-public-release 브랜치(미커밋). 다른 세션에서 /verify → Codex 리뷰 → 커밋 분할(1~3파일/커밋) → squash PR. 그 후 사용자 배포·콘솔 액션(아래 "다음 할 것" + "알려진 문제").
+- (10-3은 main 머지 완료 — PR #59 `2da4380`, DB 백업 pg_dump 수정 #60)
 
 ## 다음 할 것
 
-1. **커밋 분할 + PR** — working tree 변경사항을 1~3파일/커밋 단위로 분할, squash merge PR 생성 (별도 세션에서 검증 후 진행)
-2. **Task #21 git history rewrite + branch 정리** ([PR 머지 직후]) — `git filter-repo --invert-paths`로 `apps/mobile/eas.json`, `apps/mobile/app.json`, `.gitleaksbaseline` 노출 흔적 제거 + 머지된 로컬 브랜치 일괄 정리
-3. **DB 백업 워크플로우 첫 실행 검증** — PR 머지 후 main에 workflow 도착 → workflow_dispatch 트리거 또는 다음날 KST 03:00 cron 자동 실행 → Artifact 다운로드 확인
+1. **/verify (다른 세션) + Codex 리뷰** — 10-4 스펙(docs/specs/10-4-public-release.md) 대비 검증 + P등급 수정
+2. **Deno Edge Function 타입 검증** — cleanup / apple-token-exchange / kakao-unlink-webhook / delete-account / \_shared(apple, deleteUserData)를 `deno check` 또는 `supabase functions deploy`로 확인 (로컬 deno 미설치라 미실시)
+3. **커밋 분할(1~3파일/커밋) + squash PR** → 머지 후 **사용자 배포 액션**: `db push`(00021,00022) / 함수 4종 배포(+ secrets: APPLE_TEAM_ID/KEY_ID/CLIENT_ID/PRIVATE_KEY, CLEANUP_TOKEN, DRY_RUN, KAKAO_APP_ID, KAKAO_ADMIN_KEY) / cron-setup.sql / Kakao·Apple 콘솔 / App Store Connect·App Privacy / 브랜치 보호 RLS CI required check / `npx expo prebuild --clean`
 
 ## 알려진 문제
 
@@ -1017,6 +1095,12 @@ Play Store 내부 테스트 빌드 + iOS 실기기 빌드 검증:
 - **Custom domain 미구매** — `isakok.vercel.app` 사용. WebView 앱이라 도메인 가시성 작아 지금은 ROI 낮음. 10-4 폐쇄 테스트 전 또는 GitHub README 강조 시점에 재검토 (ADR-075 분리 트리거 일부)
 - **DB 백업 워크플로우 첫 실행 검증 미실시** — workflow_dispatch는 default branch 필수라 PR 머지 후 검증. 머지 직후 또는 다음날 KST 03:00 cron 자동 실행으로 확인
 - **EAS Secrets visibility 분류** — 7개 변수 중 SUPABASE_ANON_KEY + KAKAO_NATIVE_APP_KEY는 Sensitive, 나머지는 Plain text 권장. 사용자가 모두 Sensitive로 통일했어도 안전한 default (동작은 동일)
+- **(10-4 코드 해결)** Apple revoke(§4)·익명 cleanup(§3)·Kakao 웹훅(§5) 구현 완료 → 위 "Apple token revoke 미구현"·"익명 cleanup 작업 미구현"·"Kakao 콘솔 web 등록" 항목의 코드 부분 해소. **콘솔 등록·함수 배포·cron 설정은 사용자 액션 잔존**
+- **10-4 §2 네이티브 미디어·압축은 EAS 빌드 실기기 검증 필요** — 로컬은 typecheck/lint만 통과. iOS WebP 인코딩은 JPEG 폴백으로 방어하나 실기기 확인 권장
+- **Kakao unlink 웹훅 Admin Key 연결 재조회 규격(/v2/user/me + target_id) 미확정** — 구현 직전 Kakao 최신 문서 재확인 필요. 확정 불가 시 보류(안전 기본값)라 미확인이면 삭제 미발생(보수적)
+- **Deno Edge Function 6종 로컬 deno check 미실시** (deno 미설치) — 배포/deno check로 타입 검증 필요. IDE의 Deno/npm: 진단은 false positive
+- **cleanup orphan 청소는 전체 버킷 스캔** — 대규모에서 비용. 현재 인디 규모 OK, ADR-075 분리 시점 재검토
+- **10-4 사용자 액션 미완**: db push(00021,00022) / 함수 4종 배포(+secrets) / cron-setup.sql / Kakao·Apple 콘솔 / App Store Connect·App Privacy / 브랜치 보호 RLS CI required / npx expo prebuild --clean
 
 ## 실패한 접근 (반복 금지)
 
@@ -1069,3 +1153,10 @@ Play Store 내부 테스트 빌드 + iOS 실기기 빌드 검증:
 - **WebView 앱에서 custom domain은 사용자 가시성 작아 ROI 낮음** — 도메인은 약관 페이지 클릭/Play Console privacy URL/면접관 GitHub README 등 부수 시점에만 노출. 마케팅·SEO 본격화 또는 10-4 폐쇄 테스트 시점에 검토
 - **EAS Environment variables Visibility = `Secret`은 `EXPO_PUBLIC_*`에 부적합** — `Secret`은 빌드 worker만 접근, client bundle에 inline 안 됨 → `process.env`로 못 읽음. publishable·URL 같은 `EXPO_PUBLIC_*`는 `Plain text` 또는 `Sensitive`만
 - **GitHub Actions의 `workflow_dispatch`는 default branch에 workflow 파일 필수** — feature branch에만 있으면 404. PR 머지 후 트리거 또는 default branch에 일부 cherry-pick 필요
+- **expo-image-picker `quality: 1`은 "최고 화질=압축 최소"라 파일이 오히려 큼** (12MP JPEG ~3-5MB, base64는 JPEG 데이터). 작게 하려면 quality를 낮추거나(압축) expo-image-manipulator로 리사이즈. 증거 사진도 무압축은 무료 티어 1GB를 ~8명에 소진 → 6단계처럼 리사이즈+압축 필수 (ADR-083)
+- **사진 압축 시 EXIF "깨짐"은 파일 내 EXIF 블록 strip을 의미** — 촬영일시(taken_at)를 압축 전 picker EXIF에서 추출해 DB 보존하면 증거력 핵심 유지(6단계 동일). 압축 = 증거력 전면 포기 아님
+- **원본+압축썸네일 병행 / Supabase 이미지 변환은 스토리지 절감에 역효과** — "원본을 그대로 저장"해 정작 저장 용량을 못 줄임(변환은 대역폭만 + Pro 전용). 무료 티어 저장 목표엔 부적합
+- **expo-image-manipulator `manipulateAsync`는 deprecated** (★ 경고) — 신규 컨텍스트 API `ImageManipulator.manipulate().resize().renderAsync().saveAsync()` 사용. deprecation은 lint/typecheck를 깨진 않으나 신규 API가 깔끔
+- **Expo 패키지는 SDK 55에서 통합 버전(55.0.x)** — `pnpm --filter @moving/mobile exec expo install <pkg>`로 SDK 호환 버전 자동 선택 (추측 버전 수기 입력 금지)
+- **supabase/functions/\*\*(Deno)는 ESLint/tsc 대상 외** (apps/web·mobile·packages/shared만) — IDE의 "Cannot find name 'Deno'/Cannot find module 'npm:'·'https:'" 진단은 false positive. 실검증은 deno check 또는 supabase functions deploy
+- **기존 파일을 cat(Bash)으로만 봤으면 Edit 전 Read 도구로 다시 읽어야 함** — Edit는 conversation 내 Read 이력 필수 (routes.ts 편집 시 1회 실패)
