@@ -1,13 +1,15 @@
 /**
- * RLS Smoke Test — 수동 실행 (CI 미연결)
+ * RLS Smoke Test — GitHub Actions(.github/workflows/rls-ci.yml) PR required check + 수동 실행 (ADR-081)
  *
  * 두 익명 세션(A, B)을 생성해 격리를 검증한다.
  * A가 만든 move를 B가 조회/수정/삭제 시도 → 0건/실패 확인.
+ * service_role only 테이블(ai_guide_cache / auth_provider_links(apple_refresh_token 포함) / rate_limit_log) 차단도 검증.
  *
  * 실행:
- *   SUPABASE_URL=https://... SUPABASE_ANON_KEY=... npx tsx scripts/verify/rls-smoke.ts
+ *   SUPABASE_URL=... SUPABASE_ANON_KEY=... SUPABASE_SERVICE_ROLE_KEY=... npx tsx scripts/verify/rls-smoke.ts
  *
- * ⚠️ 테스트 데이터를 생성하므로 dev 환경에서만 실행.
+ * CI는 임시 Supabase local stack에서 실행(dev=prod라 실제 DB 미사용). 테스트 데이터를 생성하므로
+ * 실제 prod 자격증명으로는 실행 금지.
  */
 
 import { createClient } from '@supabase/supabase-js'
@@ -154,6 +156,32 @@ async function main() {
     'A cannot UPDATE own user (provider tamper blocked)',
     !aUserUpdate || aUserUpdate.length === 0,
   )
+
+  // auth_provider_links + rate_limit_log: service_role only (RLS 활성 + 정책 0개)
+  console.log('\n[service_role only — auth_provider_links / rate_limit_log]')
+  if (SERVICE) {
+    const admin2 = createClient(URL!, SERVICE, { auth: { persistSession: false } })
+    // A 소유 행을 service_role로 시드 → authenticated가 못 읽으면 격리 확정 (빈 테이블 false-positive 방지)
+    await admin2.from('auth_provider_links').upsert(
+      {
+        provider: 'apple',
+        provider_user_id: `__rls_smoke_${a.userId}`,
+        user_id: a.userId,
+        apple_refresh_token: '__smoke_secret__',
+      },
+      { onConflict: 'provider,provider_user_id' },
+    )
+  }
+  const { data: aLinks, error: aLinksErr } = await a.sb
+    .from('auth_provider_links')
+    .select('user_id, apple_refresh_token')
+    .limit(1)
+  assert(
+    'A cannot read auth_provider_links incl. apple_refresh_token',
+    !!aLinksErr || (aLinks?.length ?? 0) === 0,
+  )
+  const { data: aRate, error: aRateErr } = await a.sb.from('rate_limit_log').select('*').limit(1)
+  assert('A cannot read rate_limit_log', !!aRateErr || (aRate?.length ?? 0) === 0)
 
   // Storage: B cannot get signed URL for A's path
   console.log('\n[Storage isolation]')
