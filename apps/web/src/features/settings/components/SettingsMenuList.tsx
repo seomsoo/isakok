@@ -65,6 +65,10 @@ export function SettingsMenuList({ onDeleteAccount }: SettingsMenuListProps = {}
       onClick: () => navigate(ROUTES.TERMS),
     },
     {
+      label: '오픈소스 라이선스',
+      onClick: () => navigate(ROUTES.OSS_LICENSES),
+    },
+    {
       label: '문의하기',
       onClick: () => {
         window.location.href = 'mailto:usnimoes@gmail.com'

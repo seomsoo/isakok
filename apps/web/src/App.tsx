@@ -28,6 +28,7 @@ import { PhotoReportPage } from '@/pages/PhotoReportPage'
 import { PhotoTrashPage } from '@/pages/PhotoTrashPage'
 import { PrivacyPage } from '@/pages/PrivacyPage'
 import { TermsPage } from '@/pages/TermsPage'
+import { OssLicensesPage } from '@/pages/OssLicensesPage'
 import { ToastProvider } from '@/shared/components/ToastProvider'
 
 const transitionConfig = {
@@ -36,6 +37,7 @@ const transitionConfig = {
     drill({ enter: '/photos/*', exit: '/photos' }),
     drill({ enter: '/privacy', exit: '/settings' }),
     drill({ enter: '/terms', exit: '/settings' }),
+    drill({ enter: '/oss-licenses', exit: '/settings' }),
   ],
 }
 
@@ -104,6 +106,7 @@ export function App() {
               <Route path="/photos/:room" element={<PhotoRoomPage />} />
               <Route path={ROUTES.PRIVACY} element={<PrivacyPage />} />
               <Route path={ROUTES.TERMS} element={<TermsPage />} />
+              <Route path={ROUTES.OSS_LICENSES} element={<OssLicensesPage />} />
               <Route path="*" element={<Navigate to={ROUTES.LANDING} replace />} />
             </Route>
           </Routes>

@@ -1,32 +1,26 @@
-import { useRef, useState } from 'react'
 import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
-import { useQueryClient } from '@tanstack/react-query'
 import { differenceInCalendarDays, parseISO } from 'date-fns'
 import { ChevronRight } from 'lucide-react'
-import { ROOM_META, ROUTES } from '@moving/shared'
+import { ROOM_META, ROUTES, sendToNative } from '@moving/shared'
 import { useCurrentMove } from '@/features/dashboard/hooks/useCurrentMove'
 import { usePhotos } from '@/features/photos/hooks/usePhotos'
 import { useSignedUrls } from '@/features/photos/hooks/useSignedUrls'
-import { useUploadPhoto } from '@/features/photos/hooks/useUploadPhoto'
-import { photoKeys } from '@/features/photos/hooks/queryKeys'
+import { useMediaUploadListener } from '@/features/photos/hooks/useMediaUploadListener'
 import { PhotoTopTabs } from '@/features/photos/components/PhotoTopTabs'
 import { PhotoInfoBanner } from '@/features/photos/components/PhotoInfoBanner'
 import { RoomSection } from '@/features/photos/components/RoomSection'
 import { DevTabBar } from '@/shared/components/DevTabBar'
 import { Skeleton } from '@/shared/components/Skeleton'
+import { ErrorMessage } from '@/shared/components/ErrorMessage'
 import { useToast } from '@/shared/components/ToastProvider'
 import { useUserId } from '@/auth/useSession'
 import type { PhotoType } from '@/services/photos'
-
-const MAX_BYTES = 10 * 1024 * 1024
 
 export function PhotosPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const toast = useToast()
-  const galleryRef = useRef<HTMLInputElement>(null)
-  const [activeRoom, setActiveRoom] = useState<string | null>(null)
-  const { userId } = useUserId()
+  const { userId, isAnonymous } = useUserId()
 
   const { data: move, isPending } = useCurrentMove()
 
@@ -39,9 +33,16 @@ export function PhotosPage() {
         ? 'move_out'
         : 'move_in'
 
-  const queryClient = useQueryClient()
-  const { data: photos = [], isLoading } = usePhotos(move?.id, photoType, userId ?? '')
-  const uploadMutation = useUploadPhoto()
+  const {
+    data: photos = [],
+    isLoading,
+    isError,
+    refetch,
+  } = usePhotos(move?.id, photoType, userId ?? '')
+
+  // 네이티브가 Storage 업로드를 마치면 MEDIA_UPLOADED 수신 → DB INSERT (ADR-079).
+  // requestPicker가 in-flight 가드를 들고 OPEN_MEDIA_PICKER 전송 (왕복 중 중복 업로드 차단).
+  const { requestPicker } = useMediaUploadListener()
 
   const photosByRoom = new Map<string, typeof photos>()
   for (const p of photos) {
@@ -71,51 +72,28 @@ export function PhotosPage() {
   if (!move) return <Navigate to={ROUTES.LANDING} replace />
 
   function handleAddTrigger(room: string) {
-    setActiveRoom(room)
-    galleryRef.current?.click()
-  }
-
-  async function handleGallerySelect(files: File[]) {
-    if (!activeRoom || !move) return
-    const roomMeta = ROOM_META.find((r) => r.type === activeRoom)
-    const currentCount = (photosByRoom.get(activeRoom) ?? []).length
-    const remaining = (roomMeta?.maxCount ?? 6) - currentCount
+    // 사진 저장 게이트(ADR-074): 익명이면 파일 선택 전에 로그인 요청
+    if (isAnonymous) {
+      sendToNative({ type: 'REQUEST_LOGIN', payload: { source: 'photo_gate' } })
+      return
+    }
+    if (!move) return
+    const roomMeta = ROOM_META.find((r) => r.type === room)
+    const maxCount = roomMeta?.maxCount ?? 6
+    const remaining = maxCount - (photosByRoom.get(room) ?? []).length
     if (remaining <= 0) {
-      toast.error(`최대 ${roomMeta?.maxCount ?? 6}장까지 저장할 수 있어요`)
+      toast.error(`최대 ${maxCount}장까지 저장할 수 있어요`)
       return
     }
-    const valid = files.slice(0, remaining).filter((f) => {
-      if (f.size > MAX_BYTES) {
-        toast.error(`${f.name}은(는) 10MB를 초과해서 건너뛰었어요`)
-        return false
-      }
-      return true
+    // 회원: 네이티브 갤러리 피커 요청 (ADR-079). 네이티브가 업로드 후 MEDIA_UPLOADED 회신
+    requestPicker({
+      kind: 'gallery',
+      multi: true,
+      moveId: move.id,
+      room,
+      photoType,
+      maxSelect: remaining,
     })
-    if (valid.length === 0) return
-    if (!userId) {
-      toast.error('로그인이 필요해요')
-      return
-    }
-
-    const results = await Promise.allSettled(
-      valid.map((file) =>
-        uploadMutation.mutateAsync({
-          moveId: move.id,
-          userId,
-          file,
-          room: activeRoom,
-          photoType,
-        }),
-      ),
-    )
-    const succeeded = results.filter((r) => r.status === 'fulfilled').length
-    const failed = results.length - succeeded
-    queryClient.invalidateQueries({ queryKey: photoKeys.byMove(move.id, photoType) })
-    if (failed > 0) {
-      toast.error(`${failed}장 저장에 실패했어요`)
-    }
-    if (succeeded > 0) toast.success(`${succeeded}장 저장 완료`)
-    setActiveRoom(null)
   }
 
   function handleTypeChange(next: PhotoType) {
@@ -131,23 +109,27 @@ export function PhotosPage() {
       </div>
 
       <div className="mt-4 space-y-3">
-        {isLoading
-          ? Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="mx-5 h-[120px] rounded-2xl" />
-            ))
-          : ROOM_META.map((room) => {
-              const roomPhotos = photosByRoom.get(room.type) ?? []
-              return (
-                <RoomSection
-                  key={room.type}
-                  room={room}
-                  photos={roomPhotos}
-                  urlMap={urlMap}
-                  onOpen={() => navigate(`/photos/${room.type}?type=${photoType}`)}
-                  onAdd={() => handleAddTrigger(room.type)}
-                />
-              )
-            })}
+        {isError ? (
+          <ErrorMessage onRetry={() => refetch()} />
+        ) : isLoading ? (
+          Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="mx-5 h-[120px] rounded-2xl" />
+          ))
+        ) : (
+          ROOM_META.map((room) => {
+            const roomPhotos = photosByRoom.get(room.type) ?? []
+            return (
+              <RoomSection
+                key={room.type}
+                room={room}
+                photos={roomPhotos}
+                urlMap={urlMap}
+                onOpen={() => navigate(`/photos/${room.type}?type=${photoType}`)}
+                onAdd={() => handleAddTrigger(room.type)}
+              />
+            )
+          })
+        )}
       </div>
 
       {photos.length > 0 && (
@@ -162,20 +144,6 @@ export function PhotosPage() {
           <ChevronRight size={18} className="text-muted" />
         </button>
       )}
-
-      <input
-        ref={galleryRef}
-        type="file"
-        accept="image/*"
-        multiple
-        hidden
-        aria-label="갤러리에서 선택"
-        onChange={(e) => {
-          const files = Array.from(e.target.files ?? [])
-          if (files.length > 0) handleGallerySelect(files)
-          e.target.value = ''
-        }}
-      />
 
       <DevTabBar />
     </main>

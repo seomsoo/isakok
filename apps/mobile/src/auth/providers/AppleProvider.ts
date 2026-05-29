@@ -34,6 +34,8 @@ export const AppleProvider: AuthProvider = {
       provider: 'apple',
       idToken: credential.identityToken,
       nonce: raw,
+      // refresh_token 교환용 (ADR-077). 단명·1회성이라 로그인 직후 즉시 교환.
+      authorizationCode: credential.authorizationCode ?? undefined,
     }
   },
 

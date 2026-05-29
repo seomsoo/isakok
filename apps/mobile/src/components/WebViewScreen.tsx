@@ -22,6 +22,7 @@ import { isAllowedWebUrl } from '../utils/urlAllowlist'
 import { AuthService } from '../auth/AuthService'
 import { getCurrentSession } from '../auth/sessionState'
 import { registerWebView, sendSessionToWebView } from '../auth/broadcast'
+import { pickAndUploadMedia } from '../media/mediaUpload'
 import { ROUTES, TAB_ROOT_PATHS } from '@moving/shared'
 import type { BridgeMessage, WebToNativeMessage } from '@moving/shared'
 import { sendToWeb } from '../utils/webBridge'
@@ -227,6 +228,37 @@ export function WebViewScreen({ path, onMessage }: WebViewScreenProps) {
         case 'OPEN_EXTERNAL_LINK':
           Linking.openURL(message.payload.url).catch(() => undefined)
           return
+        case 'OPEN_MEDIA_PICKER': {
+          // 네이티브 미디어 피커 → Storage 직접 업로드 후 메타데이터 회신 (ADR-079).
+          // 취소·실패도 빈 결과로 반드시 회신 — 웹이 업로드 가드(in-flight)를 항상 해제하도록(무신호 방지).
+          const picker = message.payload
+          const replyUploaded = (
+            items: { storage_path: string; taken_at: string | null; hash: string }[],
+            failed: number,
+          ) => {
+            if (!webViewRef.current) return
+            sendToWeb(webViewRef, {
+              type: 'MEDIA_UPLOADED',
+              payload: {
+                moveId: picker.moveId,
+                room: picker.room,
+                photoType: picker.photoType,
+                items,
+                failed,
+              },
+            })
+          }
+          pickAndUploadMedia(picker)
+            .then((result) => {
+              if (result.canceled) replyUploaded([], 0)
+              else replyUploaded(result.items, result.failed)
+            })
+            .catch((err) => {
+              console.error('[OPEN_MEDIA_PICKER]', err instanceof Error ? err.message : err)
+              replyUploaded([], 0)
+            })
+          return
+        }
         case 'NAVIGATE_TAB': {
           const tabMap = {
             home: ROUTES.LANDING,

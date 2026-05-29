@@ -1,49 +1,37 @@
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { Camera, Image as ImageIcon, Plus, X } from 'lucide-react'
 import { cn } from '@/lib/cn'
 
 interface PhotoUploadFabProps {
-  onCapture: (file: File) => void
-  onGallerySelect: (files: File[]) => void
+  /** 촬영/갤러리 선택 시 호출 (회원). 네이티브 미디어 피커를 연다 (ADR-079) */
+  onPick: (kind: 'camera' | 'gallery') => void
   disabled?: boolean
+  /** 익명 사용자 여부. true면 파일 선택 전에 로그인 게이트 발동 (ADR-074) */
+  isAnonymous?: boolean
+  /** 익명 사용자가 업로드를 시도할 때 호출 (로그인 시트 요청) */
+  onRequestLogin?: () => void
 }
 
-export function PhotoUploadFab({ onCapture, onGallerySelect, disabled }: PhotoUploadFabProps) {
+export function PhotoUploadFab({
+  onPick,
+  disabled,
+  isAnonymous,
+  onRequestLogin,
+}: PhotoUploadFabProps) {
   const [isOpen, setIsOpen] = useState(false)
-  const cameraRef = useRef<HTMLInputElement>(null)
-  const galleryRef = useRef<HTMLInputElement>(null)
+
+  // 사진 저장 게이트(ADR-074): 익명이면 파일 선택 전에 로그인 요청, 회원이면 네이티브 피커
+  function handlePick(kind: 'camera' | 'gallery') {
+    setIsOpen(false)
+    if (isAnonymous) {
+      onRequestLogin?.()
+      return
+    }
+    onPick(kind)
+  }
 
   return (
     <>
-      <input
-        ref={cameraRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        hidden
-        aria-label="카메라로 촬영"
-        onChange={(e) => {
-          const f = e.target.files?.[0]
-          if (f) onCapture(f)
-          e.target.value = ''
-          setIsOpen(false)
-        }}
-      />
-      <input
-        ref={galleryRef}
-        type="file"
-        accept="image/*"
-        multiple
-        hidden
-        aria-label="갤러리에서 선택"
-        onChange={(e) => {
-          const files = Array.from(e.target.files ?? [])
-          if (files.length > 0) onGallerySelect(files)
-          e.target.value = ''
-          setIsOpen(false)
-        }}
-      />
-
       {isOpen && (
         <div
           className="fixed inset-0 z-30"
@@ -62,7 +50,7 @@ export function PhotoUploadFab({ onCapture, onGallerySelect, disabled }: PhotoUp
           <>
             <button
               type="button"
-              onClick={() => galleryRef.current?.click()}
+              onClick={() => handlePick('gallery')}
               className="flex h-12 items-center gap-2 rounded-2xl bg-white px-4 shadow-lg"
             >
               <ImageIcon size={18} className="text-secondary" />
@@ -70,7 +58,7 @@ export function PhotoUploadFab({ onCapture, onGallerySelect, disabled }: PhotoUp
             </button>
             <button
               type="button"
-              onClick={() => cameraRef.current?.click()}
+              onClick={() => handlePick('camera')}
               className="flex h-12 items-center gap-2 rounded-2xl bg-white px-4 shadow-lg"
             >
               <Camera size={18} className="text-secondary" />

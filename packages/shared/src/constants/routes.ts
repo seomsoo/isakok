@@ -16,6 +16,7 @@ export const ROUTES = {
   SETTINGS: '/settings',
   PRIVACY: '/privacy',
   TERMS: '/terms',
+  OSS_LICENSES: '/oss-licenses',
 } as const
 
 /**

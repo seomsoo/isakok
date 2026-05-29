@@ -1,11 +1,9 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts'
-import { createClient, SupabaseClient } from 'npm:@supabase/supabase-js@2'
+import { createClient } from 'npm:@supabase/supabase-js@2'
 import { resolveCorsOrigin, makeCorsHeaders } from '../_shared/cors.ts'
+import { deleteUserCompletely, DeleteUserError } from '../_shared/deleteUserData.ts'
+import { revokeAppleToken } from '../_shared/apple.ts'
 
-const BUCKET = 'property-photos'
-const LIST_PAGE_SIZE = 1000
-const REMOVE_CHUNK_SIZE = 100
-const REMOVE_MAX_RETRIES = 3
 const RATE_LIMIT_PER_MINUTE = 3
 
 function truncateToMinute(d: Date): string {
@@ -16,40 +14,6 @@ function truncateToMinute(d: Date): string {
     d.getHours(),
     d.getMinutes(),
   ).toISOString()
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-function chunkArray<T>(arr: T[], size: number): T[][] {
-  const out: T[][] = []
-  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size))
-  return out
-}
-
-/**
- * 재귀적으로 `{userId}/{moveId}/...` 중첩 파일까지 수집.
- * storage.objects 직접 조회 대신 public Storage API(`list()`)만 사용.
- * 폴더당 1000개 초과 시 offset pagination이 필요할 수 있으나 일반 사용자 규모에서는 발생 가능성 낮음.
- */
-async function listStoragePathsByPrefix(admin: SupabaseClient, userId: string): Promise<string[]> {
-  const bucket = admin.storage.from(BUCKET)
-  const out: string[] = []
-  const { data: lvl1, error: lvl1Err } = await bucket.list(userId, { limit: LIST_PAGE_SIZE })
-  if (lvl1Err) throw new Error(`list lvl1 failed: ${lvl1Err.message}`)
-  for (const entry of lvl1 ?? []) {
-    if (entry.id === null) {
-      const { data: lvl2, error: lvl2Err } = await bucket.list(`${userId}/${entry.name}`, {
-        limit: LIST_PAGE_SIZE,
-      })
-      if (lvl2Err) throw new Error(`list lvl2 failed: ${lvl2Err.message}`)
-      for (const f of lvl2 ?? []) out.push(`${userId}/${entry.name}/${f.name}`)
-    } else {
-      out.push(`${userId}/${entry.name}`)
-    }
-  }
-  return out
 }
 
 function errorResponse(
@@ -121,62 +85,39 @@ serve(async (req) => {
       return errorResponse(429, 'rate limited', cors)
     }
 
-    const paths = await listStoragePathsByPrefix(admin, userId)
-    console.log(`[delete-account] userId=${userId} initial_paths=${paths.length}`)
-
-    for (const chunk of chunkArray(paths, REMOVE_CHUNK_SIZE)) {
-      let ok = false
-      for (let attempt = 1; attempt <= REMOVE_MAX_RETRIES; attempt++) {
-        const { error } = await admin.storage.from(BUCKET).remove(chunk)
-        if (!error) {
-          ok = true
-          break
-        }
-        console.warn(
-          `[delete-account:storage-remove] attempt=${attempt} chunk_size=${chunk.length} error=${error.message}`,
-        )
-        if (attempt < REMOVE_MAX_RETRIES) await sleep(300 * attempt)
+    // Apple revoke (ADR-077, best-effort 5s): refresh_token이 service_role only라 서버에서 호출.
+    // deleteUserCompletely가 auth_provider_links를 지우므로 그 전에 조회·revoke. invalid_grant 등 실패는 무시.
+    // 전체를 try로 감싸 조회/revoke의 어떤 실패도 계정 삭제를 막지 않게 한다(best-effort 보장).
+    try {
+      const { data: appleLink } = await admin
+        .from('auth_provider_links')
+        .select('apple_refresh_token')
+        .eq('user_id', userId)
+        .eq('provider', 'apple')
+        .not('apple_refresh_token', 'is', null)
+        .limit(1)
+        .maybeSingle()
+      if (appleLink?.apple_refresh_token) {
+        const revoke = await revokeAppleToken(appleLink.apple_refresh_token, 5000)
+        if (!revoke.ok) console.warn('[delete-account:apple-revoke] failed:', revoke.error)
       }
-      if (!ok) {
-        return errorResponse(500, 'storage-remove failed', cors, { stage: 'storage-remove' })
-      }
+    } catch (e) {
+      console.warn('[delete-account:apple-revoke] skipped:', e instanceof Error ? e.message : e)
     }
 
-    // 삭제 후 prefix 재조회 → 잔여 0건 확인 (트리거 우회·부분 실패 방어)
-    const remaining = await listStoragePathsByPrefix(admin, userId)
-    if (remaining.length > 0) {
-      console.error(
-        `[delete-account:storage-verify] userId=${userId} remaining=${remaining.length}`,
-      )
-      return errorResponse(500, 'storage residue', cors, {
-        stage: 'storage-verify',
-        remaining: remaining.length,
-      })
-    }
-
-    // auth_provider_links 명시 삭제 (deleteUser 전; partial cleanup 시 로그 유지)
-    const { error: linkErr } = await admin
-      .from('auth_provider_links')
-      .delete()
-      .eq('user_id', userId)
-    if (linkErr) {
-      console.error('[delete-account:auth-provider-links]', linkErr.message)
-      return errorResponse(500, 'links cleanup failed', cors, { stage: 'auth-provider-links' })
-    }
-
-    // CASCADE: auth.users 삭제 시 public.users → moves/user_checklist_items/property_photos 자동
-    const { error: delErr } = await admin.auth.admin.deleteUser(userId)
-    if (delErr) {
-      console.error(`[delete-account:delete-user] userId=${userId} error=${delErr.message}`)
-      return errorResponse(500, 'delete-user failed', cors, { stage: 'delete-user' })
-    }
-
-    console.log(`[delete-account] OK userId=${userId} removed_paths=${paths.length}`)
+    // 삭제 코어 (ADR-082): Storage → auth_provider_links → auth.users(public.* CASCADE)
+    const { removedPaths } = await deleteUserCompletely(admin, userId)
+    console.log(`[delete-account] OK userId=${userId} removed_paths=${removedPaths}`)
     return new Response(JSON.stringify({ ok: true }), {
       status: 200,
       headers: { ...cors, 'Content-Type': 'application/json' },
     })
   } catch (err) {
+    if (err instanceof DeleteUserError) {
+      // 상세(userId·원인)는 deleteUserData 코어가 이미 로깅. client엔 일반 메시지 + stage만.
+      console.error(`[delete-account] failed stage=${err.stage}`)
+      return errorResponse(500, err.message, cors, { stage: err.stage, ...(err.extra ?? {}) })
+    }
     console.error('[delete-account:unhandled]', err instanceof Error ? err.message : err)
     return errorResponse(500, 'DELETE_ACCOUNT_FAILED', cors)
   }
