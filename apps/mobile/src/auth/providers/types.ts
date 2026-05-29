@@ -7,6 +7,8 @@ export interface OidcProviderResult {
   idToken: string
   accessToken?: string
   nonce?: string
+  /** Apple 전용: refresh_token 교환(apple-token-exchange)용 authorization code (ADR-077) */
+  authorizationCode?: string
 }
 
 export interface KakaoProviderResult {

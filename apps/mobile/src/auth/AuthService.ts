@@ -103,6 +103,7 @@ export class AuthService {
     if (wasAnonymous) {
       const linked = await AuthService.tryLinkIdentity(result)
       if (linked) {
+        await AuthService.exchangeAppleToken(result)
         return { mode: 'identity-linked', userId: linked.userId }
       }
       return {
@@ -120,6 +121,7 @@ export class AuthService {
           await session.save(data.session)
           setCurrentSession(data.session)
           broadcastSession(data.session)
+          await AuthService.exchangeAppleToken(result)
 
           return { mode: 'signed-in' as const, userId: data.session.user.id }
         },
@@ -137,6 +139,7 @@ export class AuthService {
     await session.save(data.session)
     setCurrentSession(data.session)
     broadcastSession(data.session)
+    await AuthService.exchangeAppleToken(result)
 
     return { mode: 'signed-in', userId: data.session.user.id }
   }
@@ -165,6 +168,33 @@ export class AuthService {
       return { userId: data.session.user.id }
     } catch {
       return null
+    }
+  }
+
+  // Apple refresh_token 교환 (ADR-077): 로그인 직후 authorization code를 apple-token-exchange로 전달.
+  // best-effort — 실패해도 로그인은 성공 유지. code가 단명·1회성이라 즉시 1회 재시도, 그래도 실패면
+  // 다음 로그인 때 새 code로 재확보(서버가 refresh_token 없으면 삭제 시 revoke만 건너뜀).
+  private static async exchangeAppleToken(result: OidcProviderResult): Promise<void> {
+    if (result.provider !== 'apple' || !result.authorizationCode) return
+    const {
+      data: { session: current },
+    } = await supabase.auth.getSession()
+    if (!current?.access_token) return
+
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const { error } = await supabase.functions.invoke('apple-token-exchange', {
+          body: { code: result.authorizationCode },
+          headers: { Authorization: `Bearer ${current.access_token}` },
+        })
+        if (!error) return
+        console.warn(`[apple-token-exchange] attempt=${attempt} failed`)
+      } catch (err) {
+        console.warn(
+          `[apple-token-exchange] attempt=${attempt} threw`,
+          err instanceof Error ? err.message.slice(0, 80) : 'unknown',
+        )
+      }
     }
   }
 
