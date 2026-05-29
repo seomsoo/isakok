@@ -3,7 +3,19 @@
  * WebView의 window.ReactNativeWebView.postMessage()로 전송
  */
 export type WebToNativeMessage =
-  | { type: 'OPEN_CAMERA'; payload: { room: string; photoType: 'move_in' | 'move_out' } }
+  | {
+      // 네이티브 미디어 피커 요청 (ADR-079). 카메라/갤러리 모두 expo-image-picker.
+      // 네이티브가 Storage 경로(`{userId}/{moveId}/{room}_{ts}`) 생성에 필요한 정보 포함.
+      type: 'OPEN_MEDIA_PICKER'
+      payload: {
+        kind: 'camera' | 'gallery'
+        multi: boolean
+        moveId: string
+        room: string
+        photoType: 'move_in' | 'move_out'
+        maxSelect: number
+      }
+    }
   | {
       type: 'REQUEST_LOGIN'
       payload?: {
@@ -44,8 +56,16 @@ export type NativeToWebMessage =
   | { type: 'ACCOUNT_DELETE_RESULT'; payload: { ok: boolean; stage?: string } }
   | { type: 'NAVIGATE_TO'; payload: { path: string; replace?: boolean } }
   | {
-      type: 'PHOTO_TAKEN'
-      payload: { uri: string; exif: Record<string, unknown>; hash: string }
+      // 네이티브가 Storage 직접 업로드 완료 후 메타데이터만 전달 (ADR-079). 파일은 WebView 미통과.
+      // 웹은 이 메타로 property_photos INSERT (Storage 부분 없음). user.id 일치 검증 후 INSERT.
+      type: 'MEDIA_UPLOADED'
+      payload: {
+        moveId: string
+        room: string
+        photoType: 'move_in' | 'move_out'
+        items: { storage_path: string; taken_at: string | null; hash: string }[]
+        failed: number
+      }
     }
   | { type: 'NETWORK_STATUS'; payload: { online: boolean } }
   | { type: 'PLATFORM_INFO'; payload: { os: 'ios' | 'android'; isNative: true } }
