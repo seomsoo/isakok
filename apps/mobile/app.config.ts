@@ -24,8 +24,8 @@ export default ({ config }: ConfigContext) => ({
     bundleIdentifier: 'com.isakok.app',
     usesAppleSignIn: true,
     infoPlist: {
+      // 카메라는 유지. 갤러리는 iOS PHPicker(iOS 14+)라 사진 라이브러리 권한 불필요(ADR-079) → NSPhotoLibraryUsageDescription 제거.
       NSCameraUsageDescription: '집 상태를 사진으로 기록하기 위해 카메라 접근이 필요합니다',
-      NSPhotoLibraryUsageDescription: '집 상태 사진을 갤러리에서 선택하기 위해 접근이 필요합니다',
       LSApplicationQueriesSchemes: ['kakaokompassauth', 'kakaolink', 'kakaotalk'],
       CFBundleURLTypes: [{ CFBundleURLSchemes: [`kakao${kakaoAppKey}`] }],
       // EAS production 빌드만 ATS 강제. dev/preview/로컬 expo run:ios 는 HTTP WebView 동작 유지.
@@ -53,6 +53,8 @@ export default ({ config }: ConfigContext) => ({
     'expo-font',
     'expo-apple-authentication',
     'expo-secure-store',
+    // 갤러리는 PHPicker(권한 불필요)라 photosPermission 비활성, 카메라 문자열은 infoPlist에서 관리 (ADR-079)
+    ['expo-image-picker', { photosPermission: false, cameraPermission: false }],
     ...(kakaoAppKey
       ? [['@react-native-seoul/kakao-login', { kakaoAppKey, kotlinVersion: '2.0.21' }]]
       : []),
