@@ -1,0 +1,58 @@
+name: RLS CI
+
+# RLS 격리 회귀를 PR에서 자동 차단 (ADR-081).
+# dev=prod라 실제 DB를 쓸 수 없어 임시 Supabase local stack(Docker)에서 검증.
+# 범위는 DB RLS 격리로 제한 — Cron/Vault/pg_net/Apple revoke/Kakao 웹훅 등 외부·확장 요소는 별도 manual smoke.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+concurrency:
+  group: rls-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rls-smoke:
+    name: RLS isolation (Supabase local stack)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # 마이그레이션(00021 apple_refresh_token 컬럼 포함) + seed를 적용하며 로컬 스택 부팅
+      - name: Start Supabase local stack
+        run: supabase start
+
+      - name: Run RLS smoke test
+        run: |
+          STATUS=$(supabase status -o json)
+          export SUPABASE_URL=$(echo "$STATUS" | jq -r '.API_URL')
+          export SUPABASE_ANON_KEY=$(echo "$STATUS" | jq -r '.ANON_KEY')
+          export SUPABASE_SERVICE_ROLE_KEY=$(echo "$STATUS" | jq -r '.SERVICE_ROLE_KEY')
+          pnpm exec tsx scripts/verify/rls-smoke.ts
+
+      - name: Stop Supabase local stack
+        if: always()
+        run: supabase stop --no-backup
