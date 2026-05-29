@@ -78,64 +78,53 @@ export async function getSignedUrls(
   return urlRecord
 }
 
-export interface UploadPhotoParams {
+export interface UploadedPhotoItem {
+  storage_path: string
+  taken_at: string | null
+  hash: string
+}
+
+export interface InsertUploadedPhotosParams {
   moveId: string
   userId: string
-  file: File
   room: string
   photoType: PhotoType
-  memo?: string
-  imageHash: string
-  takenAt?: Date | null
+  items: UploadedPhotoItem[]
 }
 
 /**
- * 사진 업로드: Storage → DB 2단계 프로세스
+ * 네이티브가 Storage에 직접 업로드한 사진들의 DB 행을 INSERT (ADR-079).
  *
- * 왜 2단계인가?
- * - Storage ≠ PostgreSQL, 트랜잭션으로 묶을 수 없음
- * - DB 실패 시 Storage 파일 정리 시도 (best effort)로 orphan 최소화
+ * 하이브리드 앱에서 파일은 WebView를 통과하지 않음 → 네이티브가 EXIF·SHA-256 추출 + Storage 업로드를
+ * 완료하고, 웹은 메타데이터만 받아 property_photos에 기록한다. (기존 uploadPhoto의 DB INSERT 부분만 재사용)
  *
- * 경로 규칙: {userId}/{moveId}/{room}_{timestamp}.{ext}
- * - 첫 세그먼트가 userId → Storage RLS 정책(foldername[1] = auth.uid()) 적용
+ * 경로 규칙(네이티브 생성): {userId}/{moveId}/{room}_{timestamp} → Storage RLS(foldername[1]=auth.uid()).
+ * 호출 전 storage_path의 userId가 현재 세션 userId와 일치하는지 검증할 것(orphan/RLS 실패 방지).
+ *
+ * @param params - moveId, userId(소유자), room, photoType, items(storage_path/taken_at/hash)
+ * @returns INSERT된 행 수
+ * @throws 쿼리 에러 시 [insertUploadedPhotos] 접두사와 함께 throw
  */
-export async function uploadPhoto(params: UploadPhotoParams): Promise<PropertyPhoto> {
-  const { moveId, userId, file, room, photoType, memo, imageHash, takenAt } = params
+export async function insertUploadedPhotos(params: InsertUploadedPhotosParams): Promise<number> {
+  const { moveId, userId, room, photoType, items } = params
+  if (items.length === 0) return 0
 
-  const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg'
-  const timestamp = Date.now()
-  const storagePath = `${userId}/${moveId}/${room}_${timestamp}.${ext}`
+  const now = new Date().toISOString()
+  const rows = items.map((item) => ({
+    move_id: moveId,
+    user_id: userId,
+    photo_type: photoType,
+    room,
+    storage_path: item.storage_path,
+    image_hash: item.hash,
+    memo: null,
+    taken_at: item.taken_at,
+    uploaded_at: now,
+  }))
 
-  const { error: storageError } = await supabase.storage.from(BUCKET).upload(storagePath, file, {
-    contentType: file.type || 'image/jpeg',
-    upsert: false,
-  })
-
-  if (storageError) throw new Error(`[uploadPhoto:storage] ${storageError.message}`)
-
-  const { data, error: dbError } = await supabase
-    .from('property_photos')
-    .insert({
-      move_id: moveId,
-      user_id: userId,
-      photo_type: photoType,
-      room,
-      storage_path: storagePath,
-      image_hash: imageHash,
-      memo: memo || null,
-      taken_at: takenAt ? takenAt.toISOString() : null,
-      uploaded_at: new Date().toISOString(),
-    })
-    .select()
-    .single()
-
-  if (dbError) {
-    // best effort: Storage 파일 정리 (실패해도 throw는 원래 DB 에러)
-    await supabase.storage.from(BUCKET).remove([storagePath])
-    throw new Error(`[uploadPhoto:db] ${dbError.message}`)
-  }
-
-  return data
+  const { error } = await supabase.from('property_photos').insert(rows)
+  if (error) throw new Error(`[insertUploadedPhotos] ${error.message}`)
+  return rows.length
 }
 
 /**
