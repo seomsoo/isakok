@@ -10,7 +10,7 @@ interface DeleteAccountSheetProps {
   onClose: () => void
 }
 
-type Step = 'info' | 'confirm' | 'pending'
+type Step = 'info' | 'pending'
 
 const PENDING_TIMEOUT_MS = 15_000
 const TITLE_ID = 'delete-account-title'
@@ -18,21 +18,34 @@ const TITLE_ID = 'delete-account-title'
 export function DeleteAccountSheet({ onClose }: DeleteAccountSheetProps) {
   const [step, setStep] = useState<Step>('info')
   const [agreed, setAgreed] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const toast = useToast()
   const headingRef = useRef<HTMLHeadingElement>(null)
+  const cancelBtnRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && step !== 'pending') onClose()
+      if (event.key !== 'Escape') return
+      // 다이얼로그가 열려 있으면 다이얼로그만 닫고, 아니면 시트를 닫는다.
+      if (confirmOpen) {
+        setConfirmOpen(false)
+        return
+      }
+      if (step !== 'pending') onClose()
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [step, onClose])
+  }, [step, confirmOpen, onClose])
 
-  // step 전환 시 새 heading으로 포커스 이동 — SR가 새 섹션을 announce.
+  // info heading으로 포커스 이동 — SR가 섹션을 announce.
   useEffect(() => {
     headingRef.current?.focus()
   }, [step])
+
+  // 확인 다이얼로그가 열리면 기본 포커스를 안전한 '취소'에 둔다.
+  useEffect(() => {
+    if (confirmOpen) cancelBtnRef.current?.focus()
+  }, [confirmOpen])
 
   // pending 중 결과 메시지가 도달하지 않으면 사용자가 영구 잠김 → timeout으로 복귀.
   useEffect(() => {
@@ -126,7 +139,7 @@ export function DeleteAccountSheet({ onClose }: DeleteAccountSheetProps) {
             </div>
             <ul className="mt-4 space-y-2 text-body-sm text-secondary">
               <li>• 이사 정보와 체크리스트 진행 상태</li>
-              <li>• 집 상태 사진과 메모 (Storage 원본 포함)</li>
+              <li>• 집 상태 사진과 메모</li>
               <li>• 소셜 계정 연결 정보</li>
               <li>• 맞춤 가이드 이용 기록</li>
             </ul>
@@ -152,40 +165,9 @@ export function DeleteAccountSheet({ onClose }: DeleteAccountSheetProps) {
               variant="danger"
               size="lg"
               disabled={!agreed}
-              onClick={() => setStep('confirm')}
+              onClick={() => setConfirmOpen(true)}
             >
-              계정 삭제로 진행하기
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {step === 'confirm' && (
-        <div className="flex flex-1 flex-col px-5 pb-10 pt-2">
-          <section className="rounded-2xl bg-critical/10 p-5">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-critical" />
-              <div>
-                <h2
-                  ref={headingRef}
-                  tabIndex={-1}
-                  className="text-body font-semibold text-critical outline-none"
-                >
-                  정말 삭제하시겠어요?
-                </h2>
-                <p className="mt-1 text-body-sm text-secondary">
-                  이 작업은 되돌릴 수 없어요. 계속하시면 모든 데이터가 즉시 삭제됩니다.
-                </p>
-              </div>
-            </div>
-          </section>
-
-          <div className="mt-auto flex flex-col gap-3 pt-6">
-            <Button variant="danger" size="lg" onClick={handleSubmit}>
-              네, 삭제할게요
-            </Button>
-            <Button variant="secondary" size="lg" onClick={() => setStep('info')}>
-              취소
+              삭제하기
             </Button>
           </div>
         </div>
@@ -201,6 +183,66 @@ export function DeleteAccountSheet({ onClose }: DeleteAccountSheetProps) {
             삭제 중
           </Button>
           <p className="mt-4 text-body-sm text-muted">계정과 데이터를 삭제하고 있어요...</p>
+        </div>
+      )}
+
+      {confirmOpen && (
+        <div
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="delete-confirm-title"
+          aria-describedby="delete-confirm-desc"
+          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 px-4 pb-[calc(env(safe-area-inset-bottom)+12px)]"
+        >
+          <div
+            className="absolute inset-0"
+            role="button"
+            tabIndex={0}
+            aria-label="닫기"
+            onClick={() => setConfirmOpen(false)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') setConfirmOpen(false)
+            }}
+          />
+          <div className="relative w-full animate-[slideUp_200ms_ease] rounded-2xl bg-white">
+            <div className="px-6 pt-7 pb-5 text-center">
+              <p
+                id="delete-confirm-title"
+                className="text-[17px] font-bold tracking-tight text-secondary"
+              >
+                정말 삭제할까요?
+              </p>
+              <p
+                id="delete-confirm-desc"
+                className="mt-2 text-[14px] leading-relaxed tracking-tight text-muted/70"
+              >
+                이 작업은 되돌릴 수 없어요.
+                <br />
+                계속하면 모든 데이터가 즉시 삭제돼요.
+              </p>
+            </div>
+
+            <div className="flex gap-2 px-4 pb-4">
+              <button
+                ref={cancelBtnRef}
+                type="button"
+                onClick={() => setConfirmOpen(false)}
+                className="h-[52px] flex-1 rounded-xl bg-black/[0.04] text-[15px] font-semibold tracking-tight text-secondary transition-colors active:bg-black/[0.08]"
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirmOpen(false)
+                  handleSubmit()
+                }}
+                className="h-[52px] flex-1 rounded-xl bg-critical text-[15px] font-semibold tracking-tight text-white transition-colors active:bg-critical/90"
+              >
+                삭제
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
