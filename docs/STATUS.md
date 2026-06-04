@@ -1,12 +1,13 @@
 # 프로젝트 상태
 
-> 마지막 업데이트: 2026-05-29 (10-4 코드 구현 + /verify + 🔴 수정 반영 완료 — Phase A + §1~§8 + ADR-083. 🟡는 별도 PR. 커밋/PR → 배포·콘솔 작업 대기)
+> 마지막 업데이트: 2026-05-29 (10-4 코드 머지 완료 — PR #61 squash 머지. /verify + 🔴 수정 반영 완료, 🟡는 별도 PR. 다음: 배포·콘솔 운영 단계)
 
 ## 현재 단계
 
-10-4단계: 정식 출시 준비 (공개 전 하드닝 + 부가 기능) — **코드 구현 + /verify + 🔴 수정 완료, 커밋/PR·배포 대기**
+10-4단계: 정식 출시 준비 (공개 전 하드닝 + 부가 기능) — **코드 머지 완료(PR #61), 배포·콘솔 운영 단계**
 
-pnpm lint/typecheck/test(16/16)/build 통과 (Deno Edge Functions는 Node 빌드 제외 → deno check/배포 시 검증). feat/10-4-public-release 브랜치.
+pnpm lint/typecheck/test(16/16)/build 통과 (Deno Edge Functions는 Node 빌드 제외 → deno check/배포 시 검증). PR #61 main 머지 완료(feat/10-4-public-release 브랜치 삭제).
+다음 운영(순서): ① `supabase db push`(00021/00022) → ② Edge Function 배포(apple-token-exchange 신규, cleanup·kakao-unlink-webhook `--no-verify-jwt`, delete-account 재배포) → ③ 시크릿(Apple .p8/TEAM/KEY/CLIENT, KAKAO_ADMIN_KEY/APP_ID, CLEANUP_TOKEN, DRY_RUN=true) → ④ Kakao 콘솔 콜백 URL 등록 + 위조 user_id smoke → ⑤ RLS CI required check 등록 → ⑥ App Store Connect·EAS production·TestFlight·Data Safety.
 /verify 결과 docs/specs/10-4-public-release-verify.md: 🔴 5건 + dead code 모두 수정 반영 — (1) Kakao 웹훅 Authorization(KakaoAK) 헤더 검증 추가(공식 문서 확인, 스펙§5/ADR-078 정정), (2) Apple revoke best-effort(try/catch로 삭제 비차단), (3) 세션 불일치 시 pendingRef 재INSERT(orphan 방지), (4) 동시 업로드 가드(requestPicker), (5) 사진 조회 에러 상태(ErrorMessage). 🟡(a11y·perf·로그인 후 업로드 자동재개)는 follow-up PR로 분리.
 ADR-075 결정으로 dev=prod 단일 프로젝트 운영 (분리 트리거 도달 시 Pro upgrade + 분리).
 

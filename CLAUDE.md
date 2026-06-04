@@ -24,7 +24,7 @@ docs/              ← 기획 문서, 단계별 스펙 (SDD)
 
 ## 현재 단계
 
-> 10-3단계: 계정 삭제 + 약관 + release-gate (내부 테스트 트랙) — EAS production AAB 빌드 + Play Console 등록 + 실기기 검증 단계. ADR-075로 dev=prod 단일 프로젝트 운영 결정.
+> 10-4단계: 정식 출시 준비 (공개 전 하드닝 + 부가 기능) — 코드 머지 완료(PR #61). 배포·콘솔(마이그레이션 push, Edge Function 배포, 시크릿, Kakao 콘솔, TestFlight) 운영 단계. ADR-075로 dev=prod 단일 프로젝트 운영.
 
 ## 개발 방법론
 
@@ -47,7 +47,8 @@ docs/              ← 기획 문서, 단계별 스펙 (SDD)
 8. ✅ Expo 셸 + WebView 래핑
    10-1. ✅ 네이티브 인증 + 세션 브릿지
    10-2. ✅ RLS 활성화 + Edge Function/Storage 보안 (PR #47 머지 완료)
-   10-3. 🔄 계정 삭제 + 약관 + release-gate (EAS 빌드 + Play Console + 실기기 검증 단계)
+   10-3. ✅ 계정 삭제 + 약관 + release-gate (PR #59 머지, Android 비공개 테스트 진행 중)
+   10-4. 🔄 정식 출시 준비 (사진 게이트·네이티브 미디어·cleanup·Apple/Kakao 인증·RLS CI) — 코드 머지(PR #61), 배포·콘솔 단계
 
 ## 보안 규칙 (전역 — 절대 위반 금지)
 
