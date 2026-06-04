@@ -1,34 +1,12 @@
 import { useEffect, useRef } from 'react'
 import { ChevronLeft } from 'lucide-react'
 import { useOnboardingStore } from '@/stores/onboardingStore'
-import { useSession } from '@/auth/useSession'
-import { sendToNative } from '@moving/shared'
 import { ProgressBar } from '@/shared/components/ProgressBar'
 import { StepMovingDate } from '@/features/onboarding/components/StepMovingDate'
 import { StepHousingType } from '@/features/onboarding/components/StepHousingType'
 import { StepContractAndMove } from '@/features/onboarding/components/StepContractAndMove'
 
 const TOTAL_STEPS = 3
-
-function LoginEntryButton() {
-  const { data: session } = useSession()
-  if (session?.user && !session.user.is_anonymous) return null
-
-  return (
-    <button
-      type="button"
-      onClick={() =>
-        sendToNative({
-          type: 'REQUEST_LOGIN',
-          payload: { source: 'onboarding_top' },
-        })
-      }
-      className="text-sm text-text-secondary hover:text-text-primary focus:outline focus:outline-2 focus:outline-primary rounded px-2 py-1"
-    >
-      로그인
-    </button>
-  )
-}
 
 export function OnboardingPage() {
   const { step, setStep, reset } = useOnboardingStore()
@@ -64,9 +42,8 @@ export function OnboardingPage() {
           ) : (
             <div className="h-10 w-10" />
           )}
-          <LoginEntryButton />
         </div>
-        <div className="mt-8 px-1">
+        <div className="px-1">
           <ProgressBar currentStep={step} totalSteps={TOTAL_STEPS} />
         </div>
       </header>
