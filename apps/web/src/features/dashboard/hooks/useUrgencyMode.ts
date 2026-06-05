@@ -7,6 +7,7 @@ import {
   type UrgencyMode,
 } from '@moving/shared'
 import { useModeStore } from '@/stores/modeStore'
+import { captureEvent, ANALYTICS_EVENTS } from '@/observability/events'
 
 export interface UseUrgencyModeResult {
   mode: UrgencyMode
@@ -28,13 +29,16 @@ export function useUrgencyMode(movingDate: string): UseUrgencyModeResult {
 
   const { previousMode, setPreviousMode, transitionDismissed } = useModeStore()
 
-  const isTransitioned =
-    previousMode !== null && previousMode !== mode && !transitionDismissed
+  const isTransitioned = previousMode !== null && previousMode !== mode && !transitionDismissed
   const transitionKey = previousMode && previousMode !== mode ? `${previousMode}→${mode}` : null
   const transitionMessage = transitionKey ? (MODE_TRANSITION_MESSAGE[transitionKey] ?? null) : null
 
   useEffect(() => {
-    if (previousMode !== mode) setPreviousMode(mode)
+    if (previousMode !== mode) {
+      // 초기 설정(null→mode)은 전환 아님. 실제 모드 전환만 기록(§2-2)
+      if (previousMode !== null) captureEvent(ANALYTICS_EVENTS.RESCHEDULE_MODE_CHANGED, { mode })
+      setPreviousMode(mode)
+    }
   }, [mode, previousMode, setPreviousMode])
 
   return { mode, daysUntilMove, today, isTransitioned, transitionMessage }

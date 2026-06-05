@@ -28,4 +28,31 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
     },
   },
+  {
+    // 관측 allowlist 우회 방지(H-4): posthog-js 직접 import는 @/observability/ 내부에서만 허용.
+    // 그 밖에서는 captureEvent/identify 등 래퍼만 쓰게 강제(이벤트 속성 화이트리스트 우회 차단).
+    files: ['**/*.{ts,tsx}'],
+    ignores: ['src/observability/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'posthog-js',
+              message:
+                'PostHog는 @/observability/events·posthog 경유로만 사용하세요 (이벤트 속성 allowlist 우회 방지).',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // 테스트 파일은 vitest 전역(describe/it/expect/vi)을 런타임에 주입받음 — no-undef 비대상.
+    files: ['**/*.test.ts'],
+    rules: {
+      'no-undef': 'off',
+    },
+  },
 )

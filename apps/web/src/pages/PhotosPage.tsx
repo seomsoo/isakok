@@ -14,6 +14,7 @@ import { Skeleton } from '@/shared/components/Skeleton'
 import { ErrorMessage } from '@/shared/components/ErrorMessage'
 import { useToast } from '@/shared/components/ToastProvider'
 import { useUserId } from '@/auth/useSession'
+import { captureEvent, ANALYTICS_EVENTS } from '@/observability/events'
 import type { PhotoType } from '@/services/photos'
 
 export function PhotosPage() {
@@ -74,6 +75,8 @@ export function PhotosPage() {
   function handleAddTrigger(room: string) {
     // 사진 저장 게이트(ADR-074): 익명이면 파일 선택 전에 로그인 요청
     if (isAnonymous) {
+      // analytics source = 게이트가 뜬 화면(전환율 join 키). 네이티브 payload의 source('photo_gate')와 별개.
+      captureEvent(ANALYTICS_EVENTS.PHOTO_GATE_LOGIN_CLICKED, { source: 'photos_list' })
       sendToNative({ type: 'REQUEST_LOGIN', payload: { source: 'photo_gate' } })
       return
     }

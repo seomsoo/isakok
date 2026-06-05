@@ -2,7 +2,7 @@ import { ChevronLeft } from 'lucide-react'
 import { useGoBack } from '@/shared/hooks/useGoBack'
 import { PageHeader } from '@/shared/components/PageHeader'
 
-const EFFECTIVE_DATE = '2026-05-26'
+const EFFECTIVE_DATE = '2026-06-05'
 
 export function PrivacyPage() {
   const goBack = useGoBack('/settings')
@@ -127,6 +127,16 @@ export function PrivacyPage() {
               조건과 체크리스트 항목만 전송하며 주소·메모·사진·이메일은 전송하지 않습니다.
             </li>
             <li>
+              <span className="font-medium">Sentry (Functional Software, Inc.)</span> (미국) — 오류
+              진단. 스택트레이스·임의 식별자(uuid)·기기/브라우저 등 기술적 오류정보가 전송되며,
+              주소·연락처·메모·사진·이메일은 이벤트에 전송하지 않습니다. 약 30일 보관.
+            </li>
+            <li>
+              <span className="font-medium">PostHog, Inc.</span> (미국) — 이용 통계 분석. 행동
+              이벤트와 임의 식별자(uuid)만 처리하며, 주소·연락처·메모·사진·이메일은 전송하지
+              않습니다. 약 12개월 보관.
+            </li>
+            <li>
               <span className="font-medium">Apple · Google · Kakao</span> — 소셜 로그인을 통한 본인
               식별.
             </li>
@@ -137,7 +147,10 @@ export function PrivacyPage() {
           <h2 className="mb-2 text-h3 font-semibold">5. 국외 이전</h2>
           <p className="text-body leading-relaxed">
             Supabase에 저장되는 본 서비스 데이터는 국내(서울) 리전에서 처리됩니다.
-            Vercel·Anthropic으로의 처리위탁은 위 4항의 최소 범위로 한정되며, 미국에서 처리됩니다.
+            Vercel·Anthropic·Sentry·PostHog으로의 처리위탁은 위 4항의 최소 범위로 한정되며, 미국에서
+            처리됩니다. 분석·오류 진단 과정에서 IP는 분석 이벤트 속성으로 저장하지 않도록 설정하며,
+            서비스 제공 과정의 네트워크/접속 정보는 각 수탁자 정책에 따라 최소한의 기술정보로 처리될
+            수 있습니다.
           </p>
         </section>
 

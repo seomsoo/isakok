@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ChevronLeft, History } from 'lucide-react'
 import { ROUTES, isValidRoomType, getRoomMeta, sendToNative } from '@moving/shared'
@@ -13,6 +14,7 @@ import { ErrorMessage } from '@/shared/components/ErrorMessage'
 import { useToast } from '@/shared/components/ToastProvider'
 import { useUserId } from '@/auth/useSession'
 import { useGoBack } from '@/shared/hooks/useGoBack'
+import { captureEvent, ANALYTICS_EVENTS } from '@/observability/events'
 import type { PhotoType } from '@/services/photos'
 
 export function PhotoRoomPage() {
@@ -70,13 +72,23 @@ function Inner({ moveId, room, roomMeta, photoType, onBack, onTrash, toast }: In
   // requestPicker가 in-flight 가드를 들고 OPEN_MEDIA_PICKER 전송 (왕복 중 중복 업로드로 maxCount 초과 방지).
   const { isUploading, requestPicker } = useMediaUploadListener()
 
+  // 사진 게이트 노출(ADR-074): 익명 사용자가 방에 진입 = 저장하려면 로그인 필요한 지점 도달
+  useEffect(() => {
+    if (isAnonymous === true) {
+      captureEvent(ANALYTICS_EVENTS.PHOTO_GATE_SHOWN, { source: 'photo_room' })
+    }
+  }, [isAnonymous])
+
   const showTip = photos.length < 3 && photos.length > 0
   const isEmpty = photos.length === 0 && !isLoading && !isError
   const isAtMax = photos.length >= roomMeta.maxCount
 
   // 사진 저장 게이트(ADR-074): 익명 → 로그인 시트 (컴포넌트 내부에서 isAnonymous로 분기)
-  const requestLogin = () =>
+  const requestLogin = () => {
+    // analytics source = 게이트가 뜬 화면(전환율 join 키, shown과 동일값). 네이티브 payload의 source('photo_gate')와 별개.
+    captureEvent(ANALYTICS_EVENTS.PHOTO_GATE_LOGIN_CLICKED, { source: 'photo_room' })
     sendToNative({ type: 'REQUEST_LOGIN', payload: { source: 'photo_gate' } })
+  }
 
   // 회원: 네이티브 미디어 피커 요청 (ADR-079). 네이티브가 업로드 후 MEDIA_UPLOADED 회신
   function handlePick(kind: 'camera' | 'gallery') {
