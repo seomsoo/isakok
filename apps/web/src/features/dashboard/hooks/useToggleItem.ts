@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toggleChecklistItem } from '@/services/checklist'
 import { useToast } from '@/shared/components/ToastProvider'
+import { captureEvent, ANALYTICS_EVENTS } from '@/observability/events'
 import { queryKeys } from './queryKeys'
 
 export function useToggleItem(moveId: string, userId: string) {
@@ -12,6 +13,8 @@ export function useToggleItem(moveId: string, userId: string) {
       toggleChecklistItem(itemId, moveId, userId, isCompleted),
 
     onMutate: async ({ itemId, isCompleted }) => {
+      // 행동 이벤트 — 완료여부만(항목 텍스트/메모 금지). category는 호출부 thread 필요로 follow-up(§2-2)
+      captureEvent(ANALYTICS_EVENTS.CHECKLIST_ITEM_TOGGLED, { completed: isCompleted })
       await queryClient.cancelQueries({ queryKey: queryKeys.todayItems(moveId) })
       await queryClient.cancelQueries({ queryKey: queryKeys.timelineItems(moveId) })
 
