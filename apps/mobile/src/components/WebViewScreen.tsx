@@ -80,7 +80,21 @@ const INJECTED_BEFORE_LOAD = `
   true;
 `
 
-const WEBVIEW_LOAD_TIMEOUT_MS = 15000
+const WEBVIEW_LOAD_TIMEOUT_MS = 30000
+const MAX_AUTO_RETRIES = 2
+const RETRY_BACKOFF_MS = 800
+
+// scheme://host[:port] 까지만 추출해 오리진을 비교한다. RN의 불완전한 URL 폴리필에 의존하지 않도록
+// 정규식으로 처리(startsWith 의 host-prefix 충돌·정규화 차이 회피).
+function extractOrigin(url: string | undefined | null): string {
+  const match = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/[^/?#]*/.exec(url ?? '')
+  return match ? match[0] : ''
+}
+
+function isSameOrigin(url: string | undefined | null, base: string): boolean {
+  const origin = extractOrigin(url)
+  return origin !== '' && origin === extractOrigin(base)
+}
 
 const PATH_LABELS: Record<string, string> = {
   [ROUTES.LANDING]: '홈',
@@ -159,16 +173,69 @@ export function WebViewScreen({ path, onMessage }: WebViewScreenProps) {
     return () => handler.remove()
   }, [canGoBack, goBack])
 
+  const retryCountRef = useRef(0)
+  const loadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const backoffTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // 직전 로드가 실패했는지 표시. react-native-webview 는 onError 직후에도 onLoadEnd 를 호출하므로
+  // 이 플래그로 onLoadEnd 가 실패를 "성공"으로 덮어쓰는 것(재시도 카운트·에러 화면 소실)을 막는다.
+  const loadFailedRef = useRef(false)
+
+  const clearLoadTimer = useCallback(() => {
+    if (loadTimerRef.current) {
+      clearTimeout(loadTimerRef.current)
+      loadTimerRef.current = null
+    }
+  }, [])
+
+  // 콜드 로드 실패(네트워크 오류·스톨 타임아웃·문서 HTTP 오류) 시 곧장 에러 화면을 띄우지 않고
+  // 로딩을 유지한 채 조용히 최대 MAX_AUTO_RETRIES회 재시도한다. 소진 후에만 ErrorFallback 노출.
+  // source 는 진단용 — 어느 경로(onError/httpError/stall)에서 실패했는지 dev 로그로 남긴다.
+  const handleLoadFailure = useCallback(
+    (source: string, detail?: string) => {
+      clearLoadTimer()
+      loadFailedRef.current = true
+      if (retryCountRef.current < MAX_AUTO_RETRIES) {
+        retryCountRef.current += 1
+        if (__DEV__) {
+          console.warn(
+            `[WebViewScreen] load failure (${source}) → 재시도 ${retryCountRef.current}/${MAX_AUTO_RETRIES}`,
+            detail ?? '',
+          )
+        }
+        setHasError(false)
+        setIsLoading(true)
+        if (backoffTimerRef.current) clearTimeout(backoffTimerRef.current)
+        backoffTimerRef.current = setTimeout(() => reload(), RETRY_BACKOFF_MS)
+      } else {
+        if (__DEV__) {
+          console.warn(
+            `[WebViewScreen] load failure (${source}) → 재시도 소진, 에러 화면 표시`,
+            detail ?? '',
+          )
+        }
+        setIsLoading(false)
+        setHasError(true)
+      }
+    },
+    [clearLoadTimer, reload],
+  )
+
+  // 로드가 멈추면(스톨) 실패로 간주하는 타이머. 진행(onLoadProgress)이 있을 때마다 다시 무장해
+  // "느리지만 진행 중"인 로드를 죽이지 않는다.
+  const armLoadTimer = useCallback(() => {
+    clearLoadTimer()
+    loadTimerRef.current = setTimeout(
+      () => handleLoadFailure('stall-timeout'),
+      WEBVIEW_LOAD_TIMEOUT_MS,
+    )
+  }, [clearLoadTimer, handleLoadFailure])
+
   useEffect(() => {
-    if (!isLoading || hasError) return
-
-    const timeout = setTimeout(() => {
-      setIsLoading(false)
-      setHasError(true)
-    }, WEBVIEW_LOAD_TIMEOUT_MS)
-
-    return () => clearTimeout(timeout)
-  }, [hasError, isLoading])
+    return () => {
+      clearLoadTimer()
+      if (backoffTimerRef.current) clearTimeout(backoffTimerRef.current)
+    }
+  }, [clearLoadTimer])
 
   // 로드 완료를 한 번 announce — path 가 바뀌면 isLoading 이 true 로 돌아 자연스럽게 재공지.
   const announcedRef = useRef(false)
@@ -202,6 +269,9 @@ export function WebViewScreen({ path, onMessage }: WebViewScreenProps) {
 
       switch (message.type) {
         case 'WEB_READY': {
+          clearLoadTimer()
+          retryCountRef.current = 0
+          loadFailedRef.current = false
           setIsLoading(false)
           setHasError(false)
           hideSplashOnce()
@@ -304,7 +374,7 @@ export function WebViewScreen({ path, onMessage }: WebViewScreenProps) {
         onMessage(wrapped)
       }
     },
-    [onMessage, webViewRef, setIsTabBarHidden],
+    [onMessage, webViewRef, setIsTabBarHidden, clearLoadTimer],
   )
 
   const handleNavigationStateChange = useCallback((navState: WebViewNavigation) => {
@@ -325,6 +395,8 @@ export function WebViewScreen({ path, onMessage }: WebViewScreenProps) {
     return (
       <ErrorFallback
         onRetry={() => {
+          retryCountRef.current = 0
+          loadFailedRef.current = false
           setHasError(false)
           reload()
         }}
@@ -371,25 +443,42 @@ export function WebViewScreen({ path, onMessage }: WebViewScreenProps) {
         injectedJavaScriptBeforeContentLoaded={INJECTED_BEFORE_LOAD}
         onMessage={handleMessage}
         onLoadStart={() => {
+          loadFailedRef.current = false
           setHasError(false)
           setIsLoading(true)
+          armLoadTimer()
         }}
         onLoadProgress={({ nativeEvent }) => {
+          // 진행이 있으면 스톨 타이머를 다시 무장(느린 로드를 살림).
+          // 성공 확정(타이머 해제·재시도 리셋)은 WEB_READY / 정상 onLoadEnd 에서만 한다.
+          armLoadTimer()
+          // 거의 다 받았으면 스피너만 숨김(UX). 0.95 를 성공 판정으로 쓰지 않는다 —
+          // 95% 이후 WEB_READY·onLoadEnd 가 안 오는 스톨도 잡아야 하므로 타이머는 계속 둔다.
           if (nativeEvent.progress >= 0.95) {
             setIsLoading(false)
-            setHasError(false)
           }
         }}
         onLoadEnd={() => {
+          // react-native-webview 는 실패(onError) 직후에도 onLoadEnd 를 호출한다.
+          // 직전 로드가 실패였다면 성공 처리하지 않고 재시도/에러 로직을 그대로 둔다.
+          if (loadFailedRef.current) return
+          clearLoadTimer()
+          retryCountRef.current = 0
           setIsLoading(false)
           setHasError(false)
         }}
-        onError={() => {
-          setIsLoading(false)
-          setHasError(true)
+        onError={(event) => {
+          // react-native-webview 의 기본 에러 화면(예: NSURLErrorDomain "Error loading page")
+          // 렌더를 막아, 우리 흐름(스피너 → 자동 재시도 → ErrorFallback)만 보이게 한다.
+          event.preventDefault()
+          handleLoadFailure('onError', event.nativeEvent?.description)
         }}
         onHttpError={({ nativeEvent }) => {
-          if (nativeEvent.statusCode >= 400) setHasError(true)
+          // onHttpError 는 메인 프레임(문서) 응답에만 발생한다(서브리소스는 별도 경로).
+          // 우리 웹앱 오리진 문서의 4xx·5xx 만 실패로 보고 재시도 경로로 보낸다.
+          if (nativeEvent.statusCode >= 400 && isSameOrigin(nativeEvent.url, WEB_APP_URL)) {
+            handleLoadFailure('httpError', String(nativeEvent.statusCode))
+          }
         }}
         onShouldStartLoadWithRequest={handleShouldStartLoad}
         onNavigationStateChange={handleNavigationStateChange}
