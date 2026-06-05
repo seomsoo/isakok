@@ -369,6 +369,11 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# 헬스체크 (스펙 11 §3, ADR-087): UptimeRobot이 인증 없이 호출 → JWT 검증 끔.
+# 200/503 상태만 반환하고 데이터는 노출하지 않음.
+[functions.health]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327
