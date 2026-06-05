@@ -5,21 +5,19 @@
 ```
 src/
 ├── features/           ← 기능별 작업 단위 (AI에게 범위 지정 용이)
-│   ├── onboarding/
-│   │   ├── components/
-│   │   └── hooks/
+│   ├── onboarding/        ← 각 feature 는 components/ + hooks/ 동일 구조
 │   ├── dashboard/
-│   │   ├── components/
-│   │   └── hooks/
 │   ├── timeline/
-│   ├── checklist/
+│   ├── checklist-detail/
 │   ├── photos/
-│   └── settings/
+│   ├── settings/
+│   ├── ai-guide/
+│   └── pre-check/
 ├── services/           ← Supabase API 호출 (순수 async 함수, React import 금지)
-│   ├── moves.ts
+│   ├── move.ts
 │   ├── checklist.ts
 │   ├── photos.ts
-│   └── aiGuide.ts
+│   └── settings.ts     ← (AI 가이드는 generate-ai-guide Edge Function 호출, 별도 service 파일 없음)
 ├── shared/components/  ← 웹앱 전용 공통 UI (DevTabBar, Spinner, ErrorMessage)
 ├── pages/              ← 라우트 진입점 (조합만, 로직 없음)
 ├── stores/             ← Zustand (UI 상태만: 모달, 현재 탭 등)

@@ -2,30 +2,27 @@
 
 apps/web과 apps/mobile이 공유하는 코드. React/Supabase 의존 없는 순수 로직만.
 
-> ⚠️ services/(Supabase API 호출)는 여기에 두지 않음 → apps/web/src/services/에 위치.
+> ⚠️ services/(Supabase API 호출)는 여기에 두지 않음 → apps/web/src/services/에 위치. (src/services/ 디렉토리는 현재 비어 있는 미사용 placeholder)
 > 근거: shared가 apps/web/lib/supabase.ts에 의존하면 레이어 역전 (ADR-006).
 
 ## 폴더 구조
 
 ```
 src/
-├── utils/             ← 순수 계산 함수 (의존성 0, side-effect 금지)
-│   ├── date.ts        ← D-Day 계산, 날짜 포맷
-│   ├── filter.ts      ← 체크리스트 조건 필터링
-│   ├── group.ts       ← 날짜별/방별 그룹핑
-│   ├── smartReplace.ts ← 모드 판별 + 재배치 계산
+├── utils/             ← 순수 계산 함수 (의존성 0, side-effect 금지) + co-located 테스트(*.test.ts)
+│   ├── cacheKey.ts    ← AI 가이드 캐시 키 생성
+│   ├── conditionTags.ts ← 체크리스트 조건 태그 필터링
+│   ├── dateLabel.ts   ← D-Day/날짜 라벨 포맷
 │   ├── progress.ts    ← 진행률 계산
-│   └── image.ts       ← 리사이징, EXIF 추출, SHA-256 해시
+│   ├── urgencyMode.ts ← 스마트 재배치 모드 판별
+│   ├── photoHash.ts   ← SHA-256 해시 (Web Crypto)
+│   └── nativeBridge.ts ← 네이티브 브릿지 송수신 유틸 (isNativeWebView, sendToNative 등)
 ├── types/             ← 2개+ 파일에서 쓰는 공유 타입
 │   ├── database.ts    ← Supabase gen types 자동 생성
-│   ├── move.ts
-│   ├── checklist.ts
-│   ├── photo.ts
+│   ├── move.ts / checklist.ts / photo.ts / aiGuide.ts / common.ts
 │   └── bridge.ts      ← 네이티브 브릿지 타입 (9단계)
-└── constants/         ← 상수
-    ├── colors.ts
-    ├── routes.ts
-    └── smartReplace.ts ← 모드별 UI 텍스트
+├── constants/         ← 상수 (colors, routes, smartReplace 등)
+└── index.ts           ← 패키지 공개 엔트리 (워크스페이스 export)
 ```
 
 ## 유틸 함수 규칙

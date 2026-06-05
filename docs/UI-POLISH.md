@@ -241,3 +241,20 @@ return {
 **확인 필요(Follow-up)**: 카카오 심볼은 공식 *형태*로 재현했으나 가이드의 "형태·비율·색상 변경 불가" 규정상, 빌드 후 실제 카카오 버튼과 시각 대조 권장. 미세하게 다르면 `KakaoSymbol.tsx`의 `d="..."` 한 줄만 공식 SVG로 교체.
 
 **파일**: `apps/mobile/src/app/auth.tsx`, `apps/mobile/src/components/GoogleLogo.tsx`, `apps/mobile/src/components/KakaoSymbol.tsx`, `apps/mobile/package.json`
+
+## 12. WebView 콜드 로드 견고화 (자동 재시도 + 스톨 타임아웃 + 기본 에러 억제)
+
+**증상**: 대시보드에 있다가 전체/집기록 탭을 처음 누르면 한번씩 네이티브 "다시 시도"(ErrorFallback) 화면이 떴다. 탭마다 독립 WebView(ADR-035)라 첫 진입 시 원격 URL(ADR-036)을 콜드 로드하는데, 자동 재시도가 없고 타임아웃이 빡빡(15초)해서 잠깐의 네트워크 끊김도 곧장 에러 화면이 됐다. 진짜 네이티브 앱엔 없는 "웹뷰 티".
+
+**개선** (`apps/mobile/src/components/WebViewScreen.tsx`):
+
+- **자동 무음 재시도**: 실패 시 스피너 유지하며 최대 2회 reload(800ms backoff), 소진 후에만 ErrorFallback → 잠깐의 끊김은 사용자 모르게 복구.
+- **스톨 기반 타임아웃**: 15초 절대 → 30초 + 진행마다 재무장. "느리지만 받는 중"인 로드는 살리고 "멈춘" 로드만 실패 처리.
+- **RNW 기본 에러 페이지 제거**: onError에서 `preventDefault()` → "NSURLErrorDomain / Error loading page" 영문 기본 화면 플래시 제거, 우리 디자인(스피너 → ErrorFallback)만 노출.
+- **진단 로그**(`__DEV__`): 실패 소스(onError/httpError/stall) + 재시도 횟수 — 원인 추적용.
+
+**검증**: 실기기에서 Vite 서버만 중단 후 탭 전환 → 자동 2회 재시도 → ErrorFallback 1회(무한 reload 없음), 기본 에러 페이지 미노출, 복구 정상.
+
+**판단**: 구조 전환(단일 WebView)·오프라인 셸은 비용이 커 보류, 견고화만 선반영(상세 ADR-084). Codex 리뷰 P1(onLoadEnd가 재시도 상태를 덮어쓰던 버그) 반영.
+
+**파일**: `apps/mobile/src/components/WebViewScreen.tsx`

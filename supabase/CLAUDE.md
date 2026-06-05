@@ -1,6 +1,6 @@
 # supabase/ — DB, Edge Functions, 인증
 
-## DB 스키마 (6개 테이블)
+## DB 스키마 (9개 테이블)
 
 ### users
 
@@ -25,6 +25,18 @@ id (uuid PK), move_id (FK, indexed), user_id (FK, indexed), photo_type (CHECK: '
 ### ai_guide_cache
 
 id (uuid PK), cache_key (text UNIQUE), master_version (integer), guides (jsonb), created_at, updated_at
+
+### auth_provider_links (10-1, 00014)
+
+provider (text), provider_user_id (text), user_id (FK→users, ON DELETE CASCADE), apple_refresh_token (text, nullable), created_at — 소셜 provider 식별자 ↔ user 매핑 (Kakao custom mapping ADR-048). `apple_refresh_token`은 계정 삭제 시 Apple revoke 호출용 (00021, service_role only)
+
+### rate_limit_log (10-2, 00018)
+
+bucket_key (text), window_start (timestamptz), count (integer) — 고정 윈도우 rate limit 카운트. `increment_rate_limit` RPC로 갱신 (IP 해시 기반)
+
+### system_config (00008)
+
+key (text PK), value (integer), updated_at — 정수 설정값 (예: master_version)
 
 ## DB 규칙
 
@@ -85,6 +97,14 @@ CREATE POLICY "ai_cache_select_public" ON ai_guide_cache
 - is_completed, memo 등은 건드리지 않음
 - 원자적 트랜잭션
 
+### 기타 RPC (7·10단계 추가)
+
+- `claim_ai_guide_generation` / `apply_ai_guides` — AI 가이드 생성 인플라이트 잠금 + 캐시 일괄 적용 (7단계, ADR-019)
+- `migrate_anonymous_to_user` — 익명→회원 전환 시 데이터 이전 (10-1, linkIdentity 폴백 경로)
+- `increment_rate_limit` — 고정 윈도우 rate limit 증가/검사 (10-2)
+- `get_anonymous_cleanup_candidates` — cleanup 대상 익명 사용자 조회 (10-4)
+- 트리거: `handle_new_user`(auth.users→public.users), `handle_updated_at`, `handle_user_provider_update`
+
 ### RPC 규칙
 
 - 기본 SECURITY INVOKER (RLS 적용을 위해)
@@ -109,6 +129,22 @@ CREATE POLICY "ai_cache_select_public" ON ai_guide_cache
 - 캐시 없거나 버전 불일치 → Claude API 호출 → 캐시 저장 → 반환
 - 에러 시 기존 guide_content로 폴백
 
+### apple-token-exchange / kakao-token-exchange (10-1)
+
+소셜 로그인 코드 교환 — 네이티브 SDK가 받은 authorization code/token을 서버에서 Supabase 세션으로 교환. apple은 refresh_token을 `auth_provider_links`에 저장(revoke용). (verify_jwt: 켜짐)
+
+### kakao-unlink-webhook (10-4)
+
+카카오 "연결 끊기" 웹훅 — 사용자가 카카오에서 앱 연결 해제 시 호출되어 해당 user 삭제(`_shared/deleteUserData`). KakaoAK 헤더로 인증 (verify_jwt: 꺼짐, ADR-078)
+
+### delete-account (10-3)
+
+계정 삭제 — service_role로 Storage prefix·auth.users·public.\* CASCADE 삭제 + Apple revoke(best-effort, ADR-077). 클라이언트는 호출만(RLS 우회 X). (verify_jwt: 켜짐, ADR-082)
+
+### cleanup (10-4)
+
+익명/orphan 정리 — 30일 미활동 익명 사용자 + orphan Storage 정리. CLEANUP_TOKEN 인증·DRY_RUN 지원 (verify_jwt: 꺼짐, ADR-076)
+
 ## Storage
 
 - property_photos 버킷: **private** (public 아님)
@@ -118,10 +154,15 @@ CREATE POLICY "ai_cache_select_public" ON ai_guide_cache
 
 ## 환경변수
 
-- VITE_SUPABASE_URL — 클라이언트용 (anon key와 함께)
-- VITE_SUPABASE_ANON_KEY — 클라이언트용 (RLS 적용됨)
-- SUPABASE_SERVICE_ROLE_KEY — Edge Function에서만 (클라이언트 노출 금지)
-- ANTHROPIC_API_KEY — Edge Function에서만
+> 키 체계: Legacy anon/service*role JWT는 disable, `sb_publishable*_`(클라이언트)·`sb*secret*_`(서버) 사용 (ADR-075).
+
+- VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY(=publishable) — 웹 클라이언트용 (RLS 적용)
+- EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY — 네이티브 클라이언트용
+- SUPABASE_SERVICE_ROLE_KEY(=secret) — Edge Function에서만 (클라이언트 노출 금지)
+- ANTHROPIC_API_KEY — generate-ai-guide
+- APPLE_TEAM_ID / APPLE_KEY_ID / APPLE_CLIENT_ID / APPLE_PRIVATE_KEY — apple-token-exchange·delete-account(revoke)
+- KAKAO_ADMIN_KEY / KAKAO_APP_ID — kakao-token-exchange·kakao-unlink-webhook
+- CLEANUP_TOKEN / DRY_RUN — cleanup
 
 ## 시드 데이터
 
