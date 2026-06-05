@@ -150,7 +150,8 @@ refactor(shared): extract date calc to pure utility
 ### 커스텀 커맨드
 
 - `/verify` — 현재 단계 스펙 대비 구현 검증 (빌드, 린트, 테스트, 체크리스트)
-- `/handoff` — docs/STATUS.md에 현재 작업 상태 저장 (세션 종료 전 필수)
+- `/handoff` — docs/STATUS.md(라이브)에 현재 상태 저장 + 단계 디테일은 정본 문서(specs/DECISIONS/UI-POLISH)에 (세션 종료 전 필수)
+- `/auto-fix` — 검증 실패 자동 수정·재시도 (최대 3회)
 
 ### Codex 플러그인 (코드 리뷰용)
 
@@ -160,10 +161,24 @@ refactor(shared): extract date calc to pure utility
 
 ### 서브에이전트
 
-- `spec-reviewer` — 스펙 vs 구현 심층 비교 (복잡한 단계에서만 수동 호출)
+`.claude/agents/`에 정의 (8단계 하네스 도입, ADR-029 web/native a11y 분리 등). 대부분 CI 봇/훅이 자동 호출하고, 복잡한 단계에서 수동 호출도 가능.
+
+리뷰형 (단계 완료 시 의미 분석 — 정적분석이 못 잡는 흐름/컨텍스트):
+
+- `spec-reviewer` — 스펙 vs 구현 비교 (차이점 탐지)
+- `security-auditor` — 민감정보 흐름·RLS·인증 의미 분석 (패턴 매칭은 Gitleaks/ESLint)
+- `web-a11y-reviewer` — WCAG 2.1/2.2 흐름·컨텍스트 (jsx-a11y 보완)
+- `native-a11y-reviewer` — RN 접근성(iOS HIG·Android Material), 9단계+ 활성
+- `ux-state-reviewer` — loading/empty/error/success 4상태 처리 검사
+- `perf-budget-reviewer` — 번들 사이즈·렌더링·이미지/리소스 최적화
+
+자동화형 (CI/훅에서 자동 호출):
+
+- `pr-summarizer` — CI 통과 후 PR 변경 요약 댓글 게시
+- `auto-fixer` — 빌드/lint/typecheck/test 실패 시 격리 컨텍스트에서 최소 수정
 
 ### 세션 관리
 
-- 새 세션 시작 시: "docs/STATUS.md 읽고 이어서 작업해줘"
+- 새 세션 시작 시: "docs/STATUS.md 읽고 이어서 작업해줘" (STATUS는 라이브 상태 + 단계 1줄 인덱스. **단계 상세는 인덱스가 가리키는 docs/specs/{단계}.md + ADR.md(ADR-001~) + UI-POLISH.md**)
 - 컨텍스트 60% 이상: `/handoff` → `/clear` 또는 새 세션
 - 검증은 구현 세션과 다른 세션에서 실행 (자기 코드에 관대해지는 것 방지)
