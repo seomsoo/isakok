@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { ChevronLeft } from 'lucide-react'
 import { useOnboardingStore } from '@/stores/onboardingStore'
+import { captureEvent, ANALYTICS_EVENTS } from '@/observability/events'
 import { ProgressBar } from '@/shared/components/ProgressBar'
 import { StepMovingDate } from '@/features/onboarding/components/StepMovingDate'
 import { StepHousingType } from '@/features/onboarding/components/StepHousingType'
@@ -14,6 +15,7 @@ export function OnboardingPage() {
 
   useEffect(() => {
     reset()
+    captureEvent(ANALYTICS_EVENTS.ONBOARDING_STARTED)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

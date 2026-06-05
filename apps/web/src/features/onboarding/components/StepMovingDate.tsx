@@ -1,4 +1,5 @@
 import { useOnboardingStore } from '@/stores/onboardingStore'
+import { captureEvent, ANALYTICS_EVENTS } from '@/observability/events'
 import { Button } from '@/shared/components/Button'
 import { CalendarPicker } from '@/features/onboarding/components/CalendarPicker'
 import { OnboardingFooter } from '@/features/onboarding/components/OnboardingFooter'
@@ -12,6 +13,7 @@ export function StepMovingDate({ titleRef }: StepMovingDateProps) {
 
   function handleNext() {
     if (movingDate) {
+      captureEvent(ANALYTICS_EVENTS.MOVING_DATE_SET)
       setStep(2)
     }
   }
@@ -19,7 +21,11 @@ export function StepMovingDate({ titleRef }: StepMovingDateProps) {
   return (
     <>
       <div className="flex-1 overflow-y-auto px-6 pt-8 pb-28">
-        <h1 ref={titleRef} tabIndex={-1} className="text-h1 font-bold tracking-tight text-secondary outline-none">
+        <h1
+          ref={titleRef}
+          tabIndex={-1}
+          className="text-h1 font-bold tracking-tight text-secondary outline-none"
+        >
           이사 예정일이
           <br />
           언제예요?

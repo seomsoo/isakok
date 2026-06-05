@@ -5,6 +5,7 @@ import { queryKeys } from '@/features/dashboard/hooks/queryKeys'
 import { useOnboardingStore } from '@/stores/onboardingStore'
 import { useMoveStore } from '@/stores/moveStore'
 import { useUserId } from '@/auth/useSession'
+import { captureEvent, ANALYTICS_EVENTS } from '@/observability/events'
 import { ROUTES } from '@shared/constants/routes'
 
 export function useCreateMove() {
@@ -49,6 +50,7 @@ export function useCreateMove() {
 
       queryClient.setQueryData(queryKeys.currentMove, (prev: Move | null) => prev ?? fallbackMove)
       setCurrentMoveId(moveId)
+      captureEvent(ANALYTICS_EVENTS.CHECKLIST_GENERATED)
 
       await queryClient.invalidateQueries({
         queryKey: queryKeys.currentMove,
