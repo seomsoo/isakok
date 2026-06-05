@@ -15,6 +15,7 @@ import { queryClient } from '@/lib/queryClient'
 import { ROUTES } from '@shared/constants/routes'
 import { isNativeWebView, sendToNative, onNativeMessage } from '@moving/shared'
 import { setupWebSessionListener } from '@/auth/webSessionListener'
+import { startBridgeAuthTimer } from '@/observability/bridgeMonitor'
 import { EntryRedirect } from '@/pages/EntryRedirect'
 import { OnboardingPage } from '@/pages/OnboardingPage'
 import { DashboardPage } from '@/pages/DashboardPage'
@@ -62,6 +63,8 @@ function WebReadySignal() {
     if (isNativeWebView()) {
       setupWebSessionListener()
       sendToNative({ type: 'WEB_READY' })
+      // WEB_READY 직후 AUTH_SESSION 타임아웃 측정 시작 (진입 경로 기준, 공개 라우트 제외)
+      startBridgeAuthTimer(window.location.pathname)
     }
   }, [])
 
