@@ -590,3 +590,45 @@
     - 검증된 사실(이번 세션 코드 확인): `@ssgoi/react`는 단일 문서 전제라 단일 WebView로 가면 **오히려 개선**(현재 멀티라 탭 경계에서 전환이 끊김); 백스와이프(`allowsBackForwardNavigationGestures`=SPA 히스토리)는 탭바 종류와 무관하게 동작하고 탭 전환이 `replace:true`라 탭 사이로 안 튐.
     - 핵심 파일: `app/(tabs)/_layout.tsx`, `(tabs)/index|timeline|photos.tsx`, `WebViewScreen.tsx`.
   - **Stage 3 — 오프라인 셸 (ADR-036 재검토)**: 앱 시작 콜드 로드 1회마저 네트워크 비의존으로. **(A) 서비스워커/PWA 셸 캐시 우선** — Vercel 즉시 배포 워크플로 유지(추천) → 부족하면 **(B) 로컬 번들** — 완전 오프라인이나 "즉시 배포 상실 + 버전 스큐(구버전 웹 고착) + 인증 origin(file://) 문제" 비용 큼. A→B 순으로 평가.
+
+---
+
+> **번호 정정 안내 (11단계 관측)**: 스펙 `docs/specs/11-observability.md` 본문은 관측 ADR을 **084~088**로 표기했으나, ADR-084는 이미 "WebView 콜드 로드 견고화"가 선점함. 충돌 회피로 **+1 시프트해 ADR-085~089로 확정**한다(매핑: Sentry 084→085 · PostHog 085→086 · 업타임 086→087 · 환경분리 087→088 · PII 088→089). 코드 주석·구현은 이 확정 번호(085~089)를 따른다.
+
+### ADR-085: Sentry는 웹 전용 + 브릿지 실패 로깅 (tracing off) — 스펙 11 본문 ADR-084
+
+- 결정: 에러 추적을 `@sentry/react` 웹 층에만 도입(`tracesSampleRate: 0`). 네이티브 크래시는 스토어 콘솔에 위임. 브릿지 실패(AUTH_SESSION 타임아웃·BridgeMessage 파싱)는 웹에서 Sentry로 캡처. `sendDefaultPii:false`로 SDK가 IP를 추론·수집하지 않음(@sentry SDK v10.4+ 동작).
+- 이유: 얇은 Expo 셸 + 웹뷰라 에러 대부분이 웹 층. 네이티브 SDK는 Expo 빌드 재설정·소스맵 부담 대비 효용 낮음. 브릿지 실패는 "조용한 실패"라 스토어 콘솔도 웹 Sentry 기본형도 못 잡아 명시 로깅으로 구멍을 메움. performance tracing은 출시 전 목표(에러 감지) 밖이고 PII/비용/노이즈가 늘어 0으로 시작.
+- 사각지대(명시): WebView 로드 실패·WebView 표시 전 네이티브 크래시·JS runtime 전 네이티브 장애는 웹 Sentry로 못 잡음 → 스토어 콘솔/수동 검증 + WebView onError 네이티브 fallback UI(ADR-084).
+- 브릿지 false positive 방어: 네이티브 WebView only / 공개 라우트(`/privacy`·`/terms`·`/oss-licenses`) 제외 / 타임아웃 12초 / WebView instance당 1회 / production만 Sentry warning(dev는 console.warn) / 컨텍스트는 비식별 allowlist만(route·elapsed·instance·env).
+- 구현: `apps/web/src/observability/{sentry,scrub,bridgeMonitor,env}.ts`, `main.tsx`, `App.tsx`, `auth/webSessionListener.ts`, `vite.config.ts`(소스맵 업로드).
+- Follow-up: 출시 후 네이티브 크래시/WebView load failure가 주요 장애로 확인되면 `@sentry/react-native` 도입.
+
+### ADR-086: PostHog는 이벤트만 + autocapture off, distinct_id=auth.uid() — 스펙 11 본문 ADR-085
+
+- 결정: `posthog-js`를 autocapture·리플레이·자동 pageview·person properties off로 도입, 명시 이벤트만 수동 전송. 리전 US(`us.i.posthog.com`). distinct_id는 Supabase `auth.uid()`(익명 포함), AUTH_SESSION 후 identify. linkIdentity는 uid 유지라 alias 미사용(`person_profiles: 'identified_only'`).
+- 이유: PII 밀도가 높아 autocapture/리플레이는 마스킹 시 가치 소멸·유출 위험만 남음 → 명시 이벤트가 표준. 모든 사용자가 첫 실행부터 stable uid를 가지므로(익명 Sign-In) PostHog 기본 anonymous id보다 auth.uid() distinct_id가 퍼널을 끊김 없이 잇는다. PII 없는 이벤트라 US/EU 차이 실익 없어 풀세트인 US.
+- 이벤트 속성은 상수 화이트리스트로 강제(`ALLOWED_EVENT_PROPS`). bridge\_\* 류는 Sentry 전용(PostHog 미전송 — 에러 관심사 ≠ 행동 퍼널). account_delete_completed는 reset 후 발행해 이전 userId 미포함.
+- 구현: `apps/web/src/observability/{posthog,events}.ts` + 발생 지점(onboarding/auth/계정삭제/사진게이트/네이티브미디어/체크리스트/사진/재배치).
+- 트레이드오프: 화면 단위 관찰 불가(특정 이탈 시 스코프 마스킹 리플레이로 후속). signup/login 구분은 web 불가(AUTH_SESSION에 isNewUser 없음) → web은 익명→식별 전환만 `login`으로 기록, signup·photo_gate_cancelled·toggle category는 native/server 또는 호출부 thread 필요로 follow-up.
+
+### ADR-087: 업타임은 UptimeRobot + 헬스체크 Edge Function 2중 감시 — 스펙 11 본문 ADR-086
+
+- 결정: UptimeRobot으로 (1) 웹 URL(현재 stable alias `isakok.vercel.app`) (2) 헬스체크 Edge Function 2개를 5분 핑. 알림 이메일+Discord. `health`는 GET/HEAD만, 200/503만, 데이터 미반환, anon key + 공개 SELECT(master_checklist_items) 경량 접촉(service_role 미사용), timeout 2s, no-store, 요청 IP/헤더 미기록. 배포는 `verify_jwt=false`(config.toml `[functions.health]`).
+- 이유: 웹 URL만 보면 정적 페이지 생존만 증명, health가 DB까지 찔러 "시스템이 돈다"를 증명. dev=prod 단일 alias라 모니터는 prod 2개로 충분(공개 URL은 출시 후 재지정).
+- 트레이드오프: 공개 health가 작은 표면이나 경량·데이터 미반환으로 위험 무시. Supabase inactivity pause 방지는 부수효과(핵심 목적 아님). 마이그레이션 0(기존 테이블 조회만).
+- 구현: `supabase/functions/health/index.ts`, `supabase/config.toml`. UptimeRobot/Discord는 콘솔 설정(코드 외).
+
+### ADR-088: 관측 레이어 환경 분리 (VITE_APP_ENV 명시) — 스펙 11 본문 ADR-087
+
+- 결정: dev=prod(ADR-075) 하에서도 관측은 환경 분리. `VITE_APP_ENV` 명시 변수 1순위(host/빌드모드 fallback)로 판정 → Sentry 1개+`environment` 태그(prod 알림만), PostHog는 Free 플랜으로 1 프로젝트 + environment super property 태그(대시보드 prod 필터 — Sentry와 동일 방식).
+- 이유: 본인 테스트가 prod 지표(MAU/퍼널)·알림을 오염시키면 안 됨. preview/internal/prod alias가 섞여 host 기반 판정만으론 오분류 위험 → 명시 변수가 안전. Sentry는 dev 에러도 보며 prod 알림만 받으려 태그, PostHog는 Free 1 프로젝트라 `environment` 태그 + 대시보드 필터로 dev/prod 지표를 분리(2 프로젝트 물리 분리는 비용 발생).
+- 트레이드오프: PostHog 단일 프로젝트(Free)라 dev/prod가 같은 데이터셋 → environment 필터 규율 필요(2 프로젝트 물리 분리보다 약하나 인디 규모엔 충분, 비용 0·1년 보관이 방침과 일치).
+- 구현: `apps/web/src/observability/env.ts`(`getEnv`/`isProduction`). `VITE_APP_ENV` 미설정 시 fallback은 `development`(prod 빌드라도 — preview/internal을 prod로 오분류 방지, Codex P2). Vercel deployment별 `VITE_APP_ENV`·키 스코프는 콘솔 설정.
+
+### ADR-089: 관측 레이어 PII 스크럽 + 국외이전 고지 (표현 정확화) — 스펙 11 본문 ADR-088
+
+- 결정: Sentry/PostHog 모두 주소·연락처·메모·사진·이메일을 이벤트 payload에 미전송, IP는 이벤트 속성 미저장. Sentry는 `beforeSend` denylist+allowlist·`setUser({id})`만, PostHog는 person properties 금지·속성 화이트리스트·IP는 프로젝트 "Discard client IP" 설정으로 강제. 개인정보처리방침에 두 수탁자 처리위탁/국외이전 추가하되 "IP 미수집"으로 단정하지 않고 "최소 기술정보 처리"로 표현.
+- 이유: 이사 앱은 PII 밀도가 높아 관측 도구가 무심코 주소/메모를 전송할 위험이 큼. SDK 설정은 payload/저장을 통제하나 네트워크 레벨 IP·수탁자 접속 로그는 존재할 수 있고 uuid는 가명 식별자라, 방침은 정확히 "최소 기술정보 처리"로 표현해야 정합·안전.
+- 트레이드오프: 스크럽으로 일부 디버깅 컨텍스트 손실 — 프라이버시 우선이라 수용. IP 완전 차단은 콘솔 설정(PostHog "Discard client IP")에 의존.
+- 구현: `apps/web/src/observability/scrub.ts`(Sentry), `events.ts`(PostHog allowlist), `apps/web/src/pages/PrivacyPage.tsx`(§4 처리위탁·§5 국외이전).
