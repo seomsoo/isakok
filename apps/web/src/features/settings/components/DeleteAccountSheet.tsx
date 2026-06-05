@@ -5,6 +5,8 @@ import type { BridgeMessage, NativeToWebMessage } from '@shared/types/bridge'
 import { Button } from '@/shared/components/Button'
 import { PageHeader } from '@/shared/components/PageHeader'
 import { useToast } from '@/shared/components/ToastProvider'
+import { captureEvent, ANALYTICS_EVENTS } from '@/observability/events'
+import { resetAnalyticsUser } from '@/observability/posthog'
 
 interface DeleteAccountSheetProps {
   onClose: () => void
@@ -51,6 +53,7 @@ export function DeleteAccountSheet({ onClose }: DeleteAccountSheetProps) {
   useEffect(() => {
     if (step !== 'pending') return
     const timer = setTimeout(() => {
+      captureEvent(ANALYTICS_EVENTS.ACCOUNT_DELETE_FAILED)
       toast.error('응답이 없어요. 잠시 후 다시 시도해주세요.')
       setStep('info')
     }, PENDING_TIMEOUT_MS)
@@ -70,15 +73,21 @@ export function DeleteAccountSheet({ onClose }: DeleteAccountSheetProps) {
 
       const { ok, stage } = wrapped.data.payload
       if (ok) {
+        // 이전 userId 미포함(§2-2): distinct_id 초기화 후 완료 이벤트(새 익명 세션 기준)
+        resetAnalyticsUser()
+        captureEvent(ANALYTICS_EVENTS.ACCOUNT_DELETE_COMPLETED)
         toast.success('계정이 삭제되었어요.')
         onClose()
       } else if (stage === 'auth-expired') {
+        // 이미 삭제됨(idempotent) — 신규 완료도 실패도 아니라 이벤트 미발생
         toast.info('이미 삭제된 계정이에요.')
         onClose()
       } else if (stage === 'network') {
+        captureEvent(ANALYTICS_EVENTS.ACCOUNT_DELETE_FAILED)
         toast.error('네트워크 오류가 발생했어요. 다시 시도해주세요.')
         setStep('info')
       } else {
+        captureEvent(ANALYTICS_EVENTS.ACCOUNT_DELETE_FAILED)
         toast.error('계정 삭제 중 문제가 생겼어요. 잠시 후 다시 시도해주세요.')
         setStep('info')
       }
@@ -92,6 +101,7 @@ export function DeleteAccountSheet({ onClose }: DeleteAccountSheetProps) {
       toast.error('앱에서만 사용 가능한 기능이에요.')
       return
     }
+    captureEvent(ANALYTICS_EVENTS.ACCOUNT_DELETE_REQUESTED)
     setStep('pending')
     sendToNative({ type: 'REQUEST_DELETE_ACCOUNT' })
   }
