@@ -6,6 +6,7 @@ import { insertUploadedPhotos } from '@/services/photos'
 import { photoKeys } from './queryKeys'
 import { useToast } from '@/shared/components/ToastProvider'
 import { useUserId } from '@/auth/useSession'
+import { captureEvent, ANALYTICS_EVENTS } from '@/observability/events'
 
 type MediaUploadedPayload = Extract<NativeToWebMessage, { type: 'MEDIA_UPLOADED' }>['payload']
 type OpenMediaPickerPayload = Extract<WebToNativeMessage, { type: 'OPEN_MEDIA_PICKER' }>['payload']
@@ -56,13 +57,23 @@ export function useMediaUploadListener() {
         } catch (error) {
           console.error('[useMediaUploadListener]', error)
           toast.error('사진 저장에 실패했어요')
+          // 네이티브 Storage 업로드는 됐으나 DB INSERT 실패 — 업로드 파이프라인 실패로 기록
+          captureEvent(ANALYTICS_EVENTS.NATIVE_MEDIA_UPLOAD_FAILED, { count: items.length })
           return 'ok'
         }
         queryClient.invalidateQueries({ queryKey: photoKeys.byMove(moveId, photoType) })
       }
 
-      if (failed > 0) toast.error(`${failed}장 저장에 실패했어요`)
-      if (saved > 0) toast.success(`${saved}장 저장 완료`)
+      if (failed > 0) {
+        toast.error(`${failed}장 저장에 실패했어요`)
+        captureEvent(ANALYTICS_EVENTS.NATIVE_MEDIA_UPLOAD_FAILED, { count: failed })
+      }
+      if (saved > 0) {
+        toast.success(`${saved}장 저장 완료`)
+        captureEvent(ANALYTICS_EVENTS.NATIVE_MEDIA_UPLOAD_SUCCEEDED, { count: saved })
+        // room_type은 enum만(custom room name·경로·파일명 금지, §2-2)
+        captureEvent(ANALYTICS_EVENTS.PHOTO_UPLOADED, { count: saved, room_type: room })
+      }
       return 'ok'
     },
     [queryClient, toast],
@@ -112,6 +123,7 @@ export function useMediaUploadListener() {
     if (uploadingRef.current) return
     uploadingRef.current = true
     setIsUploading(true)
+    captureEvent(ANALYTICS_EVENTS.NATIVE_MEDIA_PICKER_OPENED, { kind: payload.kind })
     sendToNative({ type: 'OPEN_MEDIA_PICKER', payload })
   }, [])
 
