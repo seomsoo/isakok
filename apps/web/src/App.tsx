@@ -13,7 +13,7 @@ import { drill } from '@ssgoi/react/view-transitions'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from '@/lib/queryClient'
 import { ROUTES } from '@shared/constants/routes'
-import { isNativeWebView, sendToNative, onNativeMessage } from '@moving/shared'
+import { isNativeWebView, sendToNative, onNativeMessage, normalizePushRoute } from '@moving/shared'
 import { setupWebSessionListener } from '@/auth/webSessionListener'
 import { startBridgeAuthTimer } from '@/observability/bridgeMonitor'
 import { EntryRedirect } from '@/pages/EntryRedirect'
@@ -81,6 +81,9 @@ function WebReadySignal() {
         navigate(message.payload.path, {
           replace: message.payload.replace ?? false,
         })
+      } else if (message.type === 'NAVIGATE') {
+        // 푸시 탭 딥링크. payload.path는 양측 normalizePushRoute(allowlist)로 정규화(외부 URL 차단).
+        navigate(normalizePushRoute(message.payload.path))
       }
     })
   }, [navigate])

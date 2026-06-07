@@ -8,6 +8,7 @@ import { MoveInfoSection } from '@/features/settings/components/MoveInfoSection'
 import { MoveEditSheet } from '@/features/settings/components/MoveEditSheet'
 import { DeleteAccountSheet } from '@/features/settings/components/DeleteAccountSheet'
 import { SettingsMenuList } from '@/features/settings/components/SettingsMenuList'
+import { PushSettingRow } from '@/features/settings/components/PushSettingRow'
 import { PageHeader } from '@/shared/components/PageHeader'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { Button } from '@/shared/components/Button'
@@ -70,6 +71,7 @@ export function SettingsPage() {
 
       <div className="flex flex-col gap-6 px-5 pt-2">
         <MoveInfoSection move={move} onEdit={() => setIsEditing(true)} />
+        <PushSettingRow />
         <SettingsMenuList onDeleteAccount={() => setIsDeletingAccount(true)} />
       </div>
     </div>
