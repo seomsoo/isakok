@@ -374,6 +374,12 @@ deno_version = 2
 [functions.health]
 verify_jwt = false
 
+# 푸시 발송 (스펙 12 §7-2, ADR-094): Supabase Cron 전용 서버-서버 함수.
+# 플랫폼 JWT가 아니라 Vault PUSH_CRON_TOKEN을 내부 검증하므로 JWT 검증 끔.
+# (register-push-token은 유저 호출이라 기본값 verify_jwt=true 유지 — 블록 추가 안 함)
+[functions.send-notifications]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327
