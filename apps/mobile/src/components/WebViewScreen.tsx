@@ -21,8 +21,17 @@ import { hideSplashOnce } from '../utils/splash'
 import { isAllowedWebUrl } from '../utils/urlAllowlist'
 import { AuthService } from '../auth/AuthService'
 import { getCurrentSession } from '../auth/sessionState'
-import { registerWebView, sendSessionToWebView } from '../auth/broadcast'
+import {
+  registerWebView,
+  sendSessionToWebView,
+  broadcastToWebViews,
+  setFocusedWebView,
+  clearFocusedWebView,
+} from '../auth/broadcast'
 import { pickAndUploadMedia } from '../media/mediaUpload'
+import { registerPush } from '../push/registerPush'
+import { getPushStatus } from '../push/pushStatus'
+import { flushPendingRoute } from '../push/notificationHandler'
 import { ROUTES, TAB_ROOT_PATHS } from '@moving/shared'
 import type { BridgeMessage, WebToNativeMessage } from '@moving/shared'
 import { sendToWeb } from '../utils/webBridge'
@@ -256,6 +265,15 @@ export function WebViewScreen({ path, onMessage }: WebViewScreenProps) {
     return unregister
   }, [webViewRef])
 
+  // 활성(포커스) 탭의 WebView 추적 — 푸시 NAVIGATE 딥링크를 이 WebView에만 전달(비활성 탭 오염 방지).
+  useEffect(() => {
+    const wv = webViewRef.current
+    if (isFocused && wv) setFocusedWebView(wv)
+    return () => {
+      if (wv) clearFocusedWebView(wv)
+    }
+  }, [isFocused, webViewRef])
+
   const handleMessage = useCallback(
     (event: WebViewMessageEvent) => {
       let wrapped: BridgeMessage<WebToNativeMessage>
@@ -279,6 +297,7 @@ export function WebViewScreen({ path, onMessage }: WebViewScreenProps) {
           if (session && webViewRef.current) {
             sendSessionToWebView(webViewRef.current, session)
           }
+          flushPendingRoute() // 콜드스타트로 보류된 푸시 라우트가 있으면 지금 전달
           return
         }
         case 'REQUEST_LOGIN':
@@ -294,6 +313,22 @@ export function WebViewScreen({ path, onMessage }: WebViewScreenProps) {
           return
         case 'REQUEST_SESSION_REFRESH':
           AuthService.refreshSession().catch((err) => console.error('[refresh]', err))
+          return
+        case 'REQUEST_PUSH_PERMISSION': {
+          // soft-ask "받기" / 설정 토글 ON → 네이티브 hard-ask + 토큰 등록 → 상태 회신.
+          registerPush()
+            .then((payload) => broadcastToWebViews({ type: 'PUSH_STATUS', payload }))
+            .catch((err) => console.error('[REQUEST_PUSH_PERMISSION]', err))
+          return
+        }
+        case 'REQUEST_PUSH_STATUS': {
+          getPushStatus()
+            .then((payload) => broadcastToWebViews({ type: 'PUSH_STATUS', payload }))
+            .catch((err) => console.error('[REQUEST_PUSH_STATUS]', err))
+          return
+        }
+        case 'OPEN_APP_SETTINGS':
+          Linking.openSettings().catch((err) => console.error('[OPEN_APP_SETTINGS]', err))
           return
         case 'OPEN_EXTERNAL_LINK':
           Linking.openURL(message.payload.url).catch(() => undefined)

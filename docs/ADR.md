@@ -632,3 +632,50 @@
 - 이유: 이사 앱은 PII 밀도가 높아 관측 도구가 무심코 주소/메모를 전송할 위험이 큼. SDK 설정은 payload/저장을 통제하나 네트워크 레벨 IP·수탁자 접속 로그는 존재할 수 있고 uuid는 가명 식별자라, 방침은 정확히 "최소 기술정보 처리"로 표현해야 정합·안전.
 - 트레이드오프: 스크럽으로 일부 디버깅 컨텍스트 손실 — 프라이버시 우선이라 수용. IP 완전 차단은 콘솔 설정(PostHog "Discard client IP")에 의존.
 - 구현: `apps/web/src/observability/scrub.ts`(Sentry), `events.ts`(PostHog allowlist), `apps/web/src/pages/PrivacyPage.tsx`(§4 처리위탁·§5 국외이전).
+
+### ADR-090: 푸시 전송 인프라 = Expo Push Notification Service (EPNS)
+
+- 결정: Edge Function이 Expo Push REST(`exp.host/--/api/v2/push/send`)에 `ExpoPushToken+메시지`를 POST. Expo가 APNs/FCM 분배. `expo-notifications`로 토큰 발급.
+- 이유: 1인 운영 부담 최소화, 토큰 하나로 양 플랫폼 통합, 무료. 규모 시 토큰 매핑만 교체해 직접 전환 가능.
+- 보완: EAS에 APNs 키·FCM 자격증명 1회 등록(추상화되는 건 전송 코드). `app.config.ts`에 `expo-notifications` 플러그인 추가(iOS aps-environment·Android prebuild 셋업).
+- 대안: FCM/APNs 직접(키 2종·분기 → 오버), OneSignal(수탁자·약관 + 기능 중복) — 미채택.
+- 구현: `supabase/functions/send-notifications/expoPush.ts`, `apps/mobile/src/push/registerPush.ts`.
+
+### ADR-091: 알림 2종 + DB assigned_date<=today 합산 + current move 1개
+
+- 결정: 데일리 다이제스트 + D-day 마일스톤(7/3/1/0). 다이제스트 카운트 = `assigned_date <= kstToday AND 미완료`. 09:00 KST 단일 Cron, 겹치면 1건 병합(둘 다 신규 claim일 때만). 발송은 current active move 1개 — getCurrentMove와 동일 기준 `status='active' AND deleted_at IS NULL ORDER BY created_at DESC LIMIT 1`(스펙 산문의 "moving_date 최근접"이 아니라 실제 훅 기준 채택).
+- 이유: 알림 피로 vs 리텐션 균형. 표시 레이어(프론트 재배치)와 발송 판단(백엔드 DB 단일 진실) 의도적 분리. 멀티 move 라우팅 모호성을 1개 기준으로 제거. 다중 active move 동시 알림은 v1.1.
+- 구현: `supabase/functions/send-notifications/{index,buildMessage,copy}.ts`.
+
+### ADR-092: 권한 soft-ask→hard-ask + persistent 1회 가드 + 하이브리드 위임
+
+- 결정: 온보딩 직후 진입한 대시보드에서 soft-ask 모달 1회(`users.push_prompt_seen_at` persistent 가드) → 긍정 시 OS 권한(hard-ask). 권한·토큰은 네이티브 전용이라 웹은 soft-ask만, `REQUEST_PUSH_PERMISSION`로 위임. 거부 시 설정 토글 재개.
+- 이유: iOS 권한 1회성 → 첫 실행 요청 안티패턴. soft-ask로 거부 박제 회피. 세션 플래그는 reload/재시작에 취약해 DB 컬럼으로.
+- 구현: `apps/web/src/features/onboarding/components/PushPermissionSheet.tsx`, `services/push.ts`(set_push_prompt_seen).
+
+### ADR-093: push_tokens는 register-push-token Edge Function + service_role only
+
+- 결정: `push_tokens`는 클라 직접 INSERT/UPDATE 금지(RLS 정책 없음=service_role only). 네이티브는 토큰 발급 후 `register-push-token`(verify_jwt=true, anon getUser 검증) 호출 → service_role로 `onConflict:token` upsert.
+- 이유: 본인 RLS는 토큰 재할당(기기 양도·재설치·계정삭제 후 새 익명) 시 `ON CONFLICT DO UPDATE`가 다른 user row를 갱신해야 하는데 `USING(auth.uid()=user_id)`가 막아 실패. service_role 등록으로 회피. generate-ai-guide의 "anon getUser + service_role 쓰기" 패턴과 일관.
+- 보완(구현 발견): 네이티브 `supabaseNative`는 세션 없는 클라라 `functions.invoke`가 anon으로 호출(401) → Storage 업로드(ADR-079)처럼 `createAuthedClient(access_token)`로 호출. `on delete cascade`로 cleanup(ADR-076)·계정삭제(ADR-082) 시 자동 삭제.
+- 구현: `supabase/migrations/00023_push_tokens.sql`, `supabase/functions/register-push-token/index.ts`, `apps/mobile/src/push/registerPush.ts`.
+
+### ADR-094: send-notifications = Cron(verify_jwt=false) + claim 모델 멱등 + DRY_RUN
+
+- 결정: Cron 전용이라 `verify_jwt=false`(config.toml) + Vault `PUSH_CRON_TOKEN` 내부 검증(cleanup 답습). 멱등은 `notification_log` claim 모델 — `claimed` 선점(ON CONFLICT DO NOTHING) → 전송 → `sent`/`failed`. 마일스톤 멱등 키에 `milestone_date` 포함(이사일 변경 대응). KST today는 DB `(now() AT TIME ZONE 'Asia/Seoul')::date`. ticket-level 무효 토큰 삭제. 첫 배포 DRY_RUN → EXECUTE.
+- 이유: 발송 전 insert만 하면 전송 실패가 영구 skip → claim/sent/failed로 실패 가시성+멱등 동시 확보. Deno는 UTC라 날짜를 DB로 고정. Vault로 호출 토큰 노출 0.
+- 보완(구현 발견): claim 멱등 인덱스가 부분 유니크(`WHERE kind=...`)라 supabase-js upsert로 arbiter를 못 맞춤 → claim/kst_today를 SQL RPC로 내림(`00027_push_send_rpcs.sql`). 자동 재시도·receipt polling·분산 발송·token-level 로그는 후속. 처리 상한(~500u/~1000t) 초과 시 truncated 로그.
+- 구현: `supabase/migrations/00024_notification_log.sql`·`00027_push_send_rpcs.sql`, `supabase/functions/send-notifications/`, `cron-setup.sql`.
+
+### ADR-095: 딥링크 = 페이로드 route(allowlist) + 콜드스타트 WEB_READY 재사용
+
+- 결정: Expo `data.route`로 목적지(기본 `/dashboard`). 네이티브가 응답(탭) 수신→`NAVIGATE`. 콜드스타트는 보류→`WEB_READY`(ADR-049) 후 flush. route는 네이티브·웹 양측 `normalizePushRoute` allowlist 검증.
+- 이유: 페이로드 기반은 거의 0 비용으로 v1.1 목적지 확장. 콜드스타트 유실은 세션 주입 패턴 재사용. 푸시 페이로드를 라우팅 신뢰 경계로 보지 않고 allowlist 방어.
+- 보완(구현 발견): 콜드스타트 getter(`getLastNotificationResponseAsync`)는 SDK 55 deprecated이나, 대체 훅은 RN→WebView 버퍼링(콘텐츠 로드 전 broadcast 유실 레이스)에 안 맞아 명령형 유지 + `clearLastNotificationResponseAsync`로 stale 재진입 방지.
+- 구현: `packages/shared/src/constants/pushRoutes.ts`(+test), `apps/mobile/src/push/notificationHandler.ts`, `apps/web/src/App.tsx`.
+
+### ADR-096: 설정 1토글 + set_push_enabled RPC + 2레이어 + Expo 수탁
+
+- 결정: 전체 on/off 1토글(`users.push_enabled`, 기본 false). users UPDATE 차단(10-2)이라 `set_push_enabled`/`set_push_prompt_seen` RPC(DEFINER+auth.uid())로만 변경. OS 권한+앱 토글 2레이어(effective = granted && push_enabled && hasToken). denied는 `OPEN_APP_SETTINGS` 브릿지로 OS 설정 유도. 약관에 Expo(US) 수탁·국외이전 + "기기 푸시 토큰" 고지.
+- 이유: 알림 2종이라 종류별 토글 과함. users 보안성 컬럼을 열지 않으려 화이트리스트 RPC(update_move_with_reschedule 패턴). push_enabled 기본 false가 effective status를 정확히 반영. 11단계 국외이전 고지 계승.
+- 구현: `supabase/migrations/00025_users_push_columns.sql`·`00026_push_rpcs.sql`, `apps/web/src/features/settings/components/PushSettingRow.tsx`·`hooks/usePushSettings.ts`, `apps/web/src/pages/PrivacyPage.tsx`.

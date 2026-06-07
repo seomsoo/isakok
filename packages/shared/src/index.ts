@@ -32,6 +32,10 @@ export {
 // 상수 (platform)
 export { PLATFORM } from './constants/platform'
 
+// 상수 (푸시 — 12단계)
+export { normalizePushRoute } from './constants/pushRoutes'
+export { PUSH_PERMISSION_COPY, PUSH_SETTING_COPY } from './constants/pushCopy'
+
 // 유틸
 export { isNativeWebView, sendToNative, onNativeMessage } from './utils/nativeBridge'
 export { calculateProgress, calculateEssentialProgress } from './utils/progress'

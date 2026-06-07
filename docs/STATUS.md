@@ -1,25 +1,29 @@
 # 프로젝트 상태
 
-> 마지막 업데이트: 2026-06-06 (11단계 관측 — 코드 구현 + 콘솔 세팅 + 검증 + **검증 🟡 하드닝(H-1 스크럽·H-2 재귀·env fallback·source 통일·ESLint 가드·단위테스트·문서 정합) 코드 반영** 완료, 머지 대기. 10-4 follow-up #68/#69 머지됨. 남은 건: 11 커밋·머지→배포 후 실측 + 10-4 잔여 콘솔 → "다음 할 것")
+> 마지막 업데이트: 2026-06-07 (12단계 푸시 알림 — 코드 구현 + **검증 완료**(/verify 코드 판정 ✅, `docs/specs/12-push-notifications-verify.md`), `lint/typecheck/test` green. 검증 후 🔴 4 수정(Codex P1/P2 + a11y/4상태, 마이그레이션 00028 추가). **미커밋 워킹트리 → 다음=커밋 후 배포·콘솔**. 남은 건: 12 커밋→마이그레이션 push·함수 배포·Cron·EAS·DRY_RUN + 11 배포후 실측 + 10-4 잔여 콘솔 → "다음 할 것")
 
 ## 현재 단계
 
-11단계: 관측 (Observability — Sentry·PostHog·업타임) — **구현 + 콘솔 세팅 + 검증 + 검증 후 🟡 하드닝 반영 완료(2026-06-06), 머지 대기**
+12단계: 푸시 알림 (일정 기반 리마인더) — **코드 구현 + 검증 완료(2026-06-06~07), 미커밋 → 커밋·배포·콘솔 대기**
 
-코드는 미커밋 워킹트리. `pnpm lint/typecheck/build` + `test`(web 15 신규 + shared 16 = 31) 통과. 검증 리포트 `docs/specs/11-observability-verify.md`(🔴 0건). **검증에서 나온 🟡 권장 중 관측 코드 범위(1~7)를 같은 세션에서 처리**: H-1 Sentry scrub에 exception value·message·stack filename·breadcrumb 스크럽(`redactText`) 추가 · H-2 재귀 스크럽(중첩 PII) · env fallback `development`로(Codex P2) · photo_gate source 화면 기준 통일 · ESLint posthog 직접 import 차단 · apps/web vitest 셋업 + scrub/filterProps 테스트 · ADR-088/스펙 단일 프로젝트 정합. 콘솔 완료, **health Edge Function만 prod 배포·검증됨**. 웹 관측(Sentry/PostHog)은 **코드 머지→Vercel 자동배포 시 활성**(env는 Production 예약만). 커밋·머지는 다른 세션 진행 예정.
+Expo Push로 데일리 다이제스트 + D-day 마일스톤(7/3/1/0)을 09:00 KST Cron 발송(회원·익명, 권한 수락 시). 구현: DB(00023~00028 — push*tokens·notification_log claim 모델·users push 컬럼·set_push*\*/claim/kst_today/delete_my_push_tokens RPC) · Edge(register-push-token, send-notifications + cron-setup) · 네이티브(expo-notifications 권한/토큰/Android 채널/포그라운드·응답·콜드스타트, WebView·\_layout 배선) · 웹(soft-ask 모달·설정 토글 effective status·NAVIGATE 딥링크·privacy Expo 수탁 고지) · ADR-090~096. `pnpm lint`/`typecheck` 통과, `test` shared 21·web 15. Edge(Deno)는 로컬 deno 미설치라 배포 시 검증. 스펙 `docs/specs/12-push-notifications.md`(+`12-push-notifications-verify.md`).
 
-(10-4 정식 출시 준비: 코드 머지(PR #61)·핵심 배포 완료, follow-up #68/#69 머지. 잔여 콘솔/운영은 "다음 할 것". dev=prod 단일 프로젝트 ADR-075.)
+> 구현 중 스펙 보정 4건(상세 ADR-091~094 보완): ① claim은 부분 유니크 인덱스라 supabase-js upsert 불가 → RPC로(00027) ② 네이티브는 `createAuthedClient(access_token)`(supabaseNative 세션없음) ③ current move = getCurrentMove 실제기준(`status='active'`+`created_at desc`) ④ DB 기준 날짜 `kst_today()` RPC. `getLastNotificationResponseAsync` SDK55 deprecated→버퍼링 구조상 유지+`clearLast...`.
+
+> 검증(/verify) 후 🔴 4 수정: ① Codex P1 로그아웃 토큰 unbind(00028 `delete_my_push_tokens` RPC + signOut에서 호출 — 옛 user 알림이 새 익명 유저에게 가던 누출) ② P2 NAVIGATE 활성탭 단건 전달(비활성 탭 오염 방지) ③ ux 4상태(loading/error/toast) ④ a11y 모달(포커스/Esc/trap)+토글 aria-live·터치타깃. 상세 `docs/specs/12-push-notifications-verify.md`(코드 판정 ✅).
+
+(11단계 관측: #70 머지 완료. 10-4: 코드 머지 PR #61·핵심 배포 완료, 잔여 콘솔은 아래. dev=prod ADR-075.)
 
 ## 진행 중인 것
 
-- **11단계 관측**: 코드 미커밋(워킹트리). 콘솔 세팅·검증·검증 후 🟡 하드닝(scrub/env/source/ESLint/vitest 셋업+테스트/문서) 완료. **다른 세션에서 커밋(작업단위 분할 — 관측 신규 + 하드닝·테스트 인프라 포함)→머지→배포 후 실측 예정**. 머지 전엔 prod에서 Sentry/PostHog 비활성(env 예약만), health만 라이브.
-- (10-4 follow-up 브랜치 `fix/webview-cold-load`·`docs/restructure-docs`는 머지 완료 — PR #68/#69)
+- **12단계 푸시 알림**: 코드 구현 + 검증 완료(미커밋 워킹트리, 약 31파일). lint/typecheck/test green, /verify 코드 판정 ✅. **다음(사용자 액션): 커밋(작업단위 분할) → 마이그레이션 push(00023~00028) → Edge 배포(register-push-token, send-notifications) → 시크릿(`PUSH_CRON_TOKEN`·`PUSH_DRY_RUN=true`) → Vault(`push_cron_token`·`project_url`) + `send-notifications/cron-setup.sql` → EAS APNs/FCM + `expo prebuild --clean` → DRY_RUN 검증 후 `PUSH_DRY_RUN=false` EXECUTE.** 실유저 직발송(dev=prod)이라 DRY_RUN 선검증 필수.
+- (11단계 관측 #70 머지 완료, 10-4 follow-up #68/#69 머지 완료)
 - (10-4 잔여 콘솔/운영은 아래 "다음 할 것")
 
 ## 다음 할 것
 
-1. **11단계 커밋/PR/머지** (다른 세션) — 작업단위 분할(deps→env util→Sentry init/scrub(+test)→브릿지 로깅→health 함수→PostHog init/이벤트(+test)→이벤트 배선→방침→ESLint 가드/vitest 셋업→ADR·스펙 docs). **머지 = Vercel prod 자동배포 → 웹 관측 활성.** 미커밋: `apps/web/src/observability/*` 신규(env/sentry/scrub/posthog/events/bridgeMonitor + `scrub.test.ts`·`events.test.ts`) + `main.tsx`·`App.tsx`·`webSessionListener.ts`·`vite.config.ts`·이벤트 배선 8파일 + `PrivacyPage.tsx` + `supabase/functions/health/` + `config.toml` + `eslint.config.js`·`tsconfig.app.json`·`vitest.config.ts` + `ADR.md`·`11-observability(-verify).md` + `.env.example` + `package.json`/lock.
-2. **11단계 배포 후 실측** (verify 리포트 ⏳잔여) — `VITE_APP_ENV`/`environment` 태그 의도값 · Sentry 알림 `environment=production` 필터(배포 후 'production' 환경 생긴 뒤) · 대시보드 실 페이로드 PII 육안검증(§5-4) · Sentry retention 콘솔 확정. (선택 하드닝은 "알려진 문제")
+1. **12단계 커밋/배포/콘솔** (검증 완료 ✅, `12-push-notifications-verify.md`) — 커밋은 작업단위 분할(DB 마이그레이션 → shared → Edge register → Edge send → 네이티브 push/\* → 네이티브 배선 → 웹 service/bridge/hook → 웹 컴포넌트·배선 → privacy → ADR/STATUS). 그 후: (a) 마이그레이션 push `00023`~`00028` (b) Edge 배포 `register-push-token`·`send-notifications`(config.toml에 verify_jwt 선언됨) (c) 시크릿 `PUSH_CRON_TOKEN`(`openssl rand -hex 32`)·`PUSH_DRY_RUN=true` (d) Vault `push_cron_token`·`project_url` + `send-notifications/cron-setup.sql` 실행 (e) EAS APNs 키·FCM 자격증명 + `npx expo prebuild --clean` 후 EAS 빌드 (f) **DRY_RUN 1회 검증(Edge 로그 `send.run mode=DRY_RUN`·`send.dryrun`) → `PUSH_DRY_RUN=false` EXECUTE** (g) App Privacy/Data Safety "기기 푸시 토큰" 보수 분류. database.ts 타입 재생성(선택).
+2. **11단계 배포 후 실측** (verify 리포트 ⏳잔여) — `VITE_APP_ENV`/`environment` 태그 의도값 · Sentry 알림 `environment=production` 필터 · 대시보드 실 페이로드 PII 육안검증 · Sentry retention 콘솔 확정.
 3. **10-4 잔여 콘솔/운영** — Kakao 콘솔 콜백 URL + 위조 user_id smoke · 나머지 시크릿(CLEANUP_TOKEN/DRY_RUN/KAKAO_APP_ID/KAKAO_ADMIN_KEY) · cron-setup.sql(cleanup 스케줄) · 브랜치 보호 RLS CI required check · App Store Connect·EAS production·TestFlight·Data Safety · `npx expo prebuild --clean`
 
 ## 완료된 것 (요약 인덱스 — 상세는 각 단계 spec/verify + ADR.md)
@@ -45,7 +49,8 @@
 - **iOS 실기기 테스트 + UI 폴리시** ✅ — 네이티브 탭바·SSGOI 전환·스와이프백·브릿지 확장·소셜 버튼 브랜드. 📄 `UI-POLISH.md`
 - **10-3 계정 삭제 + 약관 + release-gate** ✅ — 계정 삭제 흐름·약관·dev=prod 하드닝. 📄 `specs/10-3-internal-test-release.md`(+verify) · ADR-075 · PR #59
 - **10-4 정식 출시 준비** ✅(코드) — 사진 게이트·네이티브 미디어·cleanup·Apple/Kakao 인증·RLS CI·WebView 콜드로드 견고화. 📄 `specs/10-4-public-release.md`(+verify) · ADR-075~084 · PR #61 _(배포·콘솔 잔여는 위 "다음 할 것")_
-- **11단계 관측(Observability)** ✅(코드·콘솔·검증·🟡하드닝 — 머지 대기) — Sentry(웹 에러+브릿지 실패 로깅·PII 스크럽(exception/message/stack 포함)·소스맵)·PostHog(이벤트만·autocapture off·단일 프로젝트+`environment` 태그)·업타임(health Edge Function + UptimeRobot)·개인정보처리방침 수탁자 추가 + apps/web vitest 셋업. 📄 `specs/11-observability.md`(+verify) · ADR-085~089 _(스펙 본문 ADR 084~088 ↔ 실제 085~089)_
+- **11단계 관측(Observability)** ✅(#70 머지) — Sentry(웹 에러+브릿지 실패 로깅·PII 스크럽(exception/message/stack 포함)·소스맵)·PostHog(이벤트만·autocapture off·단일 프로젝트+`environment` 태그)·업타임(health Edge Function + UptimeRobot)·개인정보처리방침 수탁자 추가 + apps/web vitest 셋업. 📄 `specs/11-observability.md`(+verify) · ADR-085~089 _(스펙 본문 ADR 084~088 ↔ 실제 085~089)_ _(배포후 실측 잔여는 "다음 할 것")_
+- **12단계 푸시 알림** ✅(코드+검증 — 커밋·배포·콘솔 대기) — Expo Push 데일리 다이제스트 + D-day 마일스톤(claim 모델 멱등)·soft-ask/설정 2레이어 토글·딥링크(allowlist)·register-push-token(service*role)·send-notifications(Cron+DRY_RUN). 📄 `specs/12-push-notifications.md`(+verify, 코드 판정 ✅) · ADR-090~096 *(스펙 4 마이그레이션 → 실제 00023~00028: claim/kst*today/unregister RPC. 검증 후 Codex P1/P2 + a11y/4상태 수정)*
 
 ## 알려진 문제
 

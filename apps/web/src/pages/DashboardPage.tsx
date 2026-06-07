@@ -26,6 +26,7 @@ import { ModeTransitionBanner } from '@/features/dashboard/components/ModeTransi
 import { DevTabBar } from '@/shared/components/DevTabBar'
 import { Skeleton } from '@/shared/components/Skeleton'
 import { useUserId } from '@/auth/useSession'
+import { PushPermissionSheet } from '@/features/onboarding/components/PushPermissionSheet'
 
 export function DashboardPage() {
   const { userId } = useUserId()
@@ -138,6 +139,8 @@ export function DashboardPage() {
       <PhotoPromptCard daysRemaining={daysRemaining} mode={mode} />
 
       <DevTabBar />
+      {/* 온보딩 직후 1회 푸시 soft-ask (네이티브 + 미노출 조건일 때만 렌더, 그 외 null) */}
+      <PushPermissionSheet />
       {/* daysUntilMove referenced for future use */}
       <span className="sr-only">{daysUntilMove}</span>
     </div>

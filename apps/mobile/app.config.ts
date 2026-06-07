@@ -53,6 +53,8 @@ export default ({ config }: ConfigContext) => ({
     'expo-font',
     'expo-apple-authentication',
     'expo-secure-store',
+    // 푸시 (12단계): iOS aps-environment 엔타이틀먼트 + Android 기본 셋업을 prebuild에 주입.
+    'expo-notifications',
     // 갤러리는 PHPicker(권한 불필요)라 photosPermission 비활성, 카메라 문자열은 infoPlist에서 관리 (ADR-079)
     ['expo-image-picker', { photosPermission: false, cameraPermission: false }],
     ...(kakaoAppKey
