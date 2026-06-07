@@ -1,11 +1,12 @@
 import { supabaseNative as supabase } from './supabaseNative'
 import * as session from './session'
-import { setCurrentSession, clearCurrentSession } from './sessionState'
+import { setCurrentSession, clearCurrentSession, getCurrentSession } from './sessionState'
 import { broadcastToWebViews, broadcastSession } from './broadcast'
 import type { AuthProvider, AuthProviderName, OidcProviderResult } from './providers/types'
 import { AppleProvider } from './providers/AppleProvider'
 import { GoogleProvider } from './providers/GoogleProvider'
 import { KakaoProvider } from './providers/KakaoProvider'
+import { unregisterPush } from '../push/registerPush'
 
 const providers: Record<AuthProviderName, AuthProvider> = {
   apple: AppleProvider,
@@ -257,6 +258,11 @@ export class AuthService {
   }
 
   static async signOut(): Promise<void> {
+    // 푸시 토큰 unbind (보안): 세션 clear 이전(옛 user JWT 유효 시) 이 계정의 토큰/토글을 끊어
+    // 로그아웃 후 같은 기기를 쓰는 새 익명 유저에게 옛 user 알림이 가지 않게 한다.
+    const previous = getCurrentSession()
+    if (previous) await unregisterPush(previous)
+
     await Promise.allSettled(Object.values(providers).map((p) => p.signOut()))
     await supabase.auth.signOut()
     await session.clear()
