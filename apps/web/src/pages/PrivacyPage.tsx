@@ -86,6 +86,11 @@ export function PrivacyPage() {
                   <td className="px-3 py-2">디바이스 격리</td>
                   <td className="px-3 py-2">장기 미활동/이사 일정 도래 시 파기</td>
                 </tr>
+                <tr className="border-b border-border">
+                  <td className="px-3 py-2">기기 푸시 토큰</td>
+                  <td className="px-3 py-2">알림 발송</td>
+                  <td className="px-3 py-2">알림 해제·계정 삭제 시까지</td>
+                </tr>
                 <tr>
                   <td className="px-3 py-2">해시 처리된 IP</td>
                   <td className="px-3 py-2">요청 빈도 제한</td>
@@ -137,6 +142,11 @@ export function PrivacyPage() {
               않습니다. 약 12개월 보관.
             </li>
             <li>
+              <span className="font-medium">Expo (650 Industries, Inc.)</span> (미국) — 푸시 알림
+              발송. 기기 푸시 토큰과 알림 문구만 처리하며, 주소·연락처·메모·사진·이메일은 전송하지
+              않습니다.
+            </li>
+            <li>
               <span className="font-medium">Apple · Google · Kakao</span> — 소셜 로그인을 통한 본인
               식별.
             </li>
@@ -147,10 +157,10 @@ export function PrivacyPage() {
           <h2 className="mb-2 text-h3 font-semibold">5. 국외 이전</h2>
           <p className="text-body leading-relaxed">
             Supabase에 저장되는 본 서비스 데이터는 국내(서울) 리전에서 처리됩니다.
-            Vercel·Anthropic·Sentry·PostHog으로의 처리위탁은 위 4항의 최소 범위로 한정되며, 미국에서
-            처리됩니다. 분석·오류 진단 과정에서 IP는 분석 이벤트 속성으로 저장하지 않도록 설정하며,
-            서비스 제공 과정의 네트워크/접속 정보는 각 수탁자 정책에 따라 최소한의 기술정보로 처리될
-            수 있습니다.
+            Vercel·Anthropic·Sentry·PostHog·Expo로의 처리위탁은 위 4항의 최소 범위로 한정되며,
+            미국에서 처리됩니다. 분석·오류 진단 과정에서 IP는 분석 이벤트 속성으로 저장하지 않도록
+            설정하며, 서비스 제공 과정의 네트워크/접속 정보는 각 수탁자 정책에 따라 최소한의
+            기술정보로 처리될 수 있습니다.
           </p>
         </section>
 
