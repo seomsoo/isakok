@@ -47,9 +47,14 @@ export default ({ config }: ConfigContext) => ({
     package: 'com.isakok.app',
     usesCleartextTraffic: true,
     permissions: ['CAMERA'],
+    // FCM 푸시용 — EAS 빌드는 GOOGLE_SERVICES_JSON 파일 시크릿(경로), 로컬은 gitignore된 ./google-services.json (12단계 Android FCM)
+    googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? './google-services.json',
   },
   plugins: [
     'expo-router',
+    // google-signin v16의 AppCheckCore(→GoogleUtilities/RecaptchaInterop)는 Swift 정적 라이브러리라
+    // modular 정의가 필요 → iOS 전체를 static framework로 빌드해 modular headers 문제 해소 (12단계 EAS 빌드)
+    ['expo-build-properties', { ios: { useFrameworks: 'static' } }],
     'expo-font',
     'expo-apple-authentication',
     'expo-secure-store',
