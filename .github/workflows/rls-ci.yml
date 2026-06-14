@@ -39,7 +39,10 @@ jobs:
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@v2
         with:
-          version: latest
+          # 버전 핀 고정 — `latest`는 드리프트 위험. v2.106.0(2026-06-11)이 `supabase status` 출력을
+          # 바꿔 아래 jq 파싱이 깨졌음(SUPABASE_URL 빈 값 → smoke 전부 실패). v2.105.0(2026-06-04)이
+          # 마지막 검증된 버전. CLI 올릴 땐 status 출력 포맷 확인 후 함께 갱신.
+          version: 2.105.0
 
       # 마이그레이션(00021 apple_refresh_token 컬럼 포함) + seed를 적용하며 로컬 스택 부팅
       - name: Start Supabase local stack
@@ -48,9 +51,15 @@ jobs:
       - name: Run RLS smoke test
         run: |
           STATUS=$(supabase status -o json)
-          export SUPABASE_URL=$(echo "$STATUS" | jq -r '.API_URL')
-          export SUPABASE_ANON_KEY=$(echo "$STATUS" | jq -r '.ANON_KEY')
-          export SUPABASE_SERVICE_ROLE_KEY=$(echo "$STATUS" | jq -r '.SERVICE_ROLE_KEY')
+          export SUPABASE_URL=$(echo "$STATUS" | jq -r '.API_URL // empty')
+          export SUPABASE_ANON_KEY=$(echo "$STATUS" | jq -r '.ANON_KEY // empty')
+          export SUPABASE_SERVICE_ROLE_KEY=$(echo "$STATUS" | jq -r '.SERVICE_ROLE_KEY // empty')
+          # CLI 드리프트로 status 포맷이 바뀌면 위 값이 비어 smoke가 "전부 실패"로 조용히 깨짐 → 조기 차단
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ] || [ -z "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            echo "::error::Failed to parse 'supabase status -o json' (CLI 포맷 변경 의심). Raw status below:"
+            supabase status || true
+            exit 1
+          fi
           pnpm exec tsx scripts/verify/rls-smoke.ts
 
       - name: Stop Supabase local stack
