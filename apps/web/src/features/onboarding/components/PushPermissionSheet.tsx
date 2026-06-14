@@ -7,10 +7,12 @@ import { requestPushPermission } from '@/push/pushBridge'
 import { Button } from '@/shared/components/Button'
 
 /**
- * soft-ask 권한 모달 (12단계 §6-1). 온보딩 직후 진입한 대시보드에서 1회 노출.
+ * soft-ask 권한 모달 (12단계 §6-1). 대시보드 첫 진입 시 1회 노출.
  * 노출 조건: 네이티브 WebView AND push_prompt_seen_at IS NULL AND push_enabled=false.
- * persistent 가드(push_prompt_seen_at)라 reload/재시작에도 재노출 0. "나중에"는 OS 다이얼로그를
- * 띄우지 않아(거부 박제 회피) prompt만 기록. Esc도 "나중에"와 동일 처리.
+ * 스펙 §6-1의 4번째 조건 "온보딩 직후"는 별도 플래그 대신 (a) DashboardPage에만 마운트 +
+ * (b) push_prompt_seen_at 영구가드로 근사한다 — 신규 유저는 온보딩 직후가 곧 첫 대시보드, 기존
+ * 유저도 첫 진입 1회만 보고 끝이라 무해. persistent 가드라 reload/재시작에도 재노출 0.
+ * "나중에"는 OS 다이얼로그를 안 띄워(거부 박제 회피) prompt만 기록. Esc도 "나중에"와 동일 처리.
  */
 export function PushPermissionSheet() {
   if (!isNativeWebView()) return null
