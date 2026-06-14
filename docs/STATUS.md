@@ -1,10 +1,10 @@
 # 프로젝트 상태
 
-> 마지막 업데이트: 2026-06-07 (12단계 푸시 알림 — 코드 구현 + **검증 완료**(/verify 코드 판정 ✅, `docs/specs/12-push-notifications-verify.md`), `lint/typecheck/test` green. 검증 후 🔴 4 수정(Codex P1/P2 + a11y/4상태, 마이그레이션 00028 추가). **미커밋 워킹트리 → 다음=커밋 후 배포·콘솔**. 남은 건: 12 커밋→마이그레이션 push·함수 배포·Cron·EAS·DRY_RUN + 11 배포후 실측 + 10-4 잔여 콘솔 → "다음 할 것")
+> 마지막 업데이트: 2026-06-14 (12단계 푸시 알림 — **배포 + iOS 실기기 검증 완료, 운영 ON**. 마이그레이션 push(00023~00028)·Edge 배포·시크릿/Vault·Cron·EAS iOS&Android 빌드·DRY_RUN→EXECUTE 실발송·3상태(백그라운드/콜드스타트/포그라운드)+딥링크·Android FCM(Firebase isakok-bc157)·App Privacy/Data Safety 점검까지 완료. EAS 빌드 정합 픽스 ADR-097(RN 0.83.6 SDK 정렬+static framework+eas env=production). 미커밋 코드 12파일 커밋 진행 중. 잔여: on-device 반영(토글 CSS 웹 재배포·Android 채널 HIGH 다음 빌드)·토큰 재할당 field test(deferred·비차단)·🟡 follow-up + 11 배포후 실측 + 10-4 잔여 콘솔 → "다음 할 것")
 
 ## 현재 단계
 
-12단계: 푸시 알림 (일정 기반 리마인더) — **코드 구현 + 검증 완료(2026-06-06~07), 미커밋 → 커밋·배포·콘솔 대기**
+12단계: 푸시 알림 (일정 기반 리마인더) — **배포 + iOS 실기기 검증 완료(2026-06-14), 운영 ON(EXECUTE + 매일 09:00 KST Cron). 코드 12파일 커밋 진행 중**
 
 Expo Push로 데일리 다이제스트 + D-day 마일스톤(7/3/1/0)을 09:00 KST Cron 발송(회원·익명, 권한 수락 시). 구현: DB(00023~00028 — push*tokens·notification_log claim 모델·users push 컬럼·set_push*\*/claim/kst_today/delete_my_push_tokens RPC) · Edge(register-push-token, send-notifications + cron-setup) · 네이티브(expo-notifications 권한/토큰/Android 채널/포그라운드·응답·콜드스타트, WebView·\_layout 배선) · 웹(soft-ask 모달·설정 토글 effective status·NAVIGATE 딥링크·privacy Expo 수탁 고지) · ADR-090~096. `pnpm lint`/`typecheck` 통과, `test` shared 21·web 15. Edge(Deno)는 로컬 deno 미설치라 배포 시 검증. 스펙 `docs/specs/12-push-notifications.md`(+`12-push-notifications-verify.md`).
 
@@ -16,13 +16,13 @@ Expo Push로 데일리 다이제스트 + D-day 마일스톤(7/3/1/0)을 09:00 KS
 
 ## 진행 중인 것
 
-- **12단계 푸시 알림**: 코드 구현 + 검증 완료(미커밋 워킹트리, 약 31파일). lint/typecheck/test green, /verify 코드 판정 ✅. **다음(사용자 액션): 커밋(작업단위 분할) → 마이그레이션 push(00023~00028) → Edge 배포(register-push-token, send-notifications) → 시크릿(`PUSH_CRON_TOKEN`·`PUSH_DRY_RUN=true`) → Vault(`push_cron_token`·`project_url`) + `send-notifications/cron-setup.sql` → EAS APNs/FCM + `expo prebuild --clean` → DRY_RUN 검증 후 `PUSH_DRY_RUN=false` EXECUTE.** 실유저 직발송(dev=prod)이라 DRY_RUN 선검증 필수.
+- **12단계 푸시 알림**: **배포·iOS 실기기 검증 완료(2026-06-14), 운영 ON.** 마이그레이션·Edge·시크릿/Vault·Cron·EAS iOS&Android·DRY_RUN→EXECUTE 실발송·3상태+딥링크·Android FCM·App Privacy/Data Safety 점검 끝(상세 `12-push-notifications-verify.md` §배포·실기기 검증). 배포 중 EAS 빌드 정합 픽스(ADR-097) + 토글 CSS·채널 HIGH·soft-ask 주석 정합. **다음: 미커밋 코드 12파일 커밋(작업단위 분할) → 토글 CSS 웹 재배포(Vercel).** 잔여(비차단): 토큰 재할당 field test(deferred), Android 채널 HIGH 팝업 on-device(다음 빌드 재설치 시).
 - (11단계 관측 #70 머지 완료, 10-4 follow-up #68/#69 머지 완료)
 - (10-4 잔여 콘솔/운영은 아래 "다음 할 것")
 
 ## 다음 할 것
 
-1. **12단계 커밋/배포/콘솔** (검증 완료 ✅, `12-push-notifications-verify.md`) — 커밋은 작업단위 분할(DB 마이그레이션 → shared → Edge register → Edge send → 네이티브 push/\* → 네이티브 배선 → 웹 service/bridge/hook → 웹 컴포넌트·배선 → privacy → ADR/STATUS). 그 후: (a) 마이그레이션 push `00023`~`00028` (b) Edge 배포 `register-push-token`·`send-notifications`(config.toml에 verify_jwt 선언됨) (c) 시크릿 `PUSH_CRON_TOKEN`(`openssl rand -hex 32`)·`PUSH_DRY_RUN=true` (d) Vault `push_cron_token`·`project_url` + `send-notifications/cron-setup.sql` 실행 (e) EAS APNs 키·FCM 자격증명 + `npx expo prebuild --clean` 후 EAS 빌드 (f) **DRY_RUN 1회 검증(Edge 로그 `send.run mode=DRY_RUN`·`send.dryrun`) → `PUSH_DRY_RUN=false` EXECUTE** (g) App Privacy/Data Safety "기기 푸시 토큰" 보수 분류. database.ts 타입 재생성(선택).
+1. **12단계 마무리** (배포·검증 ✅ 완료, `12-push-notifications-verify.md` §배포·실기기 검증) — 남은 건: (a) **미커밋 코드 12파일 커밋**(작업단위 분할: 모바일 빌드정합 app.config/package/lock → eas.json → 채널 → 웹 토글 CSS → soft-ask 주석 → docs) + 적절한 브랜치/PR (b) **토글 CSS 웹 재배포**(Vercel — PR 머지 시 자동) (c) 비차단 잔여: 토큰 재할당 field test(소셜 로그인→로그아웃 시나리오, deferred) · Android 채널 HIGH 팝업 on-device(다음 빌드 재설치) · 🟡 follow-up(N+1 배치화·denied 색대비·웹 라우트 포커스). **테스트로 바꾼 이사일 원복 필요**(D-0 → 실제 날짜, 안 하면 매일 디지스트).
 2. **11단계 배포 후 실측** (verify 리포트 ⏳잔여) — `VITE_APP_ENV`/`environment` 태그 의도값 · Sentry 알림 `environment=production` 필터 · 대시보드 실 페이로드 PII 육안검증 · Sentry retention 콘솔 확정.
 3. **10-4 잔여 콘솔/운영** — Kakao 콘솔 콜백 URL + 위조 user_id smoke · 나머지 시크릿(CLEANUP_TOKEN/DRY_RUN/KAKAO_APP_ID/KAKAO_ADMIN_KEY) · cron-setup.sql(cleanup 스케줄) · 브랜치 보호 RLS CI required check · App Store Connect·EAS production·TestFlight·Data Safety · `npx expo prebuild --clean`
 
@@ -134,6 +134,8 @@ Expo Push로 데일리 다이제스트 + D-day 마일스톤(7/3/1/0)을 09:00 KS
 - **원본+압축썸네일 병행 / Supabase 이미지 변환은 스토리지 절감에 역효과** — "원본을 그대로 저장"해 정작 저장 용량을 못 줄임(변환은 대역폭만 + Pro 전용). 무료 티어 저장 목표엔 부적합
 - **expo-image-manipulator `manipulateAsync`는 deprecated** (★ 경고) — 신규 컨텍스트 API `ImageManipulator.manipulate().resize().renderAsync().saveAsync()` 사용. deprecation은 lint/typecheck를 깨진 않으나 신규 API가 깔끔
 - **Expo 패키지는 SDK 55에서 통합 버전(55.0.x)** — `pnpm --filter @moving/mobile exec expo install <pkg>`로 SDK 호환 버전 자동 선택 (추측 버전 수기 입력 금지)
+- **Expo 프로젝트에서 `react-native`를 SDK가 고정한 버전보다 올리지 말 것** — `babel-preset-expo`가 `@react-native/babel-preset`을 정확히 고정 의존(SDK 55=0.83.6)이라, RN만 앞서면(드리프트 0.85.3) production 번들에서 코드젠이 새 네이티브 컴포넌트(`VirtualView`의 `onModeChange`) 파싱 실패. dev Metro는 지연 변환이라 우회돼 안 보이고 `expo export`(EAS 번들)에서만 터짐. precompiled 프레임워크·네이티브 모듈 ABI도 어긋남. RN 생태계(`react`·`react-native`·`react-native-*`)는 `expo install`로만 갱신 + Dependabot ignore. (ADR-097)
+- **EAS `EXPO_PUBLIC_*`는 빌드 프로필이 가리키는 environment에 등록돼 있어야 번들에 인라인됨** — 변수를 `production` 환경에만 넣고 `--profile preview`로 빌드하면 빈 환경 참조 → 실기기 즉시 크래시(`[supabaseNative] EXPO_PUBLIC_SUPABASE_URL/ANON_KEY missing`). dev=prod라 `eas.json` 3개 프로필 모두 `environment: production` 명시. google pod는 autolinking이라 env 무관(혼동 주의). Secret visibility는 번들 미인라인(Sensitive는 됨). (ADR-097)
 - **supabase/functions/\*\*(Deno)는 ESLint/tsc 대상 외** (apps/web·mobile·packages/shared만) — IDE의 "Cannot find name 'Deno'/Cannot find module 'npm:'·'https:'" 진단은 false positive. 실검증은 deno check 또는 supabase functions deploy
 - **기존 파일을 cat(Bash)으로만 봤으면 Edit 전 Read 도구로 다시 읽어야 함** — Edit는 conversation 내 Read 이력 필수 (routes.ts 편집 시 1회 실패)
 - **스펙의 "완료 확인 체크리스트"(§8)를 직접 `[x]`로 체크하지 말 것** — 스펙 본문은 계약/변경이력이라 원본 보존. **검증 결과 체크는 `docs/specs/{단계}-verify.md`에** 기록(설정 완료 vs 배포 후 실측을 `[x]`/`[△]`/`[ ]`로 구분). 11단계에서 스펙 §8을 잘못 체크했다가 원복
