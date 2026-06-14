@@ -24,6 +24,7 @@
     "base64-arraybuffer": "^1.0.2",
     "expo": "~55.0.26",
     "expo-apple-authentication": "~55.0.13",
+    "expo-build-properties": "~55.0.14",
     "expo-constants": "~55.0.16",
     "expo-crypto": "~55.0.15",
     "expo-dev-client": "~55.0.35",
@@ -38,13 +39,13 @@
     "expo-secure-store": "~55.0.14",
     "expo-splash-screen": "~55.0.21",
     "expo-status-bar": "~55.0.6",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
-    "react-native": "~0.85.3",
-    "react-native-safe-area-context": "~5.8.0",
-    "react-native-screens": "~4.25.2",
-    "react-native-svg": "15.15.5",
-    "react-native-webview": "^13.16.1"
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-native": "~0.83.6",
+    "react-native-safe-area-context": "~5.6.2",
+    "react-native-screens": "~4.23.0",
+    "react-native-svg": "15.15.3",
+    "react-native-webview": "^13.16.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

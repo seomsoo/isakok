@@ -11,5 +11,6 @@ android/
 *.mobileprovision
 *.orig.*
 web-build/
+google-services.json
 .env
 .env.local

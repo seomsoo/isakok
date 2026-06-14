@@ -139,7 +139,7 @@ export function DashboardPage() {
       <PhotoPromptCard daysRemaining={daysRemaining} mode={mode} />
 
       <DevTabBar />
-      {/* 온보딩 직후 1회 푸시 soft-ask (네이티브 + 미노출 조건일 때만 렌더, 그 외 null) */}
+      {/* 푸시 soft-ask: 이 마운트(대시보드)가 스펙 §6-1 "온보딩 직후"의 근사 — 첫 진입 1회 + push_prompt_seen_at 영구가드 (네이티브 + 미노출 조건일 때만 렌더, 그 외 null) */}
       <PushPermissionSheet />
       {/* daysUntilMove referenced for future use */}
       <span className="sr-only">{daysUntilMove}</span>

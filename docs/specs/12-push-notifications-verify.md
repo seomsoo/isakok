@@ -22,13 +22,52 @@
 
 ---
 
+## 배포·실기기 검증 (2026-06-14)
+
+위 검증(2026-06-06)은 코드 검증, 본 절은 **배포 + iOS 실기기** 검증으로 원래 `[△]` 항목을 해소. dev=prod 단일 프로젝트(ADR-075)에 실발송까지 완료. (EAS 빌드 정합 픽스는 ADR-097)
+
+### 배포 (전부 완료 ✅)
+
+- [x] DB 마이그레이션 push `00023`~`00028` (`migration list`로 Remote applied 확인)
+- [x] Edge 배포 `register-push-token` · `send-notifications` (config.toml `verify_jwt=false` 반영)
+- [x] 함수 시크릿 `PUSH_CRON_TOKEN`(`openssl rand -hex 32`) · `PUSH_DRY_RUN`
+- [x] Vault `push_cron_token`(=함수 시크릿 동일값) · `project_url`
+- [x] Cron `send-notifications-daily` `0 0 * * *`(09:00 KST) active=true
+- [x] EAS iOS preview 빌드 + APNs 키(EAS 자동관리) — 빌드 깨짐 3건 해소(ADR-097: RN 0.83.6 SDK 정렬 / static framework / `eas.json` environment=production)
+
+### iOS 실기기 (전부 통과 ✅)
+
+- [x] 앱 진입(크래시 없음 — `EXPO_PUBLIC_*` env 주입 후), soft-ask 시트 → OS 권한 허용
+- [x] 토큰 등록(`register-push-token`→`push_tokens` 1행) — DRY_RUN `targetUsers:1/targetTokens:1` 확인
+- [x] **DRY_RUN → EXECUTE 전환** — `PUSH_DRY_RUN=false`, 실발송 `messages:1, claimed:2(마일스톤+디지스트 병합), sent:2, failed:0`
+- [x] 백그라운드/잠금 수신
+- [x] 콜드스타트(앱 종료) 탭 → 딥링크 대시보드 이동
+- [x] 포그라운드 배너
+- [x] 병합 카피("이사 D-0" + "오늘 챙길 일 33개 '전입신고 서류준비' 외 32건…") 정상
+
+### 잔여 → 2026-06-14 콘솔·코드 추가 처리 반영
+
+오늘 추가 완료 ✅:
+
+- [x] **Android FCM** — Firebase 프로젝트(`isakok-bc157`) + google-services.json(EAS 파일 시크릿 `GOOGLE_SERVICES_JSON` + gitignore + `android.googleServicesFile`) + FCM V1 service account EAS 업로드. Android 빌드·실기기 설치·**푸시 도착 확인**(push_tokens 2개=iOS+Android). 채널 importance `HIGH` + description 코드 반영(heads-up 팝업).
+- [x] **App Privacy / Data Safety** — 11단계에서 기기 식별자 이미 선언됨 + 푸시 토큰이 같은 "기기 ID" 범주라 기존 선언에 포함(점검 완료, `/privacy`와 일치).
+- [x] **soft-ask "온보딩 직후" 정합화** — 동작 불변, 컴포넌트+DashboardPage 마운트 주석을 스펙 §6-1과 정합(첫 진입 1회 + `push_prompt_seen_at` 영구가드 근사). → 아래 "누락" 🟡 해소.
+
+남은 잔여:
+
+- [△] **토큰 재할당 실측**(재설치/계정전환 시 user_id 갱신) — 코드(`onConflict:token` + 로그아웃 `unregisterPush`)는 구현·리뷰(Codex P1/W1) 완료. 익명 계정이라 소셜 로그인→로그아웃 시나리오 실측은 deferred(비차단)
+- [ ] **on-device 반영 대기** — 토글 CSS 썸 위치 수정(웹)은 커밋+Vercel 재배포 후 / Android 채널 `HIGH` 팝업은 채널 immutable이라 다음 빌드·재설치 후 (둘 다 코드 완료)
+- 🟡 follow-up(비차단): send N+1 배치화 · denied 색대비 측정 · 푸시 딥링크 도착 후 웹 라우트 포커스/공지
+
+---
+
 ## 검증 환경 결과
 
 - [x] `pnpm build` — ✓ built in 3.02s (web 1 successful). chunk size 경고는 기존 follow-up(manualChunks, 스펙 11 §10 품질레인)
 - [x] `pnpm lint` — ✓ 3 successful (web/mobile/shared)
 - [x] `pnpm test` — ✓ shared 21/21 (4파일, **pushRoutes 5케이스 포함**) · web 15/15 (scrub 11 + events 4)
 - [x] `pnpm --filter @moving/mobile typecheck` — ✓ exit 0
-- [△] Edge(Deno) deno check — 로컬 deno 미설치, 배포 시 검증 (STATUS 기록과 일치)
+- [x] Edge(Deno) — 배포로 검증 (`register-push-token`·`send-notifications` 배포 성공 + 실행 정상, 2026-06-14 §배포·실기기 검증)
 
 ---
 
@@ -47,7 +86,7 @@
 
 - [x] `register-push-token`: config.toml 블록 없음 = 기본 verify_jwt=true 유지, anon client `getUser()` 검증(직접 decode 아님), `isExpoPushToken` 정규식 + platform 화이트리스트, service_role `onConflict:'token'` upsert, 500은 일반코드(`REGISTER_FAILED`)·detail은 서버 로그만, CORS allowlist
 - [x] `send-notifications`: **config.toml `verify_jwt=false`**, `PUSH_CRON_TOKEN` 내부검증(미설정=fail-closed 401), DB `kst_today()`, current move 1개(`status='active'`·`deleted_at IS NULL`·`created_at desc` — 웹 `getCurrentMove` 정본과 동일), claim ON CONFLICT, milestone_date 기록, 병합 skip(둘 다 신규일 때만 1건), 전송 후 sent/failed UPDATE, ticket-level 무효토큰(`DeviceNotRegistered`/`InvalidCredentials`) 삭제, 처리상한(MAX_USERS=500/MAX_TOKENS=1000 + truncated), structured log
-- [△] **DRY_RUN 1회 검증 → EXECUTE 전환** — 코드 경로 준비 완료(claim/전송 생략, `mode: DRY_RUN/EXECUTE`). 실발송 검증은 배포 단계
+- [x] **DRY_RUN 검증 → EXECUTE 전환** — DRY_RUN(`targetTokens:1`) 후 `PUSH_DRY_RUN=false` 실발송 `sent:2` 확인, 운영 ON (2026-06-14 §배포·실기기 검증)
 
 ### 네이티브
 
@@ -55,7 +94,7 @@
 - [x] registerPush: projectId fallback(`expoConfig.extra.eas.projectId ?? easConfig.projectId`), register-push-token 호출, 성공 시 `set_push_enabled(true)`, **hasToken=등록 성공 여부**
 - [x] 포그라운드 핸들러(`shouldShowBanner/List/PlaySound`, badge false), 응답 리스너(route normalize→NAVIGATE), 콜드스타트 보류→WEB_READY flush
 - [x] SDK 55 재확인 흔적: `getLastNotificationResponseAsync` deprecated 인지 + 버퍼링 위해 의도적 유지 + `clearLastNotificationResponseAsync`로 stale 재진입 방지 (주석)
-- [△] 실기기 토큰 발급 + 토큰 재할당(재설치/계정전환) user_id 갱신 — EAS 빌드 실기기 검증 필요
+- [x] 실기기 토큰 발급 (iOS, `targetTokens:1`, 2026-06-14) — [△] 토큰 재할당(재설치/계정전환) user_id 갱신은 코드 구현됨·시나리오 실측만 잔여
 
 ### 웹
 
@@ -67,13 +106,13 @@
 
 - [x] `cron-setup.sql`: `0 0 * * *`(00:00 UTC=09:00 KST), Vault `push_cron_token`/`project_url`, upsert(재실행 안전), timeout 120s. 같은 날 중복발송 0은 claim 멱등 보장
 - [x] 발송 실패 시 failed 기록(영구 skip 아님) — claim 모델
-- [△] EAS APNs/FCM 자격증명, 약관/App Privacy(보수 분류)/Data Safety — 콘솔 단계 (`/privacy`는 코드 반영 완료: 기기 푸시 토큰 항목 + Expo 수탁 + 국외이전)
+- [x] EAS **APNs**(iOS) + **FCM**(Android, Firebase isakok-bc157) 자격증명 + 빌드·실발송 검증 (2026-06-14) + **App Privacy/Data Safety** 점검 완료 (`/privacy` 코드 반영: 기기 푸시 토큰 + Expo 수탁 + 국외이전) — 상세 §배포·실기기 검증
 
 ---
 
 ## 누락 (스펙에 있는데 구현 안 됨)
 
-- **🟡 (경미) soft-ask 노출조건 "온보딩 완료 직후"가 명시적 체크 아님** — 스펙 §6-1은 4조건(`push_prompt_seen_at IS NULL` AND `push_enabled=false` AND `isNativeWebView()` AND 온보딩 직후). 구현은 앞 3개만 검사하고 "온보딩 직후"는 **DashboardPage에만 마운트**하는 것으로 갈음. `push_prompt_seen_at` persistent 가드라 실질 무해(1회 응답 시 영구 차단)이나 스펙 문구와 1:1 아님 → 주석/스펙 정합화 권장 (spec-reviewer)
+- **🟡 (경미) soft-ask 노출조건 "온보딩 완료 직후"가 명시적 체크 아님** — 스펙 §6-1은 4조건(`push_prompt_seen_at IS NULL` AND `push_enabled=false` AND `isNativeWebView()` AND 온보딩 직후). 구현은 앞 3개만 검사하고 "온보딩 직후"는 **DashboardPage에만 마운트**하는 것으로 갈음. `push_prompt_seen_at` persistent 가드라 실질 무해(1회 응답 시 영구 차단)이나 스펙 문구와 1:1 아님 → 주석/스펙 정합화 권장 (spec-reviewer). **→ ✅ 해소 (2026-06-14): 동작 불변, 컴포넌트+마운트 주석을 스펙 §6-1과 정합(근사 방식 명시)**
 - (그 외 §13 코드 항목 누락 없음. `[△]`는 누락이 아니라 배포·실측 대기)
 
 ## 스코프 크립 (구현했는데 스펙에 없음)

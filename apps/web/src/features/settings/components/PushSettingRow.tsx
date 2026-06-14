@@ -112,13 +112,14 @@ function PushSettingRowInner() {
           >
             {/* 시각 트랙은 28px 유지, 터치 hit area는 버튼(h-11=44px)로 확장 (WCAG 2.5.8) */}
             <span
-              className={`relative h-7 w-12 rounded-full transition-colors ${
+              className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${
                 checked ? 'bg-primary' : 'bg-placeholder/50'
               }`}
             >
+              {/* 썸은 left로 위치 — ON은 calc로 트랙 우측 2px에 고정(폰트 스케일·렌더 차이와 무관하게 트랙 안에 머묾), 수직은 top-1/2 중앙정렬 */}
               <span
-                className={`absolute top-0.5 h-6 w-6 rounded-full bg-surface shadow transition-transform ${
-                  checked ? 'translate-x-5' : 'translate-x-0.5'
+                className={`absolute top-1/2 h-6 w-6 -translate-y-1/2 rounded-full bg-surface shadow transition-[left] duration-200 ${
+                  checked ? 'left-[calc(100%_-_1.625rem)]' : 'left-0.5'
                 }`}
               />
             </span>
