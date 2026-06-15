@@ -9,7 +9,9 @@ import { getEnv, isProduction } from './env'
  * 웹 Sentry와 네이티브 스토어 콘솔 사이 사각지대인 "브릿지 실패(조용한 실패)"를
  * 웹에서 명시 캡처한다. false positive 방어가 핵심:
  *  - 네이티브 WebView에서만 측정 (일반 브라우저·공개 라우트 제외)
- *  - 타임아웃 10~15초 (콜드스타트·느린 기기·재주입 지연 흡수 — 5초는 너무 짧음)
+ *  - 타임아웃 30초 = "진짜 실패" 확정 시점. 느린 기기·네트워크에선 12초를 넘겨도 AUTH_SESSION이
+ *    결국 도착하는데, 그때 cancelBridgeAuthTimer가 타이머를 꺼 조용히 복구된다(경고 없음).
+ *    30초 내내 미수신일 때만 1회 capture → "느림"이 아니라 "정말 안 옴"만 잡는다(오탐 제거).
  *  - 동일 WebView instance당 1회만 capture (탭 재마운트·재시도 폭주 방지)
  *  - production만 Sentry warning, development는 console.warn만
  *  - 컨텍스트는 전부 비식별 allowlist (route/elapsed/instance/env). PII 금지.
@@ -21,8 +23,11 @@ const WEBVIEW_INSTANCE_ID =
     ? crypto.randomUUID()
     : `inst-${Date.now()}-${Math.round(Math.random() * 1e9)}`
 
-// AUTH_SESSION 미수신 타임아웃. 콜드스타트/느린 기기 흡수를 위해 12초.
-const AUTH_SESSION_TIMEOUT_MS = 12_000
+// AUTH_SESSION 미수신 타임아웃 = genuine failure 확정 시점.
+// 12초는 느린-but-정상 콜드스타트(보급형 기기·느린 네트워크)를 실패로 오탐했다. 늦게라도 AUTH_SESSION이
+// 도착하면 cancelBridgeAuthTimer가 이 타이머를 끄므로(=조용한 복구), 임계값을 30초로 늘려
+// "그 안에 오면 복구 / 30초 내내 미수신일 때만 진짜 실패"가 되게 한다.
+const AUTH_SESSION_TIMEOUT_MS = 30_000
 
 // 세션 게이트 바깥이라 AUTH_SESSION이 원래 안 오는 공개 라우트 — 타이머 제외.
 const SESSION_LESS_ROUTES = ['/privacy', '/terms', '/oss-licenses']
@@ -49,6 +54,8 @@ export function startBridgeAuthTimer(pathname: string): void {
   const startedAt = Date.now()
   authTimer = setTimeout(() => {
     authTimer = null
+    // 여기 도달 = 30초간 AUTH_SESSION 미수신. 느린 복구는 cancelBridgeAuthTimer가 이미 타이머를 껐으므로,
+    // 이 시점에 남는 건 "정말 안 온" genuine failure뿐이다.
     if (authResolved || authTimeoutCaptured) return
     authTimeoutCaptured = true
     captureBridge('bridge_auth_session_timeout', 'warning', {
