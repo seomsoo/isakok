@@ -600,9 +600,10 @@
 - 결정: 에러 추적을 `@sentry/react` 웹 층에만 도입(`tracesSampleRate: 0`). 네이티브 크래시는 스토어 콘솔에 위임. 브릿지 실패(AUTH_SESSION 타임아웃·BridgeMessage 파싱)는 웹에서 Sentry로 캡처. `sendDefaultPii:false`로 SDK가 IP를 추론·수집하지 않음(@sentry SDK v10.4+ 동작).
 - 이유: 얇은 Expo 셸 + 웹뷰라 에러 대부분이 웹 층. 네이티브 SDK는 Expo 빌드 재설정·소스맵 부담 대비 효용 낮음. 브릿지 실패는 "조용한 실패"라 스토어 콘솔도 웹 Sentry 기본형도 못 잡아 명시 로깅으로 구멍을 메움. performance tracing은 출시 전 목표(에러 감지) 밖이고 PII/비용/노이즈가 늘어 0으로 시작.
 - 사각지대(명시): WebView 로드 실패·WebView 표시 전 네이티브 크래시·JS runtime 전 네이티브 장애는 웹 Sentry로 못 잡음 → 스토어 콘솔/수동 검증 + WebView onError 네이티브 fallback UI(ADR-084).
-- 브릿지 false positive 방어: 네이티브 WebView only / 공개 라우트(`/privacy`·`/terms`·`/oss-licenses`) 제외 / 타임아웃 12초 / WebView instance당 1회 / production만 Sentry warning(dev는 console.warn) / 컨텍스트는 비식별 allowlist만(route·elapsed·instance·env).
+- 브릿지 false positive 방어: 네이티브 WebView only / 공개 라우트(`/privacy`·`/terms`·`/oss-licenses`) 제외 / 타임아웃 30초 / WebView instance당 1회 / production만 Sentry warning(dev는 console.warn) / 컨텍스트는 비식별 allowlist만(route·elapsed·instance·env).
 - 구현: `apps/web/src/observability/{sentry,scrub,bridgeMonitor,env}.ts`, `main.tsx`, `App.tsx`, `auth/webSessionListener.ts`, `vite.config.ts`(소스맵 업로드).
 - Follow-up: 출시 후 네이티브 크래시/WebView load failure가 주요 장애로 확인되면 `@sentry/react-native` 도입.
+- 갱신(2026-06-15): 타임아웃 **12초 → 30초**. prod 비공개 테스트에서 보급형 기기(예: Galaxy A50/Android 11)·느린 네트워크의 **정상** 콜드스타트가 12초를 넘겨 `bridge_auth_session_timeout`을 264회 오탐(영향 유저 0). 늦게라도 `AUTH_SESSION`이 도착하면 `cancelBridgeAuthTimer`가 타이머를 끄므로(=조용한 복구), 임계값을 복구 시간 위(30초)로 올려 "느림"이 아닌 "정말 안 옴"만 capture하도록 정정. 코드: `apps/web/src/observability/bridgeMonitor.ts`.
 
 ### ADR-086: PostHog는 이벤트만 + autocapture off, distinct_id=auth.uid() — 스펙 11 본문 ADR-085
 
