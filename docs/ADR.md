@@ -5,10 +5,28 @@
 
 ---
 
+## 주제별 인덱스
+
+> 번호는 작성 순(누적). 주제로 빠르게 찾을 때 사용 (대표 항목 — 전체는 아래 본문). 인용은 `ADR-NNN`.
+
+- **인프라·스택** — Expo(001) · React+Vite(002·007) · Supabase(003·008) · Edge Function(010) · 웹 호스팅 Vercel(098) · dev=prod(075) · Seoul 리전(068)
+- **상태·아키텍처** — 상태관리 분리(005) · 서비스 레이어(006) · 오프라인(004) · WebView 셸(034~036) · 브릿지(037~040·047·049) · 콜드 로드 견고화(084)
+- **인증** — 세션 소유자(041) · 익명 우선(042) · linkIdentity 폴백(043) · Kakao Edge(044·048) · Provider 추상화(045) · Manual Linking(050) · 검증·갱신(052~054)
+- **AI 맞춤 가이드** — 도입(009) · 보강 범위(014~016) · 캐시·중복 방지(017~020) · Haiku 전환(021) · 프롬프트 버전(022)
+- **보안·RLS·프라이버시** — RLS 활성화(056) · Storage 경로(057) · rate limit(058·064) · cache 비공개(059) · users SELECT only(062) · 사진 게이트(074) · PII 스크럽(089)
+- **계정·약관·출시** — release-gate(061) · 계정 삭제(066·082) · provider 해제(067·077·078) · 약관·Play(071~073) · 익명 cleanup(076)
+- **하네스·CI** — 정책 단일 출처(023) · 코드 가드 vs 에이전트(024) · dry-run 우선(030) · 자동 머지 금지(031) · defense in depth(032) · RLS CI required(081)
+- **관측·푸시·빌드** — Sentry·PostHog·업타임(085~089) · Expo Push(090~096) · EAS 빌드 정합(097)
+- **제품 결정** — 가입 유도 시점(011) · 아파트 세입자(012) · 업체 미구현(013) · 네이티브 미디어(079) · 사진 압축(083)
+
+---
+
 ### ADR-001: Expo 선택 (vs Capacitor, vs 순수 RN)
 
 - 결정: Expo (React Native)
-- 이유: 앱스토어/플레이스토어 양쪽 배포 목표, EAS Build로 클라우드 빌드 가능
+- 대안: 순수 React Native(네이티브 빌드 직접 관리) / Flutter(Dart 신규 학습) / PWA(iOS 푸시·카메라 제약)
+- 이유: 앱스토어/플레이스토어 양쪽 배포 목표, EAS Build로 클라우드 빌드 가능. 1인 개발이라 네이티브 빌드 삽질 대신 기능 개발에 시간 투자
+- 맥락: 토스(RN 마이크로 프론트엔드)·당근(네이티브+WebView 하이브리드)이 검증한 패턴. 화면 비중을 1인 규모에 맞춰 웹으로 조절 (DECISIONS §7-4·§12)
 - 트레이드오프: 웹 버전 코드 공유 제한 (별도 React 웹앱 필요)
 
 ### ADR-002: React(Vite) 선택 (vs Next.js)
@@ -20,7 +38,9 @@
 ### ADR-003: Supabase 선택 (vs Firebase)
 
 - 결정: Supabase
-- 이유: PostgreSQL 기반으로 관계형 데이터(유저↔이사↔체크리스트)에 자연스러움. RLS로 보안 처리. Auth+Storage 통합. SQL 기반이라 면접에서 DB 설계 설명 용이
+- 대안: Firebase(NoSQL) / 직접 백엔드 구축(서버 운영 부담)
+- 이유: PostgreSQL 기반으로 관계형 데이터(유저↔이사↔체크리스트)에 자연스러움. RLS로 보안 처리. Auth+Storage 통합. SQL 기반이라 스키마·쿼리를 직접 설계·점검 가능
+- 맥락: 이사 도메인이 명확한 1:N 관계(유저 1 → 이사 N → 체크리스트 N)라 NoSQL보다 관계형이 적합. 확장 한계·전환 트리거는 ADR-008, 백엔드 교체 비용 최소화는 서비스 레이어(ADR-006)로 대비
 - 트레이드오프: Firebase 대비 실시간 기능 약간 제한 (이 앱에서는 불필요)
 
 ### ADR-004: 오프라인 전략 — IndexedDB + 동기화
@@ -32,8 +52,11 @@
 ### ADR-005: 상태관리 분리 — TanStack Query + Zustand
 
 - 결정: 서버 상태는 TanStack Query, 클라이언트 상태는 Zustand
-- 이유: 서버 데이터(체크리스트, 사진)는 캐싱, 낙관적 업데이트, 백그라운드 리페칭이 필요하고, UI 상태(모달, 현재 이사 ID)는 불필요. 하나의 도구로 둘 다 관리하면 역할이 뒤섞임
-- 트레이드오프: 라이브러리 2개 학습 필요. 하지만 둘 다 API가 작아서 학습 비용 낮음
+- 대안 검토:
+  - Context API — selector가 없어 값이 바뀌면 구독 트리 전체가 리렌더. 자주 바뀌는 서버 데이터엔 비효율 (온보딩 스펙에서도 같은 이유로 배제)
+  - Redux(RTK Query) — 1인 MVP엔 보일러플레이트·러닝커브 과함
+  - 한 도구로 통합 — TanStack Query는 서버 캐시 전용이라 순수 UI 상태엔 부적합, Zustand만 쓰면 캐싱·리페칭·낙관적 업데이트를 직접 구현해야 함
+- 이유: 서버 데이터(체크리스트·사진)는 캐싱·낙관적 업데이트·백그라운드 리페칭 필요, UI 상태(모달·현재 이사 ID)는 불필요 → 역할이 다른 둘을 각자 잘하는 도구에 둠
 
 ### ADR-006: 서비스 레이어 패턴 (과도한 추상화 지양)
 
@@ -44,7 +67,7 @@
 ### ADR-007: Vite 선택 (vs CRA)
 
 - 결정: Vite
-- 이유: CRA는 2023년에 유지보수 중단. 공식 React 문서에서도 비추천. 2025-2026년 기준으로 React SPA의 표준 빌드 도구가 Vite. CRA를 쓰면 면접에서 "deprecated된 도구를 왜 썼나" 질문 가능
+- 이유: CRA는 2023년에 유지보수 중단. 공식 React 문서에서도 비추천. 2025-2026년 기준 React SPA의 표준 빌드 도구가 Vite — 새로 시작하는 프로젝트에 deprecated된 CRA를 쓸 이유 없음
 - 비교 대상이 아님: CRA vs Vite 비교가 아니라, CRA가 선택지에서 이미 빠진 상태
 
 ### ADR-008: Supabase 확장성 판단
@@ -56,8 +79,10 @@
 ### ADR-009: AI 맞춤 가이드 도입
 
 - 결정: 체크리스트 항목별 AI 맞춤 가이드 생성 (조건별 캐싱)
-- 이유: 국내외 이사 앱 중 AI 기능 전무 → 명확한 차별화. 면접에서 "LLM 프로덕션 적용 경험" 어필.
-- 트레이드오프: API 비용 발생하지만 캐싱으로 1,600원 1회성. 프롬프트 품질 튜닝에 시간 필요.
+- 이유: 국내외 이사 앱 중 AI 기능 전무 → 명확한 차별화. LLM을 실제 프로덕션에 적용(프롬프트 설계·조건별 캐싱·폴백)하는 경험.
+- 맥락: 경쟁 서비스(짐싸·짐카·이사모아·MoveAdvisor) 모두 정적 체크리스트 / 규칙 기반이라 AI 없음 (DECISIONS §10). 같은 항목도 유저 조건(주거·계약·이사방식·첫이사)에 따라 가이드 톤·내용이 달라짐
+- 할루시네이션 통제: AI가 새 정보를 만드는 게 아니라 기존 guide_content(정답 원본)를 유저 눈높이로 재작성 + 법적 정보 면책 문구 (DECISIONS §4-1·§12)
+- 트레이드오프: API 비용 발생하지만 조합별 캐싱으로 약 1,600원 1회성(이후 유저 수 무관 0원, ADR-021 Haiku 전환으로 추가 절감). 프롬프트 품질 튜닝에 시간 필요
 
 ### ADR-010: Supabase Edge Function 선택 (API 키 보안)
 
@@ -689,3 +714,19 @@
 - 보완(배포 발견): EAS preview 빌드가 실기기에서 즉시 크래시(`[supabaseNative] EXPO_PUBLIC_SUPABASE_URL/ANON_KEY missing`). 원인은 빌드설정/다운그레이드가 아니라 **EAS env 환경 매핑** — `EXPO_PUBLIC_*`는 빌드 시 JS 번들에 인라인되는데, 변수가 `production` 환경에만 등록돼 있고 `preview` 프로필은 빈 환경을 참조해 미주입(google pod가 끌려온 건 env가 아니라 autolinking이라 무관). dev=prod(ADR-075, 백엔드 단일)이므로 `eas.json`의 development/preview/production **3개 프로필 모두 `"environment": "production"`** 지정 → 동일 env 사용. dev≠prod로 분리(ADR-075 트리거) 시 재매핑. (Secret visibility는 번들 미인라인 / Sensitive는 인라인됨.)
 - 교훈: RN 생태계(`react`·`react-native`·`react-native-*`)는 **`expo install`로만** 갱신하고 Dependabot ignore에 넣어 SDK 앞지르기(드리프트)를 차단한다.
 - 구현: `apps/mobile/package.json`·`app.config.ts`·`eas.json`, `pnpm-lock.yaml`.
+
+### ADR-098: 웹 호스팅 Vercel 선택 + 사용자 증가 시 확장
+
+- 결정: React(Vite) SPA를 Vercel에 정적 배포 (무료 Hobby 티어). Git 연동 자동 배포 + PR 프리뷰 + 글로벌 CDN
+- 대안 검토:
+  - Netlify — DX 거의 동등, 결정적 차이 없음 (예시·문서 풍부한 Vercel 선택)
+  - Cloudflare Pages — 무료 대역폭이 더 후함 → 트래픽 비용이 문제 될 때 1순위 이전 후보
+  - GitHub Pages — 프리뷰 배포·리다이렉트·환경변수 등 기능 부족
+  - S3 + CloudFront / 자체 서버 — 1인 개발에 설정·운영 부담 과함
+- 이유: 빌드 결과물이 정적 파일(ADR-002)이라 정적 호스팅으로 충분. WebView가 원격 URL을 로드하는 구조(ADR-036)라 웹 수정 시 앱스토어 심사 없이 Vercel 배포만으로 즉시 반영 — 이 "즉시 배포" 워크플로가 핵심 가치. 무료 티어로 MVP 운영비 $0(Supabase Free와 합쳐)
+- 확장 (사용자 증가 시):
+  - 프론트는 정적 SPA라 트래픽 대부분이 데이터·사진으로 감 → 실제 병목은 백엔드(Supabase, ADR-008)·Storage. 프론트 호스팅 비용은 상대적으로 작음
+  - Vercel Hobby 대역폭(월 100GB) 한계 도달 시 → (A) Vercel Pro 전환 또는 (B) Cloudflare Pages 등으로 이전. 정적 결과물이라 이전 비용 낮음(CI 빌드 산출물만 이동)
+  - 정적 자산은 CDN 캐시 + 해시 파일명(immutable)이라 추가 트래픽은 주로 신규 방문·배포 시점 → 대역폭 증가 완만
+  - dev=prod 단일 운영(ADR-075)·custom domain 미구매(현재 `isakok.vercel.app`)는 사용자 증가·분리 트리거에서 함께 재검토
+- 트레이드오프: 무료 티어는 대역폭·빌드 시간 제한 + 상용 SLA 없음. 인디 규모에선 무시 가능, 트리거 도달 시 Pro/이전으로 대응

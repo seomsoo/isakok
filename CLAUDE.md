@@ -68,7 +68,7 @@ docs/              ← 기획 문서, 단계별 스펙 (SDD)
   - scope: onboarding, dashboard, timeline, checklist, photos, settings, auth, shared, mobile, supabase
   - subject: 소문자 시작, 마침표 없음, 명령형 (add/fix/remove)
   - 본문: 선택 (대부분 제목만으로 충분, 설계 판단은 PR에 작성)
-  - Co-Authored-By 트레일러 금지 (커밋, PR 모두)
+  - AI 출처 트레일러·푸터 금지 (커밋·PR 본문 모두) — `Co-Authored-By`, `🤖 Generated with Claude Code` 등 도구·모델 흔적을 일절 넣지 않음
 - PR: feature branch → main 머지 시 반드시 작성
   - **제1원칙 — 한눈에 이해**: 코드를 안 본 사람(비개발자·리뷰어·미래의 나)도 **제목 + 맨 위 요약만 읽고** "무엇을, 왜 바꿨는지"를 알 수 있게 쓴다. 결론부터, 일상어로, 전문용어는 한 번 풀어서, 한 줄에 한 메시지. 아래 섹션은 "채우기 양식"이 아니라 이 원칙을 돕는 틀이다.
   - 제목: 커밋과 동일 형식 (`feat(onboarding): add 4-step form`)
