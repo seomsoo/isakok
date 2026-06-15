@@ -105,7 +105,7 @@ Sentry.init({
 
 - **네이티브 WebView 환경에서만** 측정. 일반 브라우저·공개 라우트(`/privacy`, `/terms`, `/health` 등 — 세션 게이트 바깥, AUTH_SESSION이 원래 안 옴)는 **제외**.
 - 타이머는 `WEB_READY` 전송 직후 시작, `AUTH_SESSION` 수신 시 cancel.
-- 타임아웃 **10~15초**로 시작(콜드스타트·느린 기기·재주입 지연 흡수). 5초는 너무 짧음.
+- 타임아웃 **30초** = "진짜 실패" 확정 시점. 늦게라도 `AUTH_SESSION`이 도착하면 타이머를 cancel해 **조용히 복구**(경고 없음). 30초 내내 미수신일 때만 1회 capture → "느림"이 아니라 "정말 안 옴"만 잡는다. (초기값 12초는 보급형 기기·느린 네트워크의 정상 콜드스타트를 오탐 → 2026-06-15 상향.)
 - **동일 WebView instance당 1회만** capture(탭 재마운트·재시도 알림 폭주 방지).
 - **production에서만** Sentry warning. development는 `console.warn`만.
 - 허용 컨텍스트(전부 비식별): `route_name`, `tab_name`, `elapsed_ms`, `webview_instance_id`, `app_env`, `is_native_webview`.
@@ -380,7 +380,7 @@ function stripUrl(url?: string): string | undefined {
 - [ ] `beforeSend` 스크럽 (headers/cookies/query/body/breadcrumb/user, stripUrl, allowlist extra)
 - [ ] `Sentry.setUser({ id })`만
 - [ ] `@sentry/vite-plugin` 소스맵 업로드 (SENTRY_AUTH_TOKEN/ORG/PROJECT) + release 일치 + `dist/**/*.map` 삭제
-- [ ] 브릿지 타임아웃: native WebView only / 공개 라우트 제외 / 10~15s / instance당 1회 / prod만 warning
+- [ ] 브릿지 타임아웃: native WebView only / 공개 라우트 제외 / 30s(늦은 AUTH_SESSION 도착 시 cancel=복구) / instance당 1회 / prod만 warning
 - [ ] BridgeMessage 파싱 실패 → Sentry 캡처
 - [ ] WebView onError/onHttpError 네이티브 fallback UI (사각지대 명시)
 - [ ] WebView 내 전송 동작 + CSP/네트워크 allowlist 확인
