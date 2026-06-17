@@ -37,7 +37,7 @@ export { normalizePushRoute } from './constants/pushRoutes'
 export { PUSH_PERMISSION_COPY, PUSH_SETTING_COPY } from './constants/pushCopy'
 
 // 유틸
-export { isNativeWebView, sendToNative, onNativeMessage } from './utils/nativeBridge'
+export { isNativeWebView, sendToNative, onNativeMessage, requestHaptic } from './utils/nativeBridge'
 export { calculateProgress, calculateEssentialProgress } from './utils/progress'
 export { getRelativeDateLabel, formatDateKorean, parseLocalDate } from './utils/dateLabel'
 export { getUrgencyMode, rescheduleOverdueItems } from './utils/urgencyMode'

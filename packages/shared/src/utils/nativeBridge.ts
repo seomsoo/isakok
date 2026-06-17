@@ -31,6 +31,21 @@ export function sendToNative(message: WebToNativeMessage): void {
 }
 
 /**
+ * 햅틱(진동) 세기/종류. bridge.ts의 REQUEST_HAPTIC payload와 항상 동기화됨
+ */
+type HapticStyle = Extract<WebToNativeMessage, { type: 'REQUEST_HAPTIC' }>['payload']['style']
+
+/**
+ * 네이티브 햅틱(진동) 피드백 요청
+ * 네이티브 셸이 expo-haptics로 처리. 웹 브라우저에서는 sendToNative가 console.log로 폴백하므로
+ * 별도 가드 없이 호출해도 안전하게 무시됨.
+ * @param style - light: 선택·토글 / medium: 일반 / heavy: 파괴적 확정 / success: 완료 / error: 실패
+ */
+export function requestHaptic(style: HapticStyle): void {
+  sendToNative({ type: 'REQUEST_HAPTIC', payload: { style } })
+}
+
+/**
  * 네이티브 → 웹 메시지 리스너 등록
  * @returns cleanup 함수
  */
