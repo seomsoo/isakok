@@ -63,7 +63,7 @@ body {
   display: none;
 }
 
-/* 체크 토글 마이크로 인터랙션 */
+/* 마이크로 인터랙션 키프레임 */
 @keyframes slideUp {
   from {
     opacity: 0;
@@ -72,6 +72,15 @@ body {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
 
@@ -87,8 +96,28 @@ body {
   }
 }
 
+/* 체크 토글 scale pop (DESIGN.md §8: 150ms ease-out) */
 .animate-check {
-  animation: check-pop 0.25s ease-out;
+  animation: check-pop 0.15s ease-out;
+}
+
+/* 콘텐츠/리스트 컨테이너 등장 페이드. 컨테이너 단위에만 적용, per-item stagger 금지(§8-3) */
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+/* 바텀시트 진입 (DESIGN.md §8: transform 300ms cubic-bezier(0.33,1,0.68,1)) */
+.animate-sheet-in {
+  animation: slideUp 0.3s cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+/* 모션 최소화 선호 시 커스텀 키프레임 애니메이션 비활성 (DESIGN.md §8-1) */
+@media (prefers-reduced-motion: reduce) {
+  .animate-check,
+  .animate-fade-in,
+  .animate-sheet-in {
+    animation: none;
+  }
 }
 
 html.native-webview,

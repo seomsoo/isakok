@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { requestHaptic } from '@moving/shared'
 import type { HousingType, ContractType, MoveType } from '@shared/types/move'
 import { HOUSING_TYPES, CONTRACT_TYPES, MOVE_TYPES } from '@shared/types/move'
 import type { Move } from '@/services/move'
@@ -33,12 +34,17 @@ export function MoveEditSheet({ move, onClose }: MoveEditSheetProps) {
         contractType,
         moveType,
       },
-      { onSuccess: onClose },
+      {
+        onSuccess: () => {
+          requestHaptic('success')
+          onClose()
+        },
+      },
     )
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-neutral">
+    <div className="animate-fade-in flex min-h-dvh flex-col bg-neutral">
       <header className="flex h-14 items-center justify-between px-4">
         <button type="button" onClick={onClose} className="text-body-sm font-medium text-muted">
           취소

@@ -17,6 +17,7 @@ import { useSignedUrls } from '@/features/photos/hooks/useSignedUrls'
 import { usePhotos } from '@/features/photos/hooks/usePhotos'
 import { photoKeys } from '@/features/photos/hooks/queryKeys'
 import { useToast } from '@/shared/components/ToastProvider'
+import { ErrorMessage } from '@/shared/components/ErrorMessage'
 import { useUserId } from '@/auth/useSession'
 import { cn } from '@/lib/cn'
 
@@ -42,9 +43,26 @@ function daysLeft(iso: string | null): number {
 export function PhotoTrashPage() {
   const goBack = useGoBack('/photos')
   const [searchParams] = useSearchParams()
-  const { data: move, isPending } = useCurrentMove()
+  const { data: move, isPending, isError: isMoveError, refetch: refetchMove } = useCurrentMove()
 
   if (isPending) return <main className="min-h-dvh bg-neutral" />
+  if (isMoveError && !move) {
+    return (
+      <main className="flex min-h-dvh flex-col bg-neutral">
+        <div className="flex h-11 items-center px-1 pt-[env(safe-area-inset-top)]">
+          <button
+            type="button"
+            onClick={goBack}
+            aria-label="뒤로가기"
+            className="flex h-11 w-11 items-center justify-center text-secondary"
+          >
+            <ChevronLeft size={22} strokeWidth={2.2} />
+          </button>
+        </div>
+        <ErrorMessage onRetry={() => refetchMove()} />
+      </main>
+    )
+  }
   if (!move) return <Navigate to={ROUTES.LANDING} replace />
 
   const queryType = searchParams.get('type') as PhotoType | null
@@ -67,7 +85,12 @@ function Inner({ moveId, photoType, onBack }: InnerProps) {
   const [activeFilter, setActiveFilter] = useState<string>(FILTER_ALL)
 
   const { data: activePhotos = [] } = usePhotos(moveId, photoType, uid)
-  const { data: deletedPhotos = [], isLoading } = useQuery({
+  const {
+    data: deletedPhotos = [],
+    isLoading,
+    isError: isDeletedError,
+    refetch: refetchDeleted,
+  } = useQuery({
     queryKey: photoKeys.allDeleted(moveId, photoType),
     queryFn: () => getAllDeletedPhotos(moveId, photoType, uid),
     enabled: !!uid,
@@ -153,6 +176,8 @@ function Inner({ moveId, photoType, onBack }: InnerProps) {
         <div className="flex flex-1 items-center justify-center">
           <Loader2 size={24} className="animate-spin text-muted" />
         </div>
+      ) : isDeletedError ? (
+        <ErrorMessage onRetry={() => refetchDeleted()} />
       ) : deletedPhotos.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-10">
           <div className="flex h-12 w-12 items-center justify-center rounded-[14px] bg-black/[0.04]">

@@ -6,6 +6,7 @@ import { useCurrentMove } from '@/features/dashboard/hooks/useCurrentMove'
 import { usePhotos } from '@/features/photos/hooks/usePhotos'
 import { useSignedUrls } from '@/features/photos/hooks/useSignedUrls'
 import { Skeleton } from '@/shared/components/Skeleton'
+import { ErrorMessage } from '@/shared/components/ErrorMessage'
 import { ReportHeader } from '@/features/photos/components/ReportHeader'
 import { ReportRoomSection } from '@/features/photos/components/ReportRoomSection'
 import { PhotoFullscreenViewer } from '@/features/photos/components/PhotoFullscreenViewer'
@@ -37,16 +38,17 @@ export function PhotoReportPage() {
   const [selected, setSelected] = useState<PropertyPhoto | null>(null)
   const { userId } = useUserId()
 
-  const { data: move, isPending } = useCurrentMove()
+  const { data: move, isPending, isError: isMoveError, refetch: refetchMove } = useCurrentMove()
   const queryType = searchParams.get('type') as PhotoType | null
   const photoType: PhotoType = queryType === 'move_out' ? 'move_out' : 'move_in'
   const goBack = useGoBack(`/photos?type=${photoType}`)
 
-  const { data: photos = [], isLoading: isPhotosLoading } = usePhotos(
-    move?.id,
-    photoType,
-    userId ?? '',
-  )
+  const {
+    data: photos = [],
+    isLoading: isPhotosLoading,
+    isError: isPhotosError,
+    refetch: refetchPhotos,
+  } = usePhotos(move?.id, photoType, userId ?? '')
   const { data: urlMap } = useSignedUrls(
     photos.map((p) => p.storage_path),
     userId ?? '',
@@ -62,6 +64,29 @@ export function PhotoReportPage() {
           <Skeleton className="h-[260px] rounded-[20px]" />
           <Skeleton className="h-[200px] rounded-[20px]" />
         </div>
+      </main>
+    )
+  }
+  if (isMoveError || isPhotosError) {
+    return (
+      <main className="flex min-h-dvh flex-col bg-neutral">
+        <div className="pt-[env(safe-area-inset-top)]" />
+        <div className="flex h-[52px] shrink-0 items-center px-1">
+          <button
+            type="button"
+            onClick={goBack}
+            aria-label="뒤로가기"
+            className="flex h-11 w-11 items-center justify-center text-secondary"
+          >
+            <ChevronLeft size={22} strokeWidth={2.2} />
+          </button>
+        </div>
+        <ErrorMessage
+          onRetry={() => {
+            refetchMove()
+            refetchPhotos()
+          }}
+        />
       </main>
     )
   }

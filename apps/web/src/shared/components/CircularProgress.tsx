@@ -23,7 +23,11 @@ export function CircularProgress({
   const offset = circumference * (1 - percentage)
 
   return (
-    <div className={className} role="img" aria-label={ariaLabel ?? `진행률 ${completed}/${total} 완료`}>
+    <div
+      className={className}
+      role="img"
+      aria-label={ariaLabel ?? `진행률 ${completed}/${total} 완료`}
+    >
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         {/* 배경 트랙 */}
         <circle
@@ -47,6 +51,7 @@ export function CircularProgress({
           strokeDashoffset={offset}
           strokeLinecap="round"
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          className="transition-[stroke-dashoffset] duration-300 ease-out motion-reduce:transition-none"
         />
       </svg>
       {/* 중앙 텍스트 */}

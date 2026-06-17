@@ -128,7 +128,7 @@ export function PhotoDetailSheet({
         role="dialog"
         aria-modal="true"
         aria-label="사진 상세"
-        className="fixed inset-0 z-50 flex items-end justify-center bg-black/50"
+        className="animate-fade-in fixed inset-0 z-50 flex items-end justify-center bg-black/50"
       >
         <div
           className="absolute inset-0"
@@ -140,7 +140,7 @@ export function PhotoDetailSheet({
             if (e.key === 'Enter' || e.key === ' ') onClose()
           }}
         />
-        <div className="relative w-full max-w-[430px] rounded-t-2xl bg-white pb-[calc(env(safe-area-inset-bottom)+16px)]">
+        <div className="animate-sheet-in relative w-full max-w-[430px] rounded-t-2xl bg-white pb-[calc(env(safe-area-inset-bottom)+16px)]">
           <div className="flex justify-end p-2">
             <button
               type="button"

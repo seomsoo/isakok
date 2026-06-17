@@ -13,6 +13,7 @@ import { SkippableSection } from '@/features/timeline/components/SkippableSectio
 import { TimelinePromptCard } from '@/features/timeline/components/TimelinePromptCard'
 import { DevTabBar } from '@/shared/components/DevTabBar'
 import { Skeleton } from '@/shared/components/Skeleton'
+import { ErrorMessage } from '@/shared/components/ErrorMessage'
 import { useUserId } from '@/auth/useSession'
 import type { PeriodGroup } from '@/features/timeline/hooks/useTimelineItems'
 
@@ -20,17 +21,23 @@ type SortMode = 'time' | 'category'
 
 export function TimelinePage() {
   const { userId } = useUserId()
-  const { data: move, isPending, isFetching } = useCurrentMove()
+  const {
+    data: move,
+    isPending,
+    isFetching,
+    isError: isMoveError,
+    refetch: refetchMove,
+  } = useCurrentMove()
   const moveId = move?.id ?? ''
   const movingDate = move?.moving_date ?? ''
   const uid = userId ?? ''
   const { mode } = useUrgencyMode(movingDate)
-  const { data: timeline, isLoading: isTimelineLoading } = useTimelineItems(
-    moveId,
-    uid,
-    movingDate,
-    mode,
-  )
+  const {
+    data: timeline,
+    isLoading: isTimelineLoading,
+    isError: isTimelineError,
+    refetch: refetchTimeline,
+  } = useTimelineItems(moveId, uid, movingDate, mode)
   const toggleMutation = useToggleItem(moveId, uid)
 
   const [sortMode, setSortMode] = useState<SortMode>('time')
@@ -40,6 +47,13 @@ export function TimelinePage() {
   const searchRef = useRef<HTMLInputElement>(null)
 
   if (isPending || (isFetching && !move)) return <TimelineSkeleton />
+  if (isMoveError && !move) {
+    return (
+      <div className="flex min-h-dvh flex-col bg-neutral">
+        <ErrorMessage onRetry={() => refetchMove()} />
+      </div>
+    )
+  }
   if (!move) return <Navigate to={ROUTES.LANDING} replace />
 
   function handleToggle(id: string, isCompleted: boolean) {
@@ -233,14 +247,14 @@ export function TimelinePage() {
             {/* 트랙 (아이콘 중심~중심) */}
             <div className="absolute top-1/2 right-3.5 left-3.5 h-1 -translate-y-1/2 rounded-full bg-border">
               <div
-                className="absolute inset-y-0 left-0 rounded-full bg-primary transition-all duration-500 ease-out"
+                className="absolute inset-y-0 left-0 rounded-full bg-primary transition-all duration-300 ease-out motion-reduce:transition-none"
                 style={{ width: `${progress.percentage}%` }}
               />
             </div>
 
             {/* 집 아이콘 (트랙 끝) */}
             <div
-              className={`absolute right-0 top-1/2 -translate-y-1/2 transition-all duration-300 ${
+              className={`absolute right-0 top-1/2 -translate-y-1/2 transition-all duration-300 motion-reduce:transition-none ${
                 progress.percentage >= 100 ? 'scale-0 opacity-0' : 'scale-100 opacity-100'
               }`}
             >
@@ -251,12 +265,12 @@ export function TimelinePage() {
 
             {/* 화물차 아이콘 (진행 위치) */}
             <div
-              className="absolute top-1/2 -translate-y-1/2 transition-all duration-500 ease-out"
+              className="absolute top-1/2 -translate-y-1/2 transition-all duration-300 ease-out motion-reduce:transition-none"
               style={{
                 left: `calc(${progress.percentage}% - ${progress.percentage / 100} * 1.75rem)`,
               }}
             >
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-neutral shadow-sm transition-colors duration-300 bg-primary text-white">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-neutral shadow-sm transition-colors duration-300 bg-primary text-white motion-reduce:transition-none">
                 {progress.percentage >= 100 ? (
                   <Home size={14} strokeWidth={2} />
                 ) : (
@@ -274,12 +288,14 @@ export function TimelinePage() {
           <Skeleton className="h-20 w-full rounded-2xl" />
           <Skeleton className="mt-3 h-40 w-full rounded-2xl" />
         </div>
+      ) : isTimelineError ? (
+        <ErrorMessage message="할 일을 불러오지 못했어요" onRetry={() => refetchTimeline()} />
       ) : !hasContent ? (
         <p className="mt-10 text-center text-body-sm text-muted">
           {searchQuery ? '검색 결과가 없어요' : '해당하는 항목이 없어요'}
         </p>
       ) : (
-        <>
+        <div className="animate-fade-in">
           {filteredPeriods.map((period, index) => (
             <div key={period.key}>
               {index > 0 && <div className="h-2 bg-border/50" />}
@@ -294,7 +310,7 @@ export function TimelinePage() {
           <CompletedSection items={completedItems} onToggle={handleToggle} />
 
           <TimelinePromptCard />
-        </>
+        </div>
       )}
 
       <DevTabBar />

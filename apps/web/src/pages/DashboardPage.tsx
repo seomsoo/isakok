@@ -25,23 +25,30 @@ import { PhotoPromptCard } from '@/features/dashboard/components/PhotoPromptCard
 import { ModeTransitionBanner } from '@/features/dashboard/components/ModeTransitionBanner'
 import { DevTabBar } from '@/shared/components/DevTabBar'
 import { Skeleton } from '@/shared/components/Skeleton'
+import { ErrorMessage } from '@/shared/components/ErrorMessage'
 import { useUserId } from '@/auth/useSession'
 import { PushPermissionSheet } from '@/features/onboarding/components/PushPermissionSheet'
 
 export function DashboardPage() {
   const { userId } = useUserId()
-  const { data: move, isPending, isFetching } = useCurrentMove()
+  const {
+    data: move,
+    isPending,
+    isFetching,
+    isError: isMoveError,
+    refetch: refetchMove,
+  } = useCurrentMove()
   const moveId = move?.id ?? ''
   const movingDate = move?.moving_date ?? ''
   const uid = userId ?? ''
   const { mode, daysUntilMove, isTransitioned, transitionMessage } = useUrgencyMode(movingDate)
   const dismissTransition = useModeStore((s) => s.dismissTransition)
-  const { data: dashboardData, isLoading: isDashLoading } = useDashboardItemsWithMode(
-    moveId,
-    uid,
-    mode,
-    movingDate,
-  )
+  const {
+    data: dashboardData,
+    isLoading: isDashLoading,
+    isError: isDashError,
+    refetch: refetchDash,
+  } = useDashboardItemsWithMode(moveId, uid, mode, movingDate)
   const { data: allItems } = useTimelineItemsForProgress(moveId, uid)
   const toggleMutation = useToggleItem(moveId, uid)
   const generateAiGuide = useGenerateAiGuide()
@@ -61,6 +68,13 @@ export function DashboardPage() {
   }, [triggerKey])
 
   if (isPending || (isFetching && !move)) return <DashboardSkeleton />
+  if (isMoveError && !move) {
+    return (
+      <div className="flex min-h-dvh flex-col bg-neutral">
+        <ErrorMessage onRetry={() => refetchMove()} />
+      </div>
+    )
+  }
   if (!move) return <Navigate to={ROUTES.LANDING} replace />
 
   const daysRemaining = differenceInCalendarDays(parseISO(move.moving_date), new Date())
@@ -122,8 +136,10 @@ export function DashboardPage() {
         <div className="mt-6 px-5">
           <Skeleton className="h-40 w-full rounded-2xl" />
         </div>
+      ) : isDashError ? (
+        <ErrorMessage message="할 일을 불러오지 못했어요" onRetry={() => refetchDash()} />
       ) : (
-        <>
+        <div className="animate-fade-in">
           <MotivationCard completed={progress.completed} total={progress.total} mode={mode} />
           <ActionSection
             items={actionItems}
@@ -133,7 +149,7 @@ export function DashboardPage() {
           />
 
           <UpcomingSection items={upcoming} mode={mode} />
-        </>
+        </div>
       )}
 
       <PhotoPromptCard daysRemaining={daysRemaining} mode={mode} />

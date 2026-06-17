@@ -1,3 +1,4 @@
+import { requestHaptic } from '@moving/shared'
 import { cn } from '@/lib/cn'
 
 interface SelectionChipProps {
@@ -20,7 +21,10 @@ export function SelectionChip({
       type="button"
       role="radio"
       aria-checked={isSelected}
-      onClick={onSelect}
+      onClick={() => {
+        requestHaptic('light')
+        onSelect()
+      }}
       className={cn(
         'flex h-10 cursor-pointer items-center justify-center gap-2 rounded-lg border px-4  transition-all duration-150',
         isSelected

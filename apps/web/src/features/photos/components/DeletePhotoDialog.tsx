@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { requestHaptic } from '@moving/shared'
 
 interface DeletePhotoDialogProps {
   isOpen: boolean
@@ -73,6 +74,7 @@ export function DeletePhotoDialog({
           <button
             type="button"
             onClick={() => {
+              requestHaptic('heavy')
               onConfirm()
               onClose()
             }}

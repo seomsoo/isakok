@@ -1,10 +1,10 @@
 # 프로젝트 상태
 
-> 마지막 업데이트: 2026-06-14 (12단계 푸시 알림 — **배포 + iOS 실기기 검증 완료, 운영 ON**. 마이그레이션 push(00023~00028)·Edge 배포·시크릿/Vault·Cron·EAS iOS&Android 빌드·DRY_RUN→EXECUTE 실발송·3상태(백그라운드/콜드스타트/포그라운드)+딥링크·Android FCM(Firebase isakok-bc157)·App Privacy/Data Safety 점검까지 완료. EAS 빌드 정합 픽스 ADR-097(RN 0.83.6 SDK 정렬+static framework+eas env=production). 미커밋 코드 12파일 커밋 진행 중. 잔여: on-device 반영(토글 CSS 웹 재배포·Android 채널 HIGH 다음 빌드)·토큰 재할당 field test(deferred·비차단)·🟡 follow-up + 11 배포후 실측 + 10-4 잔여 콘솔 → "다음 할 것")
+> 마지막 업데이트: 2026-06-17 (**12단계 푸시 알림 완료** — PR #71·#72 머지, 배포·iOS 실기기 검증·운영 ON(EXECUTE + 매일 09:00 KST Cron). 이후 관측 보정 #73, docs 정리(README·ADR 토픽 인덱스·트러블슈팅 #69 등). **개발 단계 0~12 코드 완료 → 현재 운영/폴리시 모드(별도 번호 단계 없음)**. 진행 중: **네이티브 느낌 패스**(`feat/web-native-feel` 브랜치 커밋 완료·미머지 — 마이크로 인터랙션 `UI-POLISH.md` §13 + 에러 통일 §14). 잔여(비차단): 10-4 콘솔 · 11 배포후 실측 · 12 토큰 재할당 field test/Android 채널 HIGH 다음 빌드/테스트 이사일 원복 → "다음 할 것")
 
 ## 현재 단계
 
-12단계: 푸시 알림 (일정 기반 리마인더) — **배포 + iOS 실기기 검증 완료(2026-06-14), 운영 ON(EXECUTE + 매일 09:00 KST Cron). 코드 12파일 커밋 진행 중**
+**개발 단계 0~12 코드 완료 — 현재 운영/폴리시 모드(별도 번호 단계 없음).** 12단계 푸시 알림: PR #71·#72 머지, 배포·iOS 실기기 검증 완료, **운영 ON**(EXECUTE + 매일 09:00 KST Cron). (아래 구현 요약은 12단계 기록 — 정본은 spec/verify·ADR-090~097)
 
 Expo Push로 데일리 다이제스트 + D-day 마일스톤(7/3/1/0)을 09:00 KST Cron 발송(회원·익명, 권한 수락 시). 구현: DB(00023~00028 — push*tokens·notification_log claim 모델·users push 컬럼·set_push*\*/claim/kst_today/delete_my_push_tokens RPC) · Edge(register-push-token, send-notifications + cron-setup) · 네이티브(expo-notifications 권한/토큰/Android 채널/포그라운드·응답·콜드스타트, WebView·\_layout 배선) · 웹(soft-ask 모달·설정 토글 effective status·NAVIGATE 딥링크·privacy Expo 수탁 고지) · ADR-090~096. `pnpm lint`/`typecheck` 통과, `test` shared 21·web 15. Edge(Deno)는 로컬 deno 미설치라 배포 시 검증. 스펙 `docs/specs/12-push-notifications.md`(+`12-push-notifications-verify.md`).
 
@@ -16,13 +16,14 @@ Expo Push로 데일리 다이제스트 + D-day 마일스톤(7/3/1/0)을 09:00 KS
 
 ## 진행 중인 것
 
-- **12단계 푸시 알림**: **배포·iOS 실기기 검증 완료(2026-06-14), 운영 ON.** 마이그레이션·Edge·시크릿/Vault·Cron·EAS iOS&Android·DRY_RUN→EXECUTE 실발송·3상태+딥링크·Android FCM·App Privacy/Data Safety 점검 끝(상세 `12-push-notifications-verify.md` §배포·실기기 검증). 배포 중 EAS 빌드 정합 픽스(ADR-097) + 토글 CSS·채널 HIGH·soft-ask 주석 정합. **다음: 미커밋 코드 12파일 커밋(작업단위 분할) → 토글 CSS 웹 재배포(Vercel).** 잔여(비차단): 토큰 재할당 field test(deferred), Android 채널 HIGH 팝업 on-device(다음 빌드 재설치 시).
+- **네이티브 느낌 패스** (`feat/web-native-feel` 브랜치, 커밋 완료·**미머지**) — ① 마이크로 인터랙션(햅틱·등장 페이드·시트 진입·Toast 퇴장·체크 pop·duration 정합, `UI-POLISH.md` §13) ② 에러 통일(ErrorBoundary 신규·조회 실패 `ErrorMessage`+`refetch`·mutation toast, §14). `pnpm lint`/`typecheck`/`build` + 온보딩 스모크(Playwright, 햅틱 dev-fallback) 통과. **다음: 실기기 햅틱 체감·에러/데이터 화면 시각확인 → PR.**
+- (12단계 푸시: PR #71·#72 머지·배포·운영 ON 완료 → "완료된 것")
 - (11단계 관측 #70 머지 완료, 10-4 follow-up #68/#69 머지 완료)
 - (10-4 잔여 콘솔/운영은 아래 "다음 할 것")
 
 ## 다음 할 것
 
-1. **12단계 마무리** (배포·검증 ✅ 완료, `12-push-notifications-verify.md` §배포·실기기 검증) — 남은 건: (a) **미커밋 코드 12파일 커밋**(작업단위 분할: 모바일 빌드정합 app.config/package/lock → eas.json → 채널 → 웹 토글 CSS → soft-ask 주석 → docs) + 적절한 브랜치/PR (b) **토글 CSS 웹 재배포**(Vercel — PR 머지 시 자동) (c) 비차단 잔여: 토큰 재할당 field test(소셜 로그인→로그아웃 시나리오, deferred) · Android 채널 HIGH 팝업 on-device(다음 빌드 재설치) · 🟡 follow-up(N+1 배치화·denied 색대비·웹 라우트 포커스). **테스트로 바꾼 이사일 원복 필요**(D-0 → 실제 날짜, 안 하면 매일 디지스트).
+1. **12단계 비차단 잔여** (코드·배포·검증 ✅ — PR #71·#72 머지, `12-push-notifications-verify.md` §배포·실기기 검증) — 토큰 재할당 field test(소셜 로그인→로그아웃 시나리오, deferred) · Android 채널 HIGH 팝업 on-device(다음 빌드 재설치) · 🟡 follow-up(N+1 배치화·denied 색대비·웹 라우트 포커스). **테스트로 바꾼 이사일 원복 필요**(D-0 → 실제 날짜, 안 하면 매일 디지스트).
 2. **11단계 배포 후 실측** (verify 리포트 ⏳잔여) — `VITE_APP_ENV`/`environment` 태그 의도값 · Sentry 알림 `environment=production` 필터 · 대시보드 실 페이로드 PII 육안검증 · Sentry retention 콘솔 확정.
 3. **10-4 잔여 콘솔/운영** — Kakao 콘솔 콜백 URL + 위조 user_id smoke · 나머지 시크릿(CLEANUP_TOKEN/DRY_RUN/KAKAO_APP_ID/KAKAO_ADMIN_KEY) · cron-setup.sql(cleanup 스케줄) · 브랜치 보호 RLS CI required check · App Store Connect·EAS production·TestFlight·Data Safety · `npx expo prebuild --clean`
 
@@ -47,10 +48,11 @@ Expo Push로 데일리 다이제스트 + D-day 마일스톤(7/3/1/0)을 09:00 KS
 - **10-1 네이티브 인증 + 세션 브릿지** ✅ — Anonymous 우선·linkIdentity/폴백·Kakao Edge exchange·세션 브로드캐스트. 📄 `specs/10-1-native-auth.md`·`10-1-spike-result.md`·`10-1-manual-setup.md`(+`10-1-verify.md`) · ADR-041~054
 - **10-2 RLS + Edge Function/Storage 보안** ✅ — RLS 활성화(00016~00020)·storage 정책·rate limit·익명 마이그레이션·RPC ownership 가드. 📄 `specs/10-2-rls-security.md`(+verify)
 - **iOS 실기기 테스트 + UI 폴리시** ✅ — 네이티브 탭바·SSGOI 전환·스와이프백·브릿지 확장·소셜 버튼 브랜드. 📄 `UI-POLISH.md`
+- **마이크로 인터랙션 정합 패스** ✅(코드+검증 — **미커밋**) — `requestHaptic` 헬퍼(네이티브 배선 기존)·등장 페이드·바텀시트 진입·Toast 퇴장·체크 pop(useCheckPop)·press/duration 100ms 정합. DESIGN.md §8 정합(콘텐츠 등장 행 추가). lint/typecheck/build + 온보딩 스모크(Playwright, 햅틱 dev-fallback 발화) 통과, 실기기 햅틱 체감·데이터 의존 화면 시각확인은 follow-up. 📄 `UI-POLISH.md` §13
 - **10-3 계정 삭제 + 약관 + release-gate** ✅ — 계정 삭제 흐름·약관·dev=prod 하드닝. 📄 `specs/10-3-internal-test-release.md`(+verify) · ADR-075 · PR #59
 - **10-4 정식 출시 준비** ✅(코드) — 사진 게이트·네이티브 미디어·cleanup·Apple/Kakao 인증·RLS CI·WebView 콜드로드 견고화. 📄 `specs/10-4-public-release.md`(+verify) · ADR-075~084 · PR #61 _(배포·콘솔 잔여는 위 "다음 할 것")_
 - **11단계 관측(Observability)** ✅(#70 머지) — Sentry(웹 에러+브릿지 실패 로깅·PII 스크럽(exception/message/stack 포함)·소스맵)·PostHog(이벤트만·autocapture off·단일 프로젝트+`environment` 태그)·업타임(health Edge Function + UptimeRobot)·개인정보처리방침 수탁자 추가 + apps/web vitest 셋업. 📄 `specs/11-observability.md`(+verify) · ADR-085~089 _(스펙 본문 ADR 084~088 ↔ 실제 085~089)_ _(배포후 실측 잔여는 "다음 할 것")_
-- **12단계 푸시 알림** ✅(코드+검증 — 커밋·배포·콘솔 대기) — Expo Push 데일리 다이제스트 + D-day 마일스톤(claim 모델 멱등)·soft-ask/설정 2레이어 토글·딥링크(allowlist)·register-push-token(service*role)·send-notifications(Cron+DRY_RUN). 📄 `specs/12-push-notifications.md`(+verify, 코드 판정 ✅) · ADR-090~096 *(스펙 4 마이그레이션 → 실제 00023~00028: claim/kst*today/unregister RPC. 검증 후 Codex P1/P2 + a11y/4상태 수정)*
+- **12단계 푸시 알림** ✅(머지·배포·운영 ON — PR #71·#72, 비차단 잔여만) — Expo Push 데일리 다이제스트 + D-day 마일스톤(claim 모델 멱등)·soft-ask/설정 2레이어 토글·딥링크(allowlist)·register-push-token(service*role)·send-notifications(Cron+DRY_RUN). 📄 `specs/12-push-notifications.md`(+verify, 코드 판정 ✅) · ADR-090~096 *(스펙 4 마이그레이션 → 실제 00023~00028: claim/kst*today/unregister RPC. 검증 후 Codex P1/P2 + a11y/4상태 수정)*
 
 ## 알려진 문제
 

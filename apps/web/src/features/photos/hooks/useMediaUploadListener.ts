@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { sendToNative } from '@moving/shared'
+import { sendToNative, requestHaptic } from '@moving/shared'
 import type { BridgeMessage, NativeToWebMessage, WebToNativeMessage } from '@moving/shared'
 import { insertUploadedPhotos } from '@/services/photos'
 import { photoKeys } from './queryKeys'
@@ -56,6 +56,7 @@ export function useMediaUploadListener() {
           })
         } catch (error) {
           console.error('[useMediaUploadListener]', error)
+          requestHaptic('error')
           toast.error('사진 저장에 실패했어요')
           // 네이티브 Storage 업로드는 됐으나 DB INSERT 실패 — 업로드 파이프라인 실패로 기록
           captureEvent(ANALYTICS_EVENTS.NATIVE_MEDIA_UPLOAD_FAILED, { count: items.length })
@@ -74,6 +75,9 @@ export function useMediaUploadListener() {
         // room_type은 enum만(custom room name·경로·파일명 금지, §2-2)
         captureEvent(ANALYTICS_EVENTS.PHOTO_UPLOADED, { count: saved, room_type: room })
       }
+      // 저장 성공이 있으면 성공 진동 우선, 없고 실패만 있으면 실패 진동
+      if (saved > 0) requestHaptic('success')
+      else if (failed > 0) requestHaptic('error')
       return 'ok'
     },
     [queryClient, toast],

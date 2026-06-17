@@ -102,7 +102,7 @@ export function ActionSection({ items, nextUpcomingDate, mode, onToggle }: Actio
                   e.stopPropagation()
                   onToggle(item.id as string, true)
                 }}
-                className="flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 border-border transition-all active:scale-90"
+                className="flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 border-border transition-transform duration-100 active:scale-90 motion-reduce:transition-none"
               />
               <p className="min-w-0 flex-1 truncate text-body font-medium text-secondary">
                 {master?.title as string}

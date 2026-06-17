@@ -83,12 +83,12 @@ function PushPermissionSheetInner() {
   return (
     <div
       ref={containerRef}
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40"
+      className="animate-fade-in fixed inset-0 z-50 flex items-end justify-center bg-black/40"
       role="dialog"
       aria-modal="true"
       aria-labelledby="push-sheet-title"
     >
-      <div className="w-full max-w-[430px] rounded-t-3xl bg-surface px-5 pb-8 pt-6">
+      <div className="animate-sheet-in w-full max-w-[430px] rounded-t-3xl bg-surface px-5 pb-8 pt-6">
         <h2
           id="push-sheet-title"
           ref={headingRef}

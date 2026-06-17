@@ -38,7 +38,7 @@ function HousingCard({
       aria-checked={isSelected}
       onClick={onSelect}
       className={cn(
-        'relative flex cursor-pointer flex-col items-center justify-center rounded-2xl border transition-colors duration-150',
+        'relative flex cursor-pointer flex-col items-center justify-center rounded-2xl border transition-all duration-150 active:scale-[0.98] motion-reduce:transition-none',
         isSelected ? 'border-[1.5px] border-primary bg-tertiary' : 'border-border-input bg-surface',
         className,
       )}

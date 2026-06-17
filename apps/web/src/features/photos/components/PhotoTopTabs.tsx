@@ -1,3 +1,4 @@
+import { requestHaptic } from '@moving/shared'
 import { cn } from '@/lib/cn'
 import type { PhotoType } from '@/services/photos'
 
@@ -26,12 +27,13 @@ export function PhotoTopTabs({ value, onChange }: PhotoTopTabsProps) {
             type="button"
             role="tab"
             aria-selected={selected}
-            onClick={() => onChange(tab.value)}
+            onClick={() => {
+              if (!selected) requestHaptic('light')
+              onChange(tab.value)
+            }}
             className={cn(
               'flex-1 rounded-[10px] text-[14px] font-medium transition-all duration-200',
-              selected
-                ? 'bg-white text-secondary shadow-sm'
-                : 'text-muted',
+              selected ? 'bg-white text-secondary shadow-sm' : 'text-muted',
             )}
           >
             {tab.label}
