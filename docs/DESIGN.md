@@ -312,16 +312,17 @@ OKLCH의 핵심 장점: Lightness만 조절하면 같은 색조의 밝기 변형
 
 ### 8-2. 허용하는 애니메이션
 
-| 대상          | 속성                | duration | easing                         |
-| ------------- | ------------------- | -------- | ------------------------------ |
-| 버튼 pressed  | background-color    | 100ms    | ease-out                       |
-| 페이지 전환   | opacity             | 200ms    | ease-in-out                    |
-| 토스트 진입   | transform + opacity | 250ms    | ease-out                       |
-| 토스트 퇴장   | opacity             | 150ms    | ease-in                        |
-| 바텀시트 진입 | transform (Y)       | 300ms    | cubic-bezier(0.33, 1, 0.68, 1) |
-| 프로그레스 바 | width               | 300ms    | ease-out                       |
-| 체크박스 토글 | transform (scale)   | 150ms    | ease-out                       |
-| 스켈레톤 로딩 | opacity (shimmer)   | 1.5s     | ease-in-out (반복)             |
+| 대상               | 속성                | duration | easing                         |
+| ------------------ | ------------------- | -------- | ------------------------------ |
+| 버튼 pressed       | background-color    | 100ms    | ease-out                       |
+| 페이지 전환        | opacity             | 200ms    | ease-in-out                    |
+| 토스트 진입        | transform + opacity | 250ms    | ease-out                       |
+| 토스트 퇴장        | opacity             | 150ms    | ease-in                        |
+| 바텀시트 진입      | transform (Y)       | 300ms    | cubic-bezier(0.33, 1, 0.68, 1) |
+| 프로그레스 바      | width               | 300ms    | ease-out                       |
+| 체크박스 토글      | transform (scale)   | 150ms    | ease-out                       |
+| 스켈레톤 로딩      | opacity (shimmer)   | 1.5s     | ease-in-out (반복)             |
+| 콘텐츠/리스트 등장 | opacity             | 200ms    | ease-out                       |
 
 ### 8-3. 금지하는 애니메이션
 
@@ -329,7 +330,7 @@ OKLCH의 핵심 장점: Lightness만 조절하면 같은 색조의 밝기 변형
 - 화면 전체 슬라이드 전환 (웹뷰에서 네이티브 전환과 충돌)
 - 로딩 스피너 외의 무한 반복 애니메이션
 - parallax 스크롤
-- 요소 등장 시 아래에서 위로 올라오는 stagger 애니메이션
+- 요소 등장 시 아래에서 위로 올라오는 stagger 애니메이션 (단, 리스트/콘텐츠를 **컨테이너 단위로 한 번에** 페이드인하는 것은 허용 — 8-2 "콘텐츠/리스트 등장")
 
 ### 8-4. 로딩 상태
 

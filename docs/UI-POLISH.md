@@ -258,3 +258,27 @@ return {
 **판단**: 구조 전환(단일 WebView)·오프라인 셸은 비용이 커 보류, 견고화만 선반영(상세 ADR-084). Codex 리뷰 P1(onLoadEnd가 재시도 상태를 덮어쓰던 버그) 반영.
 
 **파일**: `apps/mobile/src/components/WebViewScreen.tsx`
+
+## 13. 마이크로 인터랙션 정합 패스 (gap-fill + DESIGN.md §8 정합)
+
+**증상**: 마이크로 인터랙션이 화면마다 들쭉날쭉. 어떤 곳은 적용돼 있고(Button pressed, Toast 진입, FAB 회전, 일부 카드 `active:scale`) 어떤 곳은 비어 있었다 — 스켈레톤→콘텐츠 급교체(페이드 없음), 시트 진입 애니메이션 없음(PhotoDetailSheet·PushPermissionSheet·MoveEditSheet), Toast 퇴장 애니메이션 없음, 햅틱 전무, duration 혼재(100/150/200/500ms), 미사용 `check-pop` 키프레임. "AI 티" 제거(화면 룩)와 별개로, 누락을 채우고 기존 불일치를 DESIGN.md §8에 맞춰 일관화.
+
+**개선**:
+
+- **공유 프리미티브** — `requestHaptic(style)` 헬퍼 추가(`nativeBridge.ts`): 웹→네이티브 `REQUEST_HAPTIC` 래핑(네이티브 expo-haptics 핸들러는 기존 배선, `WebViewScreen.tsx`). 비네이티브에선 `sendToNative` dev 폴백으로 무음. `index.css`에 `@keyframes fadeIn`·`.animate-fade-in`(200ms)·`.animate-sheet-in`(슬라이드업 300ms cubic-bezier(0.33,1,0.68,1)) 추가, `check-pop`을 250→150ms로 §8 정합, `prefers-reduced-motion`에서 커스텀 키프레임 무효화. `useCheckPop` 훅 — 완료가 false→true로 바뀌는 순간에만 scale pop(목록 진입 시 전 체크가 한꺼번에 튀는 것 방지).
+- **시스템 컴포넌트** — Toast 퇴장(opacity 150ms ease-in, `ToastProvider`가 제거 전 leaving 상태 유지), ProgressBar·타임라인 인라인 진행바 500→300ms, CircularProgress `stroke-dashoffset` transition 추가(값 변할 때 채워짐).
+- **갭 채우기** — 페이지 콘텐츠 등장 페이드(Dashboard·Photos·Timeline·ChecklistDetail, 콘텐츠 컨테이너 1개에만), 시트 진입(PhotoDetailSheet·PushPermissionSheet 슬라이드업+백드롭 페이드 / MoveEditSheet 페이드), press 피드백·duration 100ms 정합(ActionSection·PreCheckItem·RelatedLinkCard·DeleteAccount 확인 버튼), HousingTypeGrid press scale, 체크 토글 pop(ChecklistItem·PreCheckItem), FAB 메뉴 등장 페이드.
+- **햅틱 배치** — 토글은 `useToggleItem` onMutate에 **중앙화**(완료=success / 해제=light / 실패=error → 리스트·액션·상세 어디서 눌러도 단일 지점). 칩 선택(SelectionChip)·인앱 탭(PhotoTopTabs)=light, 이사정보 저장 성공(MoveEditSheet)·미디어 업로드 완료=success, 파괴적 확정(계정 삭제·사진 삭제)=heavy.
+
+**판단**:
+
+- 등장 페이드는 **페이지 콘텐츠 컨테이너 1개에만** 적용 — 섹션별로 걸면 stagger(§8-3 금지)·이중 페이드가 됨. DESIGN.md §8-2에 "콘텐츠/리스트 등장" 행 추가, §8-3에 "컨테이너 단위 페이드는 허용" 단서 명시.
+- MoveEditSheet는 전체화면 모달이라 슬라이드 대신 **페이드** — §8-3 "화면 전체 슬라이드 전환 금지"(네이티브 전환과 충돌) 준수. 진짜 바텀시트(PhotoDetail·PushPermission)만 슬라이드업.
+- 햅틱 토글을 단일 지점으로 모음 — 스펙의 "리스트=light / 상세 완료=success" 분리 대신, 완료는 어디서든 success로 통일(완료의 보람을 일관되게). DevTabBar(웹 탭) 햅틱은 생략 — 네이티브에선 숨겨지고 네이티브 탭바가 자체 햅틱 처리(`(tabs)/_layout.tsx`).
+- 신규 모션 라이브러리 미도입 — 기존 Tailwind 키프레임 + SSGOI 유지(CSS-only).
+
+**검증**: `pnpm lint`·`typecheck`·`build` 통과. 온보딩 스모크(Playwright) — 렌더 정상, JS 에러 없음(favicon 404만), SelectionChip 클릭 시 `[NativeBridge] (dev fallback) … REQUEST_HAPTIC` 발화 확인(햅틱 배선 end-to-end). 브라우저에선 진동 체감 불가 → 실기기 follow-up.
+
+**Follow-up**: 실기기(TestFlight)에서 햅틱 세기 체감 + 데이터 의존 화면(대시보드·타임라인·사진 시트)의 등장 페이드·체크 pop·시트 진입을 실제 데이터로 시각 확인(dev=prod 단일 프로젝트라 온보딩 제출은 prod 쓰기 발생, 본 패스에선 미수행).
+
+**파일**: `packages/shared/src/utils/nativeBridge.ts`, `packages/shared/src/index.ts`, `apps/web/src/index.css`, `apps/web/src/shared/hooks/useCheckPop.ts`, `apps/web/src/shared/components/{Toast,ToastProvider,ProgressBar,CircularProgress,ChecklistItem}.tsx`, `apps/web/src/pages/{Dashboard,Photos,Timeline,ChecklistDetail}Page.tsx`, `apps/web/src/features/dashboard/{components/ActionSection,hooks/useToggleItem}`, `apps/web/src/features/{onboarding/components/{SelectionChip,HousingTypeGrid,PushPermissionSheet},photos/components/{PhotoDetailSheet,PhotoTopTabs,PhotoUploadFab,DeletePhotoDialog},photos/hooks/useMediaUploadListener,settings/components/{MoveEditSheet,DeleteAccountSheet},pre-check/components/PreCheckItem,checklist-detail/components/RelatedLinkCard}`, `docs/DESIGN.md`
