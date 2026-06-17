@@ -133,7 +133,7 @@ export function ChecklistDetailPage() {
   return (
     <div className="min-h-dvh bg-neutral">
       <PageHeader title="" left={backButton} />
-      <div className="relative mx-auto max-w-[430px] px-5 pb-32">
+      <div className="animate-fade-in relative mx-auto max-w-[430px] px-5 pb-32">
         {item.is_completed && <CompletionStamp />}
         <DetailHeader
           title={master.title}
