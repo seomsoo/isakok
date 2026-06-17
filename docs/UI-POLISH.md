@@ -282,3 +282,26 @@ return {
 **Follow-up**: 실기기(TestFlight)에서 햅틱 세기 체감 + 데이터 의존 화면(대시보드·타임라인·사진 시트)의 등장 페이드·체크 pop·시트 진입을 실제 데이터로 시각 확인(dev=prod 단일 프로젝트라 온보딩 제출은 prod 쓰기 발생, 본 패스에선 미수행).
 
 **파일**: `packages/shared/src/utils/nativeBridge.ts`, `packages/shared/src/index.ts`, `apps/web/src/index.css`, `apps/web/src/shared/hooks/useCheckPop.ts`, `apps/web/src/shared/components/{Toast,ToastProvider,ProgressBar,CircularProgress,ChecklistItem}.tsx`, `apps/web/src/pages/{Dashboard,Photos,Timeline,ChecklistDetail}Page.tsx`, `apps/web/src/features/dashboard/{components/ActionSection,hooks/useToggleItem}`, `apps/web/src/features/{onboarding/components/{SelectionChip,HousingTypeGrid,PushPermissionSheet},photos/components/{PhotoDetailSheet,PhotoTopTabs,PhotoUploadFab,DeletePhotoDialog},photos/hooks/useMediaUploadListener,settings/components/{MoveEditSheet,DeleteAccountSheet},pre-check/components/PreCheckItem,checklist-detail/components/RelatedLinkCard}`, `docs/DESIGN.md`
+
+## 14. 에러 상태 통일 — 네이티브 느낌 (gap-fill + ErrorBoundary)
+
+**증상**: 에러 처리가 화면마다 제각각이었다 — 일부는 아예 없고(Dashboard·Timeline·PhotoReport·PhotoTrash는 `isError` 분기 없이 멈춤/빈 화면), 있어도 비일관(ChecklistDetail은 자체 UI, Photos는 `ErrorMessage`). 게다가 `apps/web/CLAUDE.md`가 "최상위 Error Boundary"를 명시했지만 **실제 코드엔 없어서**(grep 0건) 렌더 크래시 시 흰 화면. WebView 앱에서 흰 화면·멈춤·브라우저 기본 에러는 가장 큰 "웹 티"라 §13 인터랙션과 한 결로 흡수.
+
+**개선** — 에러를 3레이어로 일원화:
+
+- **렌더 크래시 → `ErrorBoundary` 신규** (`shared/components/ErrorBoundary.tsx`): React 제약상 유일하게 class. App.tsx `TransitionLayout`에서 `Outlet`을 pathname 키로 감싸 화면 이동 시 자동 복구. 폴백은 `ErrorMessage` 톤("문제가 발생했어요" + 다시 시도). **재시도 = 상태 리셋**(`window.location.reload` 금지 — WebView 콜드로드 깜빡임 = 웹 티).
+- **조회 실패 → `ErrorMessage` + `refetch`** (early-return): 누락 4페이지(Dashboard·Timeline·PhotoReport·PhotoTrash) 추가, ChecklistDetail 자체 UI를 공통으로 교체. 주 데이터(move) 실패=전체 폴백 / 보조 섹션(대시보드 항목·타임라인) 실패=그 자리에 인라인 `ErrorMessage`로 헤더·탭바 유지. 재시도는 TanStack `refetch()`(제자리, reload 아님). 훅은 이미 `useQuery` 전체를 반환해 `isError`/`refetch` 노출 — 페이지 배선만.
+- **동작 실패 → `toast.error`** (기존 일관, 감사만): mutation은 이미 toast로 normalize. §13에서 실패에 `requestHaptic('error')`도 붙어 촉각까지 일관.
+
+**판단**:
+
+- 재시도를 reload 아닌 제자리 `refetch`/상태 리셋으로 — 콜드로드 깜빡임 제거가 "네이티브 느낌"의 핵심 조건. 복구 시 §13의 `.animate-fade-in`으로 콘텐츠 부드럽게 등장.
+- 섹션 단위 에러 우선 — "페이지가 통째로 깨졌다"가 아니라 "이 부분만 못 불러왔다"로 보이게 앱 크롬 유지.
+- `ErrorBoundary`는 라우트 키로 마운트 → 별도 reset 로직 없이 네비게이션만으로 복구.
+- 컨벤션을 `apps/web/CLAUDE.md` "UI 패턴"에 3레이어로 명문화(서술과 실제 일치화).
+
+**검증**: `pnpm lint`·`typecheck`·`build` 통과. (에러 화면 실제 트리거는 네트워크 차단 등 필요 → 실기기/수동 follow-up.)
+
+**Follow-up**: `ErrorBoundary`에서 Sentry 캡처 연동 검토(현재 `console.error`, 전역 핸들러 의존) · 데이터 의존 화면에서 실제 네트워크 실패로 에러 UI 시각 확인.
+
+**파일**: `apps/web/src/shared/components/ErrorBoundary.tsx`, `apps/web/src/App.tsx`, `apps/web/src/pages/{Dashboard,Timeline,ChecklistDetail,PhotoReport,PhotoTrash}Page.tsx`, `apps/web/CLAUDE.md`
