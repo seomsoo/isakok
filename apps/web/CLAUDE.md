@@ -273,10 +273,23 @@ import { TodayTasks } from '@/features/dashboard/components/TodayTasks'
 
 ## UI 패턴
 
-- Error Boundary: 최상위에 배치 ("문제가 발생했어요" 폴백)
-- 로딩: shared/components/Spinner 공통 사용
-- 에러: shared/components/ErrorMessage 공통 사용
+- 로딩: shared/components/Skeleton 우선 (Spinner는 버튼 내부·소영역만)
 - 접근성 최소 기준: 시맨틱 HTML, 이미지 alt, 색상 대비, 키보드 내비게이션
+
+### 에러 처리 3레이어 (일관 규칙)
+
+에러는 채널을 셋으로 못 박는다. 흰 화면·멈춤·브라우저 기본 에러 = "웹 티"라 전부 앱 UI로 흡수.
+
+1. **렌더 크래시 → `shared/components/ErrorBoundary`** — App.tsx에서 라우트(pathname) 키로 `Outlet`을 감싼다. 화면 이동 시 자동 복구, "다시 시도"는 상태 리셋(❌ `window.location.reload` — WebView 콜드로드 깜빡임). React 제약상 유일하게 class 컴포넌트.
+2. **조회(query) 실패 → `shared/components/ErrorMessage` + `refetch`** — early-return 컨벤션으로 통일:
+   ```tsx
+   if (isPending) return <PageSkeleton />
+   if (isError) return <ErrorMessage onRetry={() => refetch()} />
+   ```
+
+   - 주 데이터(move) 실패 = 전체 페이지 폴백 / 보조 섹션 실패 = 그 자리에 인라인 `ErrorMessage`(헤더·탭바 유지).
+   - 재시도는 항상 TanStack `refetch()`(제자리), 페이지 reload 금지.
+3. **동작(mutation) 실패 → `toast.error`** — hook의 `onError`에서 사용자 문구로 normalize(원본은 `console.error`). 파괴적/실패 동작엔 `requestHaptic('error')` 동반.
 
 ## 개발 중 임시 처리
 
