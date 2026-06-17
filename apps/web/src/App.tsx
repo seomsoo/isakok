@@ -31,6 +31,7 @@ import { PrivacyPage } from '@/pages/PrivacyPage'
 import { TermsPage } from '@/pages/TermsPage'
 import { OssLicensesPage } from '@/pages/OssLicensesPage'
 import { ToastProvider } from '@/shared/components/ToastProvider'
+import { ErrorBoundary } from '@/shared/components/ErrorBoundary'
 
 const transitionConfig = {
   transitions: [
@@ -48,7 +49,10 @@ function TransitionLayout() {
     <div className="h-dvh overflow-y-auto relative z-0 overflow-x-clip">
       <Ssgoi config={transitionConfig}>
         <SsgoiTransition key={pathname} id={pathname}>
-          <Outlet />
+          {/* 라우트별 경계 — pathname 키로 화면 이동 시 자동 복구 */}
+          <ErrorBoundary key={pathname}>
+            <Outlet />
+          </ErrorBoundary>
         </SsgoiTransition>
       </Ssgoi>
     </div>
