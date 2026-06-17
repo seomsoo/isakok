@@ -21,14 +21,14 @@ export function ProgressBar({ currentStep, totalSteps }: ProgressBarProps) {
       {/* 트랙 (아이콘 크기만큼 양쪽 여백) */}
       <div className="absolute top-1/2 right-3.5 left-3.5 h-1 -translate-y-1/2 rounded-full bg-border">
         <div
-          className="absolute inset-y-0 left-0 rounded-full bg-primary transition-all duration-500 ease-out"
+          className="absolute inset-y-0 left-0 rounded-full bg-primary transition-all duration-300 ease-out motion-reduce:transition-none"
           style={{ width: `${progress}%` }}
         />
       </div>
 
       {/* 집 아이콘 (트랙 끝에 고정) */}
       <div
-        className={`absolute right-0 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full transition-all duration-300 ${
+        className={`absolute right-0 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-full transition-all duration-300 motion-reduce:transition-none ${
           isComplete ? 'scale-0 opacity-0' : 'scale-100 bg-tertiary text-primary opacity-100'
         }`}
       >
@@ -37,10 +37,10 @@ export function ProgressBar({ currentStep, totalSteps }: ProgressBarProps) {
 
       {/* 화물차 아이콘 (진행 위치) */}
       <div
-        className="absolute top-1/2 -translate-y-1/2 transition-all duration-500 ease-out"
+        className="absolute top-1/2 -translate-y-1/2 transition-all duration-300 ease-out motion-reduce:transition-none"
         style={{ left: `calc(${progress}% - ${progress / 100} * 1.75rem)` }}
       >
-        <div className="flex h-7 w-7 items-center justify-center rounded-full shadow-sm transition-colors duration-300 bg-primary text-white">
+        <div className="flex h-7 w-7 items-center justify-center rounded-full shadow-sm transition-colors duration-300 bg-primary text-white motion-reduce:transition-none">
           {isComplete ? <Home size={14} strokeWidth={2} /> : <Truck size={14} strokeWidth={2} />}
         </div>
       </div>
