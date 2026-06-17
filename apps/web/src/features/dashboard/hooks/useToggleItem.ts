@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { requestHaptic } from '@moving/shared'
 import { toggleChecklistItem } from '@/services/checklist'
 import { useToast } from '@/shared/components/ToastProvider'
 import { captureEvent, ANALYTICS_EVENTS } from '@/observability/events'
@@ -15,6 +16,8 @@ export function useToggleItem(moveId: string, userId: string) {
     onMutate: async ({ itemId, isCompleted }) => {
       // 행동 이벤트 — 완료여부만(항목 텍스트/메모 금지). category는 호출부 thread 필요로 follow-up(§2-2)
       captureEvent(ANALYTICS_EVENTS.CHECKLIST_ITEM_TOGGLED, { completed: isCompleted })
+      // 완료=성공 진동, 해제=가벼운 진동 (리스트·액션·상세 토글 단일 지점)
+      requestHaptic(isCompleted ? 'success' : 'light')
       await queryClient.cancelQueries({ queryKey: queryKeys.todayItems(moveId) })
       await queryClient.cancelQueries({ queryKey: queryKeys.timelineItems(moveId) })
 
@@ -75,6 +78,7 @@ export function useToggleItem(moveId: string, userId: string) {
       if (context?.previousTimeline) {
         queryClient.setQueryData(queryKeys.timelineItems(moveId), context.previousTimeline)
       }
+      requestHaptic('error')
       toast.error('체크 상태 변경에 실패했어요')
     },
 
