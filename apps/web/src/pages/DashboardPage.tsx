@@ -123,7 +123,7 @@ export function DashboardPage() {
           <Skeleton className="h-40 w-full rounded-2xl" />
         </div>
       ) : (
-        <>
+        <div className="animate-fade-in">
           <MotivationCard completed={progress.completed} total={progress.total} mode={mode} />
           <ActionSection
             items={actionItems}
@@ -133,7 +133,7 @@ export function DashboardPage() {
           />
 
           <UpcomingSection items={upcoming} mode={mode} />
-        </>
+        </div>
       )}
 
       <PhotoPromptCard daysRemaining={daysRemaining} mode={mode} />

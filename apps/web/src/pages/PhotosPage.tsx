@@ -119,19 +119,21 @@ export function PhotosPage() {
             <Skeleton key={i} className="mx-5 h-[120px] rounded-2xl" />
           ))
         ) : (
-          ROOM_META.map((room) => {
-            const roomPhotos = photosByRoom.get(room.type) ?? []
-            return (
-              <RoomSection
-                key={room.type}
-                room={room}
-                photos={roomPhotos}
-                urlMap={urlMap}
-                onOpen={() => navigate(`/photos/${room.type}?type=${photoType}`)}
-                onAdd={() => handleAddTrigger(room.type)}
-              />
-            )
-          })
+          <div className="animate-fade-in space-y-3">
+            {ROOM_META.map((room) => {
+              const roomPhotos = photosByRoom.get(room.type) ?? []
+              return (
+                <RoomSection
+                  key={room.type}
+                  room={room}
+                  photos={roomPhotos}
+                  urlMap={urlMap}
+                  onOpen={() => navigate(`/photos/${room.type}?type=${photoType}`)}
+                  onAdd={() => handleAddTrigger(room.type)}
+                />
+              )
+            })}
+          </div>
         )}
       </div>
 
