@@ -1,5 +1,6 @@
 import { Check, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/cn'
+import { useCheckPop } from '@/shared/hooks/useCheckPop'
 import { Badge } from './Badge'
 
 interface ChecklistItemProps {
@@ -23,6 +24,8 @@ export function ChecklistItem({
   onToggle,
   onPress,
 }: ChecklistItemProps) {
+  const popping = useCheckPop(isCompleted)
+
   return (
     <div className="flex min-h-14 items-center gap-3 px-4 py-3">
       {/* 체크박스 */}
@@ -37,6 +40,7 @@ export function ChecklistItem({
         <div
           className={cn(
             'flex h-[22px] w-[22px] items-center justify-center rounded-full transition-colors',
+            popping && 'animate-check',
             isCompleted
               ? 'border-[1.5px] border-primary bg-primary'
               : 'border-[1.5px] border-placeholder bg-transparent',
