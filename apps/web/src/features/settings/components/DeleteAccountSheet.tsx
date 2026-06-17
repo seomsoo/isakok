@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { AlertTriangle, ChevronLeft } from 'lucide-react'
-import { isNativeWebView, sendToNative } from '@shared/utils/nativeBridge'
+import { isNativeWebView, sendToNative, requestHaptic } from '@shared/utils/nativeBridge'
 import type { BridgeMessage, NativeToWebMessage } from '@shared/types/bridge'
 import { Button } from '@/shared/components/Button'
 import { PageHeader } from '@/shared/components/PageHeader'
@@ -202,7 +202,7 @@ export function DeleteAccountSheet({ onClose }: DeleteAccountSheetProps) {
           aria-modal="true"
           aria-labelledby="delete-confirm-title"
           aria-describedby="delete-confirm-desc"
-          className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 px-4 pb-[calc(env(safe-area-inset-bottom)+12px)]"
+          className="animate-fade-in fixed inset-0 z-[60] flex items-end justify-center bg-black/40 px-4 pb-[calc(env(safe-area-inset-bottom)+12px)]"
         >
           <div
             className="absolute inset-0"
@@ -237,7 +237,7 @@ export function DeleteAccountSheet({ onClose }: DeleteAccountSheetProps) {
                 ref={cancelBtnRef}
                 type="button"
                 onClick={() => setConfirmOpen(false)}
-                className="h-[52px] flex-1 rounded-xl bg-black/[0.04] text-[15px] font-semibold tracking-tight text-secondary transition-colors active:bg-black/[0.08]"
+                className="h-[52px] flex-1 rounded-xl bg-black/[0.04] text-[15px] font-semibold tracking-tight text-secondary transition-colors duration-100 active:bg-black/[0.08] motion-reduce:transition-none"
               >
                 취소
               </button>
@@ -245,9 +245,10 @@ export function DeleteAccountSheet({ onClose }: DeleteAccountSheetProps) {
                 type="button"
                 onClick={() => {
                   setConfirmOpen(false)
+                  requestHaptic('heavy')
                   handleSubmit()
                 }}
-                className="h-[52px] flex-1 rounded-xl bg-critical text-[15px] font-semibold tracking-tight text-white transition-colors active:bg-critical/90"
+                className="h-[52px] flex-1 rounded-xl bg-critical text-[15px] font-semibold tracking-tight text-white transition-colors duration-100 active:bg-critical/90 motion-reduce:transition-none"
               >
                 삭제
               </button>
