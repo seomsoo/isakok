@@ -4,6 +4,7 @@ import { ROUTES } from '@shared/constants/routes'
 import { useGoBack } from '@/shared/hooks/useGoBack'
 import { PageHeader } from '@/shared/components/PageHeader'
 import { Skeleton } from '@/shared/components/Skeleton'
+import { ErrorMessage } from '@/shared/components/ErrorMessage'
 import { SectionDivider } from '@/shared/components/SectionDivider'
 import { DetailHeader } from '@/features/checklist-detail/components/DetailHeader'
 import { GuideStepsSection } from '@/features/checklist-detail/components/GuideStepsSection'
@@ -26,7 +27,7 @@ export function ChecklistDetailPage() {
   const goBack = useGoBack(from === 'timeline' ? ROUTES.TIMELINE : ROUTES.DASHBOARD)
   const { userId } = useUserId()
   const uid = userId ?? ''
-  const { data: item, isLoading, isError } = useChecklistItemDetail(itemId, uid)
+  const { data: item, isLoading, isError, refetch } = useChecklistItemDetail(itemId, uid)
   const toggleItem = useToggleItem(item?.move_id ?? '', uid)
   const { data: move } = useCurrentMove()
   const { mode } = useUrgencyMode(move?.moving_date ?? '')
@@ -83,18 +84,9 @@ export function ChecklistDetailPage() {
 
   if (isError || !item) {
     return (
-      <div className="min-h-dvh bg-neutral">
+      <div className="flex min-h-dvh flex-col bg-neutral">
         <PageHeader title="" left={backButton} />
-        <div className="mx-auto flex max-w-[430px] flex-col items-center gap-4 px-5 py-16">
-          <p className="text-body text-muted">항목을 불러올 수 없어요</p>
-          <button
-            type="button"
-            onClick={goBack}
-            className="rounded-xl bg-primary px-5 py-3 text-body-sm font-semibold text-white"
-          >
-            뒤로 가기
-          </button>
-        </div>
+        <ErrorMessage message="항목을 불러올 수 없어요" onRetry={() => refetch()} />
       </div>
     )
   }
