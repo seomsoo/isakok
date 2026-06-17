@@ -25,7 +25,7 @@ export function RelatedLinkCard({ url }: RelatedLinkCardProps) {
         rel="noopener noreferrer"
         aria-label={`${meta.name} 새 창에서 열기`}
         onClick={(e) => handleLinkClick(e, url)}
-        className="flex items-center gap-3 rounded-xl bg-surface px-4 py-3 ring-1 ring-border transition-colors active:bg-neutral"
+        className="flex items-center gap-3 rounded-xl bg-surface px-4 py-3 ring-1 ring-border transition-colors duration-100 active:bg-neutral motion-reduce:transition-none"
       >
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-tertiary/60">
           <Globe size={18} className="text-primary" strokeWidth={2.2} />
