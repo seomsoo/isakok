@@ -44,7 +44,7 @@ export function DeleteAccountSheet({ onClose }: DeleteAccountSheetProps) {
     headingRef.current?.focus()
   }, [step])
 
-  // 확인 다이얼로그가 열리면 기본 포커스를 안전한 '취소'에 둔다.
+  // 확인 다이얼로그가 열리면 기본 포커스를 안전한 '닫기'에 둔다.
   useEffect(() => {
     if (confirmOpen) cancelBtnRef.current?.focus()
   }, [confirmOpen])
@@ -76,7 +76,7 @@ export function DeleteAccountSheet({ onClose }: DeleteAccountSheetProps) {
         // 이전 userId 미포함(§2-2): distinct_id 초기화 후 완료 이벤트(새 익명 세션 기준)
         resetAnalyticsUser()
         captureEvent(ANALYTICS_EVENTS.ACCOUNT_DELETE_COMPLETED)
-        toast.success('계정이 삭제되었어요.')
+        toast.success('계정을 삭제했어요')
         onClose()
       } else if (stage === 'auth-expired') {
         // 이미 삭제됨(idempotent) — 신규 완료도 실패도 아니라 이벤트 미발생
@@ -84,7 +84,7 @@ export function DeleteAccountSheet({ onClose }: DeleteAccountSheetProps) {
         onClose()
       } else if (stage === 'network') {
         captureEvent(ANALYTICS_EVENTS.ACCOUNT_DELETE_FAILED)
-        toast.error('네트워크 오류가 발생했어요. 다시 시도해주세요.')
+        toast.error('연결이 끊겼어요. 다시 시도해주세요.')
         setStep('info')
       } else {
         captureEvent(ANALYTICS_EVENTS.ACCOUNT_DELETE_FAILED)
@@ -143,7 +143,7 @@ export function DeleteAccountSheet({ onClose }: DeleteAccountSheetProps) {
                   삭제하면 되돌릴 수 없어요.
                 </h2>
                 <p className="mt-1 text-body-sm text-muted">
-                  계정을 삭제하면 아래 데이터가 모두 즉시 사라지고 복구할 수 없습니다.
+                  계정을 삭제하면 아래 데이터가 모두 즉시 사라지고 복구할 수 없어요.
                 </p>
               </div>
             </div>
@@ -154,8 +154,8 @@ export function DeleteAccountSheet({ onClose }: DeleteAccountSheetProps) {
               <li>• 맞춤 가이드 이용 기록</li>
             </ul>
             <p className="mt-4 text-body-sm text-muted">
-              소셜 계정의 앱 연결 해제도 함께 시도하지만, 실패 시 해당 서비스 설정에서 직접 끊으실
-              수 있어요.
+              소셜 계정의 앱 연결 해제도 함께 시도하지만, 실패 시 해당 서비스 설정에서 직접 끊을 수
+              있어요.
             </p>
           </section>
 
@@ -167,7 +167,7 @@ export function DeleteAccountSheet({ onClose }: DeleteAccountSheetProps) {
               onChange={(e) => setAgreed(e.target.checked)}
               className="mt-0.5 h-4 w-4 accent-critical"
             />
-            <label htmlFor="delete-agree">위 내용을 모두 확인했고, 계정 삭제에 동의합니다.</label>
+            <label htmlFor="delete-agree">위 내용을 모두 확인했고, 계정 삭제에 동의해요.</label>
           </div>
 
           <div className="mt-auto pt-6">
@@ -177,7 +177,7 @@ export function DeleteAccountSheet({ onClose }: DeleteAccountSheetProps) {
               disabled={!agreed}
               onClick={() => setConfirmOpen(true)}
             >
-              삭제하기
+              계정 삭제하기
             </Button>
           </div>
         </div>
@@ -239,7 +239,7 @@ export function DeleteAccountSheet({ onClose }: DeleteAccountSheetProps) {
                 onClick={() => setConfirmOpen(false)}
                 className="h-[52px] flex-1 rounded-xl bg-black/[0.04] text-[15px] font-semibold tracking-tight text-secondary transition-colors duration-100 active:bg-black/[0.08] motion-reduce:transition-none"
               >
-                취소
+                닫기
               </button>
               <button
                 type="button"
@@ -250,7 +250,7 @@ export function DeleteAccountSheet({ onClose }: DeleteAccountSheetProps) {
                 }}
                 className="h-[52px] flex-1 rounded-xl bg-critical text-[15px] font-semibold tracking-tight text-white transition-colors duration-100 active:bg-critical/90 motion-reduce:transition-none"
               >
-                삭제
+                삭제하기
               </button>
             </div>
           </div>

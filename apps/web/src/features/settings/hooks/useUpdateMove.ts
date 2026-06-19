@@ -13,7 +13,7 @@ export function useUpdateMove() {
       queryClient.invalidateQueries({ queryKey: queryKeys.currentMove })
       queryClient.invalidateQueries({ queryKey: queryKeys.todayItems(variables.moveId) })
       queryClient.invalidateQueries({ queryKey: queryKeys.timelineItems(variables.moveId) })
-      toast.success('이사 정보가 수정되었어요')
+      toast.success('이사 정보를 수정했어요')
     },
     onError: (error) => {
       console.error('이사 정보 수정 실패:', error)
