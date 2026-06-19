@@ -8,7 +8,6 @@ import type { RoomType } from '../types/photo'
  */
 export interface RoomMeta {
   type: RoomType
-  emoji: string
   label: string
   hint: string // 카드에 표시되는 한 줄 힌트
   tip: string // 방 상세 진입 시 TipCard에 표시되는 촬영 팁
@@ -20,7 +19,6 @@ export interface RoomMeta {
 export const ROOM_META: RoomMeta[] = [
   {
     type: 'entrance',
-    emoji: '🚪',
     label: '현관',
     hint: '도어락, 신발장, 바닥',
     tip: '도어락 작동 상태와 현관문 주변 스크래치를 찍어두세요',
@@ -30,7 +28,6 @@ export const ROOM_META: RoomMeta[] = [
   },
   {
     type: 'room',
-    emoji: '🛏️',
     label: '방',
     hint: '벽, 바닥, 천장, 창문',
     tip: '벽지 손상, 바닥 긁힘, 창문 잠금장치를 확인하며 찍어두세요',
@@ -40,7 +37,6 @@ export const ROOM_META: RoomMeta[] = [
   },
   {
     type: 'bathroom',
-    emoji: '🚿',
     label: '화장실',
     hint: '타일, 변기, 세면대, 거울',
     tip: '곰팡이, 타일 깨짐, 배수구 상태를 꼼꼼히 찍어두세요',
@@ -50,7 +46,6 @@ export const ROOM_META: RoomMeta[] = [
   },
   {
     type: 'kitchen',
-    emoji: '🍳',
     label: '주방',
     hint: '싱크대, 가스레인지, 환풍기',
     tip: '싱크대 물때, 가스레인지 상태, 수납장 내부를 찍어두세요',
@@ -60,7 +55,6 @@ export const ROOM_META: RoomMeta[] = [
   },
   {
     type: 'balcony',
-    emoji: '🌿',
     label: '베란다',
     hint: '바닥, 배수구, 창틀',
     tip: '바닥 균열, 배수구 막힘, 창틀 곰팡이를 확인하며 찍어두세요',
@@ -70,7 +64,6 @@ export const ROOM_META: RoomMeta[] = [
   },
   {
     type: 'other',
-    emoji: '📦',
     label: '기타',
     hint: '복도, 수납, 보일러, 계량기',
     tip: '위 방에 해당하지 않는 곳을 자유롭게 기록하세요',
