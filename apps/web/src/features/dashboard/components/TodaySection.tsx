@@ -21,7 +21,7 @@ export function TodaySection({ items, hasOverdue, onToggle }: TodaySectionProps)
       {items.length === 0 ? (
         <div className="mt-3 rounded-2xl bg-surface p-4 shadow-sm">
           <p className="text-body-sm text-muted">
-            {hasOverdue ? '밀린 할 일을 먼저 처리해보세요' : '지금 미리 하면 좋은 일이 있어요'}
+            {hasOverdue ? '밀린 할 일을 먼저 해보세요' : '지금 미리 하면 좋은 일이 있어요'}
           </p>
         </div>
       ) : (

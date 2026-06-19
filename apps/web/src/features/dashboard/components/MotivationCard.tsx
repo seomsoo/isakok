@@ -21,31 +21,18 @@ function getMessage(completed: number, total: number): string {
   return '첫 번째 할 일을 완료해볼까요?'
 }
 
-function getEmoji(completed: number, total: number): string {
-  if (total === 0) return ''
-  const percentage = Math.round((completed / total) * 100)
-  if (percentage === 100) return '🎉'
-  if (percentage >= 81) return '🔥'
-  if (percentage >= 51) return '✨'
-  if (percentage >= 1) return '💯'
-  return '👋'
-}
-
 export function MotivationCard({ completed, total, mode }: MotivationCardProps) {
   if (mode === 'critical') {
     return (
       <div className="mx-2 mt-3 rounded-2xl px-4">
-        <p className="text-body-sm font-bold text-primary/75">💛 {CRITICAL_ENCOURAGEMENT}</p>
+        <p className="text-body-sm font-bold text-primary/75">{CRITICAL_ENCOURAGEMENT}</p>
       </div>
     )
   }
 
   return (
     <div className="mx-2 mt-3 rounded-2xl px-4">
-      <p className="text-body-sm font-bold text-primary/75">
-        {getMessage(completed, total)}
-        {getEmoji(completed, total)}
-      </p>
+      <p className="text-body-sm font-bold text-primary/75">{getMessage(completed, total)}</p>
     </div>
   )
 }
