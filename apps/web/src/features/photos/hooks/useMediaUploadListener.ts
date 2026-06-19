@@ -70,7 +70,7 @@ export function useMediaUploadListener() {
         captureEvent(ANALYTICS_EVENTS.NATIVE_MEDIA_UPLOAD_FAILED, { count: failed })
       }
       if (saved > 0) {
-        toast.success(`${saved}장 저장 완료`)
+        toast.success(`${saved}장 저장했어요`)
         captureEvent(ANALYTICS_EVENTS.NATIVE_MEDIA_UPLOAD_SUCCEEDED, { count: saved })
         // room_type은 enum만(custom room name·경로·파일명 금지, §2-2)
         captureEvent(ANALYTICS_EVENTS.PHOTO_UPLOADED, { count: saved, room_type: room })
