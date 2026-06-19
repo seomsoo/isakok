@@ -144,7 +144,7 @@
   3. `PhotoUploadButton.tsx` 웹 `<input capture/multiple>` 잔존 dead code → 삭제. (= 누락 3)
 - 🟡 **권장 수정 (4)**
   - `deleteUserCompletely` 시그니처가 스펙의 `(admin, userId, options)`와 달리 2-인자 (기능 영향 없음, 표기 정합).
-  - `gen-oss-licenses.mjs`가 top-level dependencies만 수집(전이 의존성 미포함) — 법무 고지 완전성 출시 전 점검.
+  - `gen-oss-licenses.mjs`가 top-level dependencies만 수집(전이 의존성 미포함) — 법무 고지 완전성 출시 전 점검. → **부분 보강 (2026-06-19)**: 라벨만 나열하던 것을 LICENSE **전문**까지 포함하도록 생성기·페이지 개편(파일 없는 패키지는 SPDX 표준문안을 author로 합성). **텍스트 완전성(저작권·허가 고지문)은 충족**, 전이 의존성 미포함은 여전히 잔여. 상세 `UI-POLISH.md` §16.
   - `PhotoEmptyState` 익명/회원 문구 하드코딩 + 게이트 분기 로직 2곳 중복(향후 3번째 진입점 시 추상화).
   - §7 "PR required check 등록"은 워크플로 파일 외 GitHub 브랜치 보호 설정 필요(운영).
 - 🟢 **양호**: 삭제 코어 통합(ADR-082), cleanup 3종+DRY_RUN+Cron 구성(ADR-076), Apple revoke 전 흐름(ADR-077), Kakao 웹훅 검증·보류·분기(ADR-078), 네이티브 미디어 리사이즈/압축/EXIF(ADR-079/083), 충돌 Alert(ADR-080), RLS CI + apple_refresh_token 격리(ADR-081), OSS 페이지/라우트/메뉴. 컴포넌트 설계(presentational/container 분리, Props 인터페이스) 양호.
@@ -195,7 +195,7 @@
 - 🟡 **로그인 성공 후 업로드 자동 재개** (누락 2) — 게이트 차단 핵심은 동작·데이터 무결성 이슈 아님(재탭 시 동작). UX 폴리시 단계로 분리.
 - 🟡 **a11y** — 게이트 차단 SR/시각 피드백, FAB `aria-expanded`/포커스/Esc, 소셜 로그인 로딩 announce(`accessibilityState busy`), 파괴적 Alert 버튼 라벨(특히 Android).
 - 🟡 **perf** — 다중 업로드 직렬→동시성 제한(2~3)/점진적 회신, JPEG 폴백 용량 2차 임계, 저빈도 라우트 `React.lazy`.
-- 🟡 **gen-oss 전이 의존성** 포함 여부 출시 전 점검 / revoke 실패 메트릭·orphan 서킷브레이커 DECISIONS 기록.
+- 🟡 **gen-oss 전이 의존성** — top-level은 LICENSE 전문 포함 + SPDX 합성으로 보강 완료(2026-06-19, `UI-POLISH.md` §16). **전이 의존성 포함 여부만 출시 전 점검 잔여** / revoke 실패 메트릭·orphan 서킷브레이커 DECISIONS 기록.
 - 📄 **문서 정정 필요**: 스펙 §5-1 / ADR-078의 "Kakao unlink 콜백은 별도 서명 헤더 없음" 서술 → 실제로 `Authorization: KakaoAK` 헤더가 존재하므로 정정(이번 보안 수정의 근거).
 
 ### 운영 배포 (2026-05-30 진행 / 코드 외 — 스펙 §0·§12)
