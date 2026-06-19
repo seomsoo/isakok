@@ -42,7 +42,7 @@ export function EntryRedirect() {
   return (
     <div className="flex min-h-dvh items-center justify-center" role="status" aria-live="polite">
       <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
-      <span className="sr-only">이사 정보를 불러오는 중입니다</span>
+      <span className="sr-only">이사 정보를 불러오고 있어요</span>
     </div>
   )
 }
