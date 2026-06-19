@@ -246,6 +246,7 @@ import { TodayTasks } from '@/features/dashboard/components/TodayTasks'
 - 인라인 style={{}} 금지, Tailwind 클래스만
 - 같은 클래스 조합 3번+ 반복 시 공통 컴포넌트로 추출
 - 디자인 톤: 토스 스타일 (깔끔, 미니멀, 정보 중심). 상세 기준 → docs/DESIGN.md
+- 문구·말투(버튼·안내·에러·빈 상태): 해요체 통일, 버튼은 동사 원형. 정본 → docs/ux-writing-guide.md
 - 컬러 포맷: OKLCH (지각 균일, 파생색 생성 용이, Tailwind v4 네이티브 지원)
 - 디자인 토큰 (OKLCH → HEX 참고값):
   - Primary: oklch(0.51 0.086 186.4) — #0F766E Deep Teal
@@ -282,6 +283,7 @@ import { TodayTasks } from '@/features/dashboard/components/TodayTasks'
 
 1. **렌더 크래시 → `shared/components/ErrorBoundary`** — App.tsx에서 라우트(pathname) 키로 `Outlet`을 감싼다. 화면 이동 시 자동 복구, "다시 시도"는 상태 리셋(❌ `window.location.reload` — WebView 콜드로드 깜빡임). React 제약상 유일하게 class 컴포넌트.
 2. **조회(query) 실패 → `shared/components/ErrorMessage` + `refetch`** — early-return 컨벤션으로 통일:
+
    ```tsx
    if (isPending) return <PageSkeleton />
    if (isError) return <ErrorMessage onRetry={() => refetch()} />
@@ -289,7 +291,10 @@ import { TodayTasks } from '@/features/dashboard/components/TodayTasks'
 
    - 주 데이터(move) 실패 = 전체 페이지 폴백 / 보조 섹션 실패 = 그 자리에 인라인 `ErrorMessage`(헤더·탭바 유지).
    - 재시도는 항상 TanStack `refetch()`(제자리), 페이지 reload 금지.
+
 3. **동작(mutation) 실패 → `toast.error`** — hook의 `onError`에서 사용자 문구로 normalize(원본은 `console.error`). 파괴적/실패 동작엔 `requestHaptic('error')` 동반.
+
+> 사용자에게 보이는 문구(toast·ErrorMessage·빈 상태)는 docs/ux-writing-guide.md를 따른다: 에러는 "원인 + 해결"(예: "연결을 확인하고 다시 시도해요"), 빈 상태는 "여기서 뭘 할 수 있는지".
 
 ## 개발 중 임시 처리
 

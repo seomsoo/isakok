@@ -114,7 +114,7 @@ export function PhotoReportPage() {
       }
     } else {
       await navigator.clipboard.writeText(text)
-      toast.success('리포트 내용이 복사되었어요')
+      toast.success('리포트 내용을 복사했어요')
     }
   }
 

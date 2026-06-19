@@ -305,3 +305,51 @@ return {
 **Follow-up**: `ErrorBoundary`에서 Sentry 캡처 연동 검토(현재 `console.error`, 전역 핸들러 의존) · 데이터 의존 화면에서 실제 네트워크 실패로 에러 UI 시각 확인.
 
 **파일**: `apps/web/src/shared/components/ErrorBoundary.tsx`, `apps/web/src/App.tsx`, `apps/web/src/pages/{Dashboard,Timeline,ChecklistDetail,PhotoReport,PhotoTrash}Page.tsx`, `apps/web/CLAUDE.md`
+
+## 15. UX 라이팅 가이드 도입 + 앱 문구 정합 + 이모지 정리
+
+**배경**: 앱 문구 정본이 없어 DESIGN.md §1-5의 톤 원칙 3줄만 있었고, 실제 문구는 화면마다 미세하게 달랐다(격식체·수동형·과한 경어 혼재). 사용자가 작성한 `docs/ux-writing-guide.md`를 **문구 정본**으로 채택하고 기존 문서·코드를 거기에 맞춰 정합.
+
+**문서 연결**: DESIGN.md(헤더 상호참조 + §1-5 "문구 정본=ux-writing-guide.md, 이 문서는 시각만"), `docs/CLAUDE.md`(문서 인덱스 등록), `apps/web/CLAUDE.md`(스타일·에러 3레이어에서 문구 가이드 가리킴). 약관·개인정보처리방침은 **합쇼체 유지** — 가이드 §1 "약관 안내 해요체"는 짧은 안내 문구를 뜻하지 법률 전문(全文)은 아니라고 해석(법적 고지 성격).
+
+**문구 정합(코드)** — 적극 개선:
+
+- 능동형(§2): "삭제/수정/복사되었어요" → "삭제/수정/복사했어요"(DeleteAccountSheet·useUpdateMove·PhotoReportPage), "N장 저장 완료" → "N장 저장했어요"(§5)
+- 해요체(§1): "복구할 수 없습니다" → "없어요", sr-only "불러오는 중입니다" → "불러오고 있어요"
+- 과한 경어 제거(§4): "직접 끊으실 수" → "끊을 수", "동의합니다" → "동의해요"
+- 다이얼로그(§7): 메인 버튼 "삭제하기" → "계정 삭제하기"(무엇이 사라지는지 명시), 확인 다이얼로그 "취소/삭제" → "닫기/삭제하기"
+- 에러 = 원인+해결(§3): "네트워크 오류가 발생했어요" → "연결이 끊겼어요. 다시 시도해주세요"
+- 풀어쓰기(§5): "먼저 처리해보세요" → "먼저 해보세요"
+
+**이모지 정리(§9 "본문에 흩뿌리지 않기")**:
+
+- MotivationCard: 진행률별 이모지(🎉🔥✨💯👋) + critical 💛 전부 제거(`getEmoji` 함수 삭제). 응원 텍스트는 유지.
+- roomMeta: 방 아이콘 이모지(🚪🛏🚿🍳🌿📦)는 **렌더링되지 않는 dead 필드**라 interface+데이터에서 통째로 제거(UI 영향 0, 죽은 코드 정리 겸).
+
+**판단**: §8 안심 문구는 온보딩이 주소·연락처를 받지 않아 대상 없음(N/A). `throw new Error`·`console.*`는 개발자용이라 가이드 대상 외.
+
+**검증**: web `typecheck`·`lint` 통과, shared `test` 21/21.
+
+**파일**: `docs/DESIGN.md`, `docs/ux-writing-guide.md`, `docs/CLAUDE.md`, `apps/web/CLAUDE.md`, `apps/web/src/features/settings/components/DeleteAccountSheet.tsx`, `apps/web/src/features/settings/hooks/useUpdateMove.ts`, `apps/web/src/pages/PhotoReportPage.tsx`, `apps/web/src/features/photos/hooks/useMediaUploadListener.ts`, `apps/web/src/features/dashboard/components/{TodaySection,MotivationCard}.tsx`, `apps/web/src/pages/EntryRedirect.tsx`, `packages/shared/src/constants/roomMeta.ts`
+
+## 16. OSS 라이선스 요약형 → 전문형 (전문 포함 + SPDX 합성)
+
+**배경**: 설정 > 오픈소스 라이선스 페이지가 `이름·버전·라이선스명(MIT)`만 나열(요약형). MIT/ISC는 **저작권·허가 고지문 전문**을 배포물에 포함해야 해 라벨만으론 불완전 — `10-4-public-release-verify.md`의 "법무 고지 완전성" follow-up과 연결.
+
+**개선**:
+
+- 생성기(`gen-oss-licenses.mjs`): 각 패키지 `node_modules`의 LICENSE 파일 전문을 읽어 포함(파일명 관례 9종 + `license*` 폴백). 파일을 안 싣는 패키지(Expo 계열 19개 등)는 **SPDX 표준문안(MIT/ISC)을 package.json author로 합성**하고 `synthesized: true` 플래그 부여(license-checker류 관행).
+- 결과 데이터: 43개 = 파일 전문 24 + 합성 19 + 누락 0. 크기 +7.9KB(gzip — 라이선스 문구 반복성으로 압축률 높음).
+- 페이지: 목록 → **탭하면 전문 펼침(아코디언, 한 번에 하나)**, 접근성(`aria-expanded`/`aria-controls`·쉐브론 회전 motion-reduce 가드), 합성 항목엔 "LICENSE 파일 미포함, 표준 문안 표기" 안내 줄.
+
+**판단**:
+
+- 별도 상세 라우트 대신 아코디언 — 전 페이지 eager import 구조(앱 전반 `React.lazy` 0건)에 맞고 동적 라우트·전환 추가 불필요.
+- 양 플랫폼 동시 적용 — WebView가 띄우는 한 페이지 + 데이터에 RN/Expo 의존성 포함.
+- **잔여**: 전이 의존성(transitive deps) 미포함은 여전(verify §198). 저빈도 라우트라 code-split 미적용(perf 비차단).
+
+**검증**: `typecheck`·`lint`·`build` 통과(번들 +7.9KB gzip).
+
+**운영**: 의존성 추가/업데이트 후 `node scripts/gen-oss-licenses.mjs` 재실행하면 목록·전문 자동 갱신.
+
+**파일**: `scripts/gen-oss-licenses.mjs`, `apps/web/src/data/ossLicenses.ts`(생성물), `apps/web/src/pages/OssLicensesPage.tsx`

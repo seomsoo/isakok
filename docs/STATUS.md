@@ -1,6 +1,6 @@
 # 프로젝트 상태
 
-> 마지막 업데이트: 2026-06-17 (**12단계 푸시 알림 완료** — PR #71·#72 머지, 배포·iOS 실기기 검증·운영 ON(EXECUTE + 매일 09:00 KST Cron). 이후 관측 보정 #73, docs 정리(README·ADR 토픽 인덱스·트러블슈팅 #69 등). **개발 단계 0~12 코드 완료 → 현재 운영/폴리시 모드(별도 번호 단계 없음)**. 진행 중: **네이티브 느낌 패스**(`feat/web-native-feel` 브랜치 커밋 완료·미머지 — 마이크로 인터랙션 `UI-POLISH.md` §13 + 에러 통일 §14). 잔여(비차단): 10-4 콘솔 · 11 배포후 실측 · 12 토큰 재할당 field test/Android 채널 HIGH 다음 빌드/테스트 이사일 원복 → "다음 할 것")
+> 마지막 업데이트: 2026-06-19 (**12단계 푸시 알림 완료** — PR #71·#72 머지, 배포·iOS 실기기 검증·운영 ON(EXECUTE + 매일 09:00 KST Cron). 이후 관측 보정 #73, docs 정리(README·ADR 토픽 인덱스·트러블슈팅 #69 등). **개발 단계 0~12 코드 완료 → 현재 운영/폴리시 모드(별도 번호 단계 없음)**. 진행 중: **네이티브 느낌 패스**(`feat/web-native-feel` 브랜치 커밋 완료·미머지 — 마이크로 인터랙션 `UI-POLISH.md` §13 + 에러 통일 §14). 잔여(비차단): 10-4 콘솔 · 11 배포후 실측 · 12 토큰 재할당 field test/Android 채널 HIGH 다음 빌드/테스트 이사일 원복 → "다음 할 것". **2026-06-19 추가**: UX 라이팅 정합·이모지 정리·OSS 라이선스 전문형 — `UI-POLISH.md` §15·§16, 미커밋)
 
 ## 현재 단계
 
@@ -53,6 +53,8 @@ Expo Push로 데일리 다이제스트 + D-day 마일스톤(7/3/1/0)을 09:00 KS
 - **10-4 정식 출시 준비** ✅(코드) — 사진 게이트·네이티브 미디어·cleanup·Apple/Kakao 인증·RLS CI·WebView 콜드로드 견고화. 📄 `specs/10-4-public-release.md`(+verify) · ADR-075~084 · PR #61 _(배포·콘솔 잔여는 위 "다음 할 것")_
 - **11단계 관측(Observability)** ✅(#70 머지) — Sentry(웹 에러+브릿지 실패 로깅·PII 스크럽(exception/message/stack 포함)·소스맵)·PostHog(이벤트만·autocapture off·단일 프로젝트+`environment` 태그)·업타임(health Edge Function + UptimeRobot)·개인정보처리방침 수탁자 추가 + apps/web vitest 셋업. 📄 `specs/11-observability.md`(+verify) · ADR-085~089 _(스펙 본문 ADR 084~088 ↔ 실제 085~089)_ _(배포후 실측 잔여는 "다음 할 것")_
 - **12단계 푸시 알림** ✅(머지·배포·운영 ON — PR #71·#72, 비차단 잔여만) — Expo Push 데일리 다이제스트 + D-day 마일스톤(claim 모델 멱등)·soft-ask/설정 2레이어 토글·딥링크(allowlist)·register-push-token(service*role)·send-notifications(Cron+DRY_RUN). 📄 `specs/12-push-notifications.md`(+verify, 코드 판정 ✅) · ADR-090~096 *(스펙 4 마이그레이션 → 실제 00023~00028: claim/kst*today/unregister RPC. 검증 후 Codex P1/P2 + a11y/4상태 수정)*
+
+- **UX 라이팅 정합 + 이모지 정리 + OSS 라이선스 전문형** ✅(코드+문서 — **미커밋**) — `ux-writing-guide.md` 정본 채택·문서 연결(DESIGN/CLAUDE/web), 앱 문구 해요체·능동·다이얼로그(닫기/삭제하기) 정합, MotivationCard·roomMeta 이모지 제거, OSS 페이지 요약형→전문형(전문+SPDX 합성·아코디언). 약관/개인정보는 합쇼체 유지. 📄 `UI-POLISH.md` §15·§16 · `ux-writing-guide.md`
 
 ## 알려진 문제
 
