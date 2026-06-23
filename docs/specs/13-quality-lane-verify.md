@@ -3,6 +3,8 @@
 > 검증 세션: 2026-06-22 (구현과 별도 세션 — 자기 코드 관대 방지).
 > 대조 기준: `docs/specs/13-quality-lane.md` §14 완료 확인 체크리스트 + 34~63줄 "구현 반영" 블록.
 > 게이트 실측은 working tree(미커밋) 기준. 로컬 Supabase 컨테이너 가동 중(`supabase_*_isakok`), REST 200.
+>
+> **✅ 2026-06-23 클로즈** — PR #78 머지(squash `767a32d`), main CI green. 미체크 `[ ]` 2건(브랜치 보호 required · 배포 후 PostHog `web_vitals` 수신) **모두 해소** → 13단계 전체 완료. 남은 비차단 1건은 size-limit `initial entry` 하향(코드 스플리팅 PR).
 
 ## 게이트 실측 요약
 
@@ -73,7 +75,7 @@ verify가 식별한 "커밋 전 권장 수정" + 코드로 고칠 수 있는 fol
 - [x] `webVitals.ts`(LCP/CLS/INP/FCP/TTFB → PostHog, production 전용, `initialized` 가드) — `captureEvent` 래퍼 경유 + `toRoutePattern`(동적세그먼트 `:id` 정규화) + `ENABLED=isProduction()`.
 - [x] `release_channel` 속성으로 internal/production 구분 — payload에 포함.
 - [x] `initWebVitals()` 앱 진입점 배선 — `main.tsx` 렌더 전 동기 등록(LCP/FCP 누락 방지, 비블로킹).
-- [ ] 배포 후 PostHog `web_vitals` 수신 확인 — **배포 후 실측 잔여**(코드 검증 불가).
+- [x] 배포 후 PostHog `web_vitals` 수신 확인 — **2026-06-23 실측 완료**: production PostHog Events에 `web_vitals` 이벤트 수신, `route=/onboarding`(정적 경로라 정규화 대상 없음 → ID/PII 미노출 확인). 진단 ingest 테스트도 200 `{"status":"Ok"}`.
 
 ### Phase E — CI
 
@@ -81,7 +83,7 @@ verify가 식별한 "커밋 전 권장 수정" + 코드로 고칠 수 있는 fol
 - [x] `e2e` 잡: `supabase/setup-cli@v2`(2.105.0 핀) + readiness wait(curl 폴링) + `.env.test` 워크플로 생성(`status -o json`+jq).
 - [x] `e2e` 잡 `timeout-minutes` + 실패 시 playwright-report artifact 업로드.
 - [x] `coverage-ratchet.mjs` package별 baseline + 제외/0.1%p 오차로 회귀 fail — 실행 통과(자동 상승 금지 확인).
-- [ ] 브랜치 보호에 `verify`·`e2e` required status check 추가 — **콘솔 잔여**(첫 push 후 Settings → Branches).
+- [x] 브랜치 보호에 `verify`·`e2e` required status check 추가 — **2026-06-23 완료**(PR #78 첫 run으로 체크 등장 후 Settings → Branches에서 required 지정).
 
 ---
 
@@ -150,4 +152,5 @@ verify가 식별한 "커밋 전 권장 수정" + 코드로 고칠 수 있는 fol
 - ✅ **Codex P1 follow-up 메모(반영)**: `auth/constants.ts` JSDoc에 마이그레이션 불변식 명문화.
 - ⏭️ **🟡 size-limit `initial entry` 하향**: 라우트 코드 스플리팅 PR(§17)에서 실측+~10KB로 래칫 다운(dead ceiling 방지). `total JS` 345는 영구 유효. (분할 전이라 지금 하향 불가 — 미래 단계.)
 - ✅ **ADR 099~105(반영)**: `docs/ADR.md`에 추가 완료(2026-06-23).
-- ⏭️ **잔여(콘솔/배포)**: 브랜치 보호 `verify`·`e2e` required 추가 · 첫 PR run으로 `e2e` CI 잡 실측 · 배포 후 PostHog `web_vitals` 수신 확인 · `git status --ignored`로 `.auth/anon.json` 미커밋 육안 확인.
+- ✅ **머지 후 잔여 해소(2026-06-23, PR #78 머지·main green)**: `e2e` CI 잡 첫 실측 통과(PR run + main push 4m1s) · 브랜치 보호 `verify`·`e2e` required 추가 · 배포 후 PostHog `web_vitals` 수신 확인(`route=/onboarding`) · Gitleaks로 시크릿 0 확인(`.auth`/`.env.test` 미커밋).
+- ⏭️ **남은 비차단 1건**: size-limit `initial entry` 하향 — 라우트 코드 스플리팅 PR에서(이번 baseline 위 before/after 증명).
