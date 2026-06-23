@@ -730,3 +730,61 @@
   - 정적 자산은 CDN 캐시 + 해시 파일명(immutable)이라 추가 트래픽은 주로 신규 방문·배포 시점 → 대역폭 증가 완만
   - dev=prod 단일 운영(ADR-075)·custom domain 미구매(현재 `isakok.vercel.app`)는 사용자 증가·분리 트리거에서 함께 재검토
 - 트레이드오프: 무료 티어는 대역폭·빌드 시간 제한 + 상용 SLA 없음. 인디 규모에선 무시 가능, 트리거 도달 시 Pro/이전으로 대응
+
+### ADR-099: 테스트 격리 = 로컬 Supabase (dev=prod 운영 DB 미오염)
+
+- 결정: E2E·에이전트 탐색을 운영 Supabase가 아닌 **로컬 Supabase**(`supabase start`)에 대고 실행. 마이그레이션으로 스키마 재현 + `seed.sql` 참조 데이터(운영 master 46행 전체). 일회용 컨테이너라 청소 불필요.
+- 이유: dev=prod(ADR-075)라 운영 DB가 곧 개발 DB. 테스트가 이걸 건드리면 실유저 데이터 오염. 로컬 격리로 _오염 문제 자체가 소멸_ + 에이전트 무한 탐색 위험 0(최대 장애물 해소). "치울 공유 상태가 없는 게 최고의 청소."
+- 보완: ADR-075(dev=prod)는 _배포 환경_ 얘기 — 테스트는 로컬 일회용으로 가도 "운영을 둘로 안 나눈다"는 철학과 충돌 안 함. 세션은 `signInAnonymously()`(ADR-042) + `storageState` 재사용. `.env.test`는 repo 미커밋, CI는 `supabase status`로 워크플로에서 재생성(운영 env 혼입 차단).
+- 대안: 운영 DB + `delete_my_*` cascade 청소(에이전트 탐색이 청소보다 빨리 오염, blast radius 큼), 별도 prod-분리 staging($25/mo Pro — 출시 전 과투자) — 미채택.
+- 구현: `apps/web/playwright.config.ts`(`loadEnv('test')` 주입·`workers:1`), `apps/web/e2e/seed.spec.ts`(setup 프로젝트), `apps/web/.env.test`, `supabase/seed.sql`, `.github/workflows/ci.yml` `e2e` 잡(`supabase/setup-cli@v2` 2.105.0 핀·readiness curl 폴링).
+
+### ADR-100: E2E = Playwright Chromium+WebKit 2 플로우, 네이티브 제외
+
+- 결정: E2E는 **Chromium + WebKit** 양 엔진 × **2 플로우**(온보딩→체크리스트→대시보드 / 항목 토글→완료 시 할 일 소거). 사진·푸시는 E2E 제외(실기기 수동).
+- 이유: WebKit이 iOS WKWebView *기능 정확성*을 대표(Chromium-only는 iPhone 회귀 못 잡음). critical path 2개만 — 적고 고가치인 테스트가 유지보수 가능. 네이티브 브릿지(카메라·권한·토큰)는 Playwright로 도달 불가 → 수동.
+- 보완: 층 분리(E2E=여정 / 유닛=로직 / 수동=네이티브). flow#2는 "progress 증가"가 아니라 **완료 토글 후 그 항목이 할 일에서 소거**로 검증(ActionSection이 완료 항목을 `filter` 제거 — `slice` 카운트 불변이라 항목 소거가 더 견고한 단언).
+- 대안: Chromium만(iOS 미대표), 3+ 플로우(유지보수 비용 > 이득), 사진·푸시 E2E(브라우저 도달 불가) — 미채택.
+- 구현: `apps/web/e2e/flows/{onboarding,checklist-toggle}.spec.ts`, `support/{onboarding,prefill}.ts`. setup `seed.spec.ts`는 `testMatch`로 setup 전용, 브라우저 프로젝트는 `testIgnore`로 제외(중복 실행 방지).
+
+### ADR-101: a11y = axe-in-Playwright (Lighthouse 대체), WCAG 2.1 AA fail 게이트
+
+- 결정: 접근성은 `@axe-core/playwright`를 E2E spec에 임베드(WCAG 2.1 AA). E2E 플로우 **정적 페이지 + 동적 상태(설정 '이사 정보 수정' 시트)**, 위반 0건 fail 게이트. best-practice 룰 미포함. **Lighthouse CI 미도입.**
+- 이유: Lighthouse a11y는 내부적으로 axe를 돌림 → axe 직접 호출이 (a) 별도 도구·브라우저 0, (b) 양 엔진 + 동적 상태까지 커버 → 더 싸고 넓다. Lighthouse 성능 부분은 Chromium-only라 WKWebView 무관(→ RUM이 대체).
+- 보완: `color-contrast` 룰만 baseline 제외(캘린더 rgba0.3·muted 텍스트 대비 = 기존 디자인 토큰 부채, 앱 전반 변경 필요 → 별도 a11y/디자인 패스). 구조적 위반(label·dialog-name·heading 등)은 계속 게이트. viewport `maximum-scale=1.0` 제거(실 WCAG 1.4.4 Resize Text 수정).
+- 대안: Lighthouse CI(Chromium-only + 도구 중복), pa11y(별도 러너), `color-contrast` 전체 게이트(기존 부채로 즉시 red) — 미채택.
+- 구현: `apps/web/e2e/fixtures/axe.ts`(WCAG2a/2aa/21a/21aa 태그·`disableRules(['color-contrast'])`), 각 플로우 `checkA11y` 호출, `apps/web/index.html` viewport.
+
+### ADR-102: Web Vitals RUM = PostHog 사후 모니터 (INP 포함, production 전용)
+
+- 결정: `web-vitals`(LCP/CLS/INP/FCP/TTFB) → PostHog `web_vitals` 이벤트, 100% 수집, **production 빌드 전용, 게이트 아닌 사후 모니터.** 페이로드는 `{metric, value, rating, route, release_channel}` — **원경로(path)가 아니라 정규화한 `route`**(동적 세그먼트 UUID/숫자 → `:id`).
+- 이유: lab(Lighthouse)은 Chromium이라 WebKit/iOS 성능 못 봄 → RUM이 _iOS 포함 field 성능의 진실_. INP 포함(LCP만 보면 인터랙션 지연 못 봄, 2024 Core Web Vital). 머지를 막지 않는 사후 관측(게이트와 역할 분리).
+- 보완: 기존 PostHog(ADR-086) 재사용 → 신규 수탁자·약관 변경 0. **설계 초안의 `path`(pathname) → 실제 `route`(정규화 패턴)로 강화** — events.ts 속성 화이트리스트 규율(§2-2 "경로 금지") + 고카디널리티 방지. 모든 전송은 `captureEvent` 래퍼 단일 초크포인트 경유(raw `posthog.capture` 금지). `initialized` 모듈 가드로 HMR·remount·WebView reload 중복 등록 차단. dev=prod라 internal도 production 빌드 → `release_channel`로 구분.
+- 대안: 게이트화(field 지표는 환경 편차 커 머지 차단 부적합), Lighthouse lab(iOS 무관), raw path 전송(PII·카디널리티 위험) — 미채택.
+- 구현: `apps/web/src/observability/webVitals.ts`(`toRoutePattern`·`ENABLED=isProduction()`), `events.ts` WEB_VITALS 화이트리스트(`metric/value/rating/route/release_channel`만), `main.tsx` 배선, 단위 테스트 `webVitals.test.ts`·`events.test.ts`.
+
+### ADR-103: 번들 가드 size-limit 래칫 다운 + 커버리지 래칫 (절대 % 아님)
+
+- 결정: 번들은 `size-limit`로 현재 gzip 크기를 천장 → 코드 스플리팅하며 래칫 다운(초과 fail). 커버리지는 절대 목표치 없이 baseline 대비 **회귀 금지 래칫**(baseline은 Phase 0 백필 후 실측, 자동 상승 금지·수동 갱신).
+- 이유: 측정(baseline) 먼저 → 최적화 before/after 증명 가능(라우트 분할·`exifreader`/`react-day-picker` lazy 타깃 식별됨). 절대 % 목표는 트리비얼 테스트 양산(ADR-027 정신) → 래칫만 강제해 의미 있는 테스트만 증가.
+- 보완: size-limit 도구는 **`@size-limit/file`**(설계 초안 `@size-limit/preset-app`에서 변경 — preset-app은 `@size-limit/time` 헤드리스 Chrome 포함→CI 브라우저 의존, gzip만 게이트하려 file 단독). 두 예산(`initial entry`=`index-*.js`, `total JS`=`*.js`, 각 345KB)으로 "main만 줄고 lazy가 늘어 전체 악화"되는 회귀 차단. 코드 스플리팅 시 `initial entry` limit 하향 필수(dead ceiling 방지).
+- 대안: 고정 번들 한도(점진 개선 인센티브 없음), 절대 커버리지 % 게이트(가짜 테스트 유발), preset-app(CI 브라우저 의존) — 미채택.
+- 구현: `apps/web/.size-limit.js`(ESM `export default`), `scripts/coverage-ratchet.mjs`(package별 baseline + 0.1%p 오차 + 자동상승 금지), `docs/coverage-baseline.json`(web 94 / shared(utils) 74.3 lines — RUM 단위테스트 추가로 92.93→94 상승분 잠금).
+
+### ADR-104: 테스트 작성 = Playwright 에이전트(로컬 dev) + healer diff-gate
+
+- 결정: E2E 초안은 Playwright 에이전트(planner/generator/healer)로 생성 → **사람이 2 플로우로 curate**. 에이전트는 로컬 Supabase에 탐색(오염 0). healer는 **diff-gate**(로컬 수동 호출 → 리뷰 → 반영, auto-commit·CI 스텝 금지). CI는 산출물 `.spec.ts`만 실행(LLM·토큰 0).
+- 이유: 학습/포트폴리오 + _통합 난제(dev=prod 격리·게이팅) 해결 자체가 엔지니어링 포인트_. 무검토 auto-heal은 어설션을 느슨하게 해 진짜 회귀를 초록불로 세탁 → blast radius 높은 이 프로젝트(적은 고가치 테스트 + 실유저 + dev=prod)엔 부적합. 자율성을 blast radius에 맞춤.
+- 보완: 에이전트=로컬 대화형 도구, CI=결정적 산출물 실행. 둘을 섞지 않음(CI에 LLM 0). 테스트 시작 상태는 온보딩 UI 풀코스 대신 `prefill`(RPC 직접 호출+세션 주입)로 만들어 빠르고 셋업 UI 변경에 안 깨짐(네이버페이 하네스 발표 학습).
+- 대안: 손으로 전량 작성(학습/난제해결 가치 손실), healer auto-commit(회귀 세탁 위험) — 미채택.
+- 구현: `.claude/agents/playwright-test-{planner,generator,healer}.md`(모노레포 루트) + `.mcp.json`(`cwd:apps/web`) + `apps/web/specs/`(계획). `e2e/support/prefill.ts`. burn-in `--repeat-each=10` 양 엔진 통과(플래키 0).
+
+### ADR-105: CI 두 잡(verify/e2e) 병렬 + PR 머지 필수, nightly 미도입
+
+- 결정: `ci.yml`에 빠른 게이트(린트·타입·유닛·커버리지 래칫·번들)와 `e2e`(로컬 Supabase + Playwright 양 엔진 + axe)를 **병렬 별도 잡**으로. **PR마다 + 머지 필수 체크**(브랜치 보호). nightly 잡 없음.
+- 이유: 실유저+dev=prod라 회귀를 머지 전에 막아야 함(PR 게이트). 빠른 체크와 느린 E2E를 분리해 피드백 속도 확보 + 플레이크 격리. mutation 뺐으므로 야간 잡 불요. 로컬 Supabase로 결정성 + retries로 플레이크 억제.
+- 보완: 빠른 잡은 **기존 `verify` 잡 유지**(설계 초안의 `fast`로 개명하지 않음 — 개명 시 브랜치 보호 required check·`pr-summarize` 연동이 깨짐)에 ratchet·size-limit 스텝 추가. `e2e`는 신설(RLS CI(10-2)와 역할 구분: DB 정책 격리 vs 웹앱 여정+a11y). `e2e` 잡은 `timeout-minutes` + 실패 시 `playwright-report` artifact 업로드.
+- 대안: 단일 잡(E2E 플레이크가 빠른 체크까지 지연), `fast`로 개명(required check 깨짐), nightly E2E(실유저 환경엔 머지 전 차단이 맞음) — 미채택.
+- 구현: `.github/workflows/ci.yml`(`verify` 잡에 ratchet·size-limit + `e2e` 잡 신설), Playwright 브라우저 캐시(`runner.os`+lock/package hash).
+
+> **제외 기록(ADR 아님, 추적용):** Lighthouse CI(ADR-101 사유), mutation testing(옵션·니치, config 1회로 후속 가능), visual regression(스냅샷 유지보수 > 1인 이득) — 13단계 미도입.
