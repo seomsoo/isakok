@@ -3,6 +3,7 @@ import { requestHaptic } from '@moving/shared'
 import { toggleChecklistItem } from '@/services/checklist'
 import { useToast } from '@/shared/components/ToastProvider'
 import { captureEvent, ANALYTICS_EVENTS } from '@/observability/events'
+import { toggleItemsCompletion } from '../optimisticToggle'
 import { queryKeys } from './queryKeys'
 
 export function useToggleItem(moveId: string, userId: string) {
@@ -24,6 +25,9 @@ export function useToggleItem(moveId: string, userId: string) {
       const previousToday = queryClient.getQueryData(queryKeys.todayItems(moveId))
       const previousTimeline = queryClient.getQueryData(queryKeys.timelineItems(moveId))
 
+      // 한 번의 토글에 단일 시각 스냅샷 — 세 섹션/타임라인이 동일 completed_at을 갖게
+      const now = new Date().toISOString()
+
       queryClient.setQueryData(
         queryKeys.todayItems(moveId),
         (
@@ -36,18 +40,10 @@ export function useToggleItem(moveId: string, userId: string) {
             | undefined,
         ) => {
           if (!old) return old
-          const toggleItem = (item: Record<string, unknown>) =>
-            item.id === itemId
-              ? {
-                  ...item,
-                  is_completed: isCompleted,
-                  completed_at: isCompleted ? new Date().toISOString() : null,
-                }
-              : item
           return {
-            overdue: old.overdue.map(toggleItem),
-            today: old.today.map(toggleItem),
-            upcoming: old.upcoming.map(toggleItem),
+            overdue: toggleItemsCompletion(old.overdue, itemId, isCompleted, now),
+            today: toggleItemsCompletion(old.today, itemId, isCompleted, now),
+            upcoming: toggleItemsCompletion(old.upcoming, itemId, isCompleted, now),
           }
         },
       )
@@ -56,15 +52,7 @@ export function useToggleItem(moveId: string, userId: string) {
         queryKeys.timelineItems(moveId),
         (old: Record<string, unknown>[] | undefined) => {
           if (!old) return old
-          return old.map((item) =>
-            item.id === itemId
-              ? {
-                  ...item,
-                  is_completed: isCompleted,
-                  completed_at: isCompleted ? new Date().toISOString() : null,
-                }
-              : item,
-          )
+          return toggleItemsCompletion(old, itemId, isCompleted, now)
         },
       )
 
