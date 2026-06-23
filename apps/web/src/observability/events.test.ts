@@ -27,4 +27,23 @@ describe('filterProps', () => {
   it('returns undefined when props are omitted', () => {
     expect(filterProps(ANALYTICS_EVENTS.PHOTO_UPLOADED)).toBeUndefined()
   })
+
+  it('keeps WEB_VITALS metric fields and drops un-normalized path (PII 차단)', () => {
+    // RUM은 route(정규화된 패턴)만 보내야 하고, 원경로(path)·임의 키는 화이트리스트에서 탈락해야 한다.
+    const result = filterProps(ANALYTICS_EVENTS.WEB_VITALS, {
+      metric: 'LCP',
+      value: 1234,
+      rating: 'good',
+      route: '/checklist/:id',
+      release_channel: 'production',
+      path: '/checklist/3f9a1b2c-uuid', // 비허용(원경로/PII) — 제거돼야 함
+    })
+    expect(result).toEqual({
+      metric: 'LCP',
+      value: 1234,
+      rating: 'good',
+      route: '/checklist/:id',
+      release_channel: 'production',
+    })
+  })
 })

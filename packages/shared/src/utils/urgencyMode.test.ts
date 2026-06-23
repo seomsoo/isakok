@@ -72,4 +72,31 @@ describe('rescheduleOverdueItems', () => {
     expect(result[7]?.display_date).toBe('2026-04-13')
     expect(result[8]?.display_date).toBe('2026-04-14')
   })
+
+  it('이사가 7일 이내면 분배 범위를 남은 날로 줄인다 (min(diff, 7))', () => {
+    const shortMoving = '2026-04-16' // today=04-13 → 3일 남음
+    const items = Array.from({ length: 5 }, (_, i) => ({
+      id: `${i}`,
+      assigned_date: '2026-04-01',
+      is_completed: false,
+      guide_type: 'tip' as const,
+    }))
+    const result = rescheduleOverdueItems(items, today, shortMoving)
+    // spreadDays=3 → 04-13, 04-14, 04-15 순환
+    expect(result[0]?.display_date).toBe('2026-04-13')
+    expect(result[2]?.display_date).toBe('2026-04-15')
+    expect(result[3]?.display_date).toBe('2026-04-13') // 3 % 3 = 0 → 다시 오늘
+  })
+
+  it('이사일이 오늘이거나 지났으면 모두 오늘로 배치한다 (spreadDays 하한 1)', () => {
+    const items = Array.from({ length: 3 }, (_, i) => ({
+      id: `${i}`,
+      assigned_date: '2026-04-01',
+      is_completed: false,
+      guide_type: 'tip' as const,
+    }))
+    // movingDate=today → diff 0 → spreadDays=max(0,1)=1 → 모두 오늘
+    const result = rescheduleOverdueItems(items, today, today)
+    expect(result.every((r) => r.display_date === '2026-04-13')).toBe(true)
+  })
 })

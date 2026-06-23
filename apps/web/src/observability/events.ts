@@ -31,6 +31,8 @@ export const ANALYTICS_EVENTS = {
   CHECKLIST_ITEM_TOGGLED: 'checklist_item_toggled',
   PHOTO_UPLOADED: 'photo_uploaded',
   RESCHEDULE_MODE_CHANGED: 'reschedule_mode_changed',
+  // 성능 (RUM, 13단계 — Web Vitals 사후 모니터)
+  WEB_VITALS: 'web_vitals',
 } as const
 
 export type AnalyticsEvent = (typeof ANALYTICS_EVENTS)[keyof typeof ANALYTICS_EVENTS]
@@ -53,6 +55,8 @@ const ALLOWED_EVENT_PROPS: Partial<Record<AnalyticsEvent, readonly string[]>> = 
   [ANALYTICS_EVENTS.PHOTO_GATE_CANCELLED]: ['source'],
   [ANALYTICS_EVENTS.LOGIN]: ['provider'],
   [ANALYTICS_EVENTS.SIGNUP]: ['provider'],
+  // route는 동적 세그먼트를 :id로 정규화한 패턴만(구체 경로/식별자 아님 — webVitals.ts)
+  [ANALYTICS_EVENTS.WEB_VITALS]: ['metric', 'value', 'rating', 'route', 'release_channel'],
 }
 
 /** 화이트리스트에 있는 키만 남김(없으면 속성 제거). 단위 테스트를 위해 export. */

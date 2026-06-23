@@ -54,11 +54,95 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
-      - name: Test
-        run: pnpm test
+      - name: Test (with coverage)
+        run: pnpm test:coverage
+
+      - name: Coverage ratchet (no regression — ADR-103)
+        run: node scripts/coverage-ratchet.mjs
 
       - name: Build
         env:
           VITE_SUPABASE_URL: https://dummy.supabase.co
           VITE_SUPABASE_ANON_KEY: dummy-anon-key-for-ci-build-only
         run: pnpm build
+
+      - name: Bundle size guard (size-limit)
+        run: pnpm --filter @moving/web size-limit
+
+  e2e:
+    name: E2E (Playwright chromium+webkit + axe)
+    # verify(fast)와 병렬 별도 잡 — 느리고 가끔 플레이크라 격리. RLS CI와 역할 구분:
+    # RLS CI=DB 정책 격리 검증, 여기 e2e=웹앱 여정(온보딩·토글) + a11y 게이트.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Playwright 브라우저 캐시 (os + lock/package hash — 버전·OS 변화 반영)
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'apps/web/package.json') }}
+
+      - name: Install Playwright browsers
+        run: pnpm --filter @moving/web exec playwright install --with-deps chromium webkit
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v2
+        with:
+          # rls-ci.yml과 동일 핀 — latest는 `supabase status` 출력 포맷을 바꿔 jq 파싱이 깨짐
+          version: 2.105.0
+
+      # 마이그레이션 전체 + seed.sql(46항목) 적용하며 로컬 스택 부팅(ready까지 블록)
+      - name: Start Supabase local stack
+        run: supabase start
+
+      # .env.test를 워크플로에서 생성(운영 env 혼입 차단) — 로컬 publishable 키 주입
+      - name: Write apps/web/.env.test
+        run: |
+          STATUS=$(supabase status -o json)
+          ANON=$(echo "$STATUS" | jq -r '.ANON_KEY // empty')
+          if [ -z "$ANON" ]; then
+            echo "::error::Failed to parse ANON_KEY from 'supabase status -o json' (CLI 포맷 변경 의심)"
+            supabase status || true
+            exit 1
+          fi
+          cat > apps/web/.env.test <<EOF
+          VITE_SUPABASE_URL=http://127.0.0.1:54321
+          VITE_SUPABASE_ANON_KEY=$ANON
+          VITE_APP_ENV=test
+          VITE_POSTHOG_KEY=
+          VITE_SENTRY_DSN=
+          VITE_DISABLE_AI_GUIDE=true
+          EOF
+
+      # playwright.config webServer가 build --mode test && preview 수행 (양 엔진 + axe)
+      - name: Run E2E
+        run: pnpm --filter @moving/web exec playwright test
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/
+          retention-days: 7
+
+      - name: Stop Supabase local stack
+        if: always()
+        run: supabase stop --no-backup

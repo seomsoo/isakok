@@ -1,31 +1,26 @@
 # 프로젝트 상태
 
-> 마지막 업데이트: 2026-06-19 (**12단계 푸시 알림 완료** — PR #71·#72 머지, 배포·iOS 실기기 검증·운영 ON(EXECUTE + 매일 09:00 KST Cron). 이후 관측 보정 #73, docs 정리(README·ADR 토픽 인덱스·트러블슈팅 #69 등). **개발 단계 0~12 코드 완료 → 현재 운영/폴리시 모드(별도 번호 단계 없음)**. 진행 중: **네이티브 느낌 패스**(`feat/web-native-feel` 브랜치 커밋 완료·미머지 — 마이크로 인터랙션 `UI-POLISH.md` §13 + 에러 통일 §14). 잔여(비차단): 10-4 콘솔 · 11 배포후 실측 · 12 토큰 재할당 field test/Android 채널 HIGH 다음 빌드/테스트 이사일 원복 → "다음 할 것". **2026-06-19 추가**: UX 라이팅 정합·이모지 정리·OSS 라이선스 전문형 — `UI-POLISH.md` §15·§16, 미커밋)
+> 마지막 업데이트: 2026-06-23 (**13단계 품질 레인 — 구현+/verify+권장수정+ADR 완료, 로컬 전 게이트 green, 커밋/PR 진행**. /verify 별도세션 종합 ✅통과; Codex P2(seed `testIgnore`)·web-a11y🔴(axe 동적상태=설정시트 checkA11y) 수정·재검증(E2E 5 passed, seed 1회), RUM 단위테스트 보강(web 커버리지 92.93→94%·branches 90.56→92.18%, baseline 갱신), Codex P1 무효+`auth/constants.ts` 불변식 주석, ADR-099~105 `docs/ADR.md` 추가. 잔여: 첫 push로 e2e CI 실측·브랜치보호 콘솔·배포후 PostHog 수신. 개발 0~12 코드완료, 12 푸시 운영 ON, dev=prod ADR-075.)
 
 ## 현재 단계
 
-**개발 단계 0~12 코드 완료 — 현재 운영/폴리시 모드(별도 번호 단계 없음).** 12단계 푸시 알림: PR #71·#72 머지, 배포·iOS 실기기 검증 완료, **운영 ON**(EXECUTE + 매일 09:00 KST Cron). (아래 구현 요약은 12단계 기록 — 정본은 spec/verify·ADR-090~097)
+**13단계 품질 레인 — 구현·/verify·권장수정·ADR 완료, 로컬 전 게이트 green, 미커밋 → 커밋/PR 진행.** Phase 0~E 구현 완료(유닛백필+래칫 · 로컬 Supabase 격리 · E2E 양엔진 2플로우+axe · size-limit · web-vitals RUM · ci.yml verify/e2e). **/verify 별도세션 종합 ✅통과**(`docs/specs/13-quality-lane-verify.md`) — Codex P2(seed `testIgnore`)·web-a11y🔴(axe 동적상태: 설정 '이사 정보 수정' 시트 checkA11y) **수정·재검증**(E2E **5 passed**, seed 1회), RUM 단위테스트 보강(`webVitals.test.ts`+events WEB_VITALS → web 커버리지 92.93→94%·branches 90.56→92.18%, baseline 갱신), Codex P1 무효 판정+`auth/constants.ts` 불변식 주석, **ADR-099~105 `docs/ADR.md` 추가**. lint·typecheck·test:coverage(73)·ratchet·build·size-limit(336/345KB)·E2E 전부 green. 정본 `docs/specs/13-quality-lane.md`(+verify). 디테일·설계판단은 인덱스 줄 참조.
 
-Expo Push로 데일리 다이제스트 + D-day 마일스톤(7/3/1/0)을 09:00 KST Cron 발송(회원·익명, 권한 수락 시). 구현: DB(00023~00028 — push*tokens·notification_log claim 모델·users push 컬럼·set_push*\*/claim/kst_today/delete_my_push_tokens RPC) · Edge(register-push-token, send-notifications + cron-setup) · 네이티브(expo-notifications 권한/토큰/Android 채널/포그라운드·응답·콜드스타트, WebView·\_layout 배선) · 웹(soft-ask 모달·설정 토글 effective status·NAVIGATE 딥링크·privacy Expo 수탁 고지) · ADR-090~096. `pnpm lint`/`typecheck` 통과, `test` shared 21·web 15. Edge(Deno)는 로컬 deno 미설치라 배포 시 검증. 스펙 `docs/specs/12-push-notifications.md`(+`12-push-notifications-verify.md`).
-
-> 구현 중 스펙 보정 4건(상세 ADR-091~094 보완): ① claim은 부분 유니크 인덱스라 supabase-js upsert 불가 → RPC로(00027) ② 네이티브는 `createAuthedClient(access_token)`(supabaseNative 세션없음) ③ current move = getCurrentMove 실제기준(`status='active'`+`created_at desc`) ④ DB 기준 날짜 `kst_today()` RPC. `getLastNotificationResponseAsync` SDK55 deprecated→버퍼링 구조상 유지+`clearLast...`.
-
-> 검증(/verify) 후 🔴 4 수정: ① Codex P1 로그아웃 토큰 unbind(00028 `delete_my_push_tokens` RPC + signOut에서 호출 — 옛 user 알림이 새 익명 유저에게 가던 누출) ② P2 NAVIGATE 활성탭 단건 전달(비활성 탭 오염 방지) ③ ux 4상태(loading/error/toast) ④ a11y 모달(포커스/Esc/trap)+토글 aria-live·터치타깃. 상세 `docs/specs/12-push-notifications-verify.md`(코드 판정 ✅).
-
-(11단계 관측: #70 머지 완료. 10-4: 코드 머지 PR #61·핵심 배포 완료, 잔여 콘솔은 아래. dev=prod ADR-075.)
+(개발 0~12 코드완료. 12 푸시 운영 ON(09:00 KST Cron). 11 관측 #70. 10-4 코드 #61. dev=prod ADR-075.)
 
 ## 진행 중인 것
 
-- **네이티브 느낌 패스** (`feat/web-native-feel` 브랜치, 커밋 완료·**미머지**) — ① 마이크로 인터랙션(햅틱·등장 페이드·시트 진입·Toast 퇴장·체크 pop·duration 정합, `UI-POLISH.md` §13) ② 에러 통일(ErrorBoundary 신규·조회 실패 `ErrorMessage`+`refetch`·mutation toast, §14). `pnpm lint`/`typecheck`/`build` + 온보딩 스모크(Playwright, 햅틱 dev-fallback) 통과. **다음: 실기기 햅틱 체감·에러/데이터 화면 시각확인 → PR.**
-- (12단계 푸시: PR #71·#72 머지·배포·운영 ON 완료 → "완료된 것")
-- (11단계 관측 #70 머지 완료, 10-4 follow-up #68/#69 머지 완료)
-- (10-4 잔여 콘솔/운영은 아래 "다음 할 것")
+- **13단계 커밋/PR 진행 중** — 구현+/verify+권장수정+ADR 전부 완료, working tree **46파일 미커밋**(현재 `main` 브랜치, origin/main과 동일). 다음: `feat/quality-lane` 브랜치 → Phase별 split 커밋(~6-8) → push → PR. `.env.test`·`apps/web/e2e/.auth`·`coverage/`·`test-results/`·`playwright-report/`는 gitignore(시크릿/생성물). **로컬 Supabase 실행 중**(검증 중 1회 재기동 `stop --no-backup`→`start`) — 정리는 `supabase stop --no-backup`.
+- (13단계 영상학습 추가분: prefill 헬퍼·E2E 가이드 doc(`apps/web/e2e-testing.md`)·Playwright Test Agents(루트 `.claude/agents/`+`.mcp.json` cwd=apps/web)·burn-in `--repeat-each=10` 양엔진 41 passed — 위 13단계 구현에 포함, 커밋 대상)
+- (네이티브 느낌 §13·§14 + UX 라이팅/OSS §15·§16 — git log상 **PR #76·#77 머지됨**, 기존 "미커밋" 표기 stale. 다음 진입 시 working tree 잔여 확인)
 
 ## 다음 할 것
 
-1. **12단계 비차단 잔여** (코드·배포·검증 ✅ — PR #71·#72 머지, `12-push-notifications-verify.md` §배포·실기기 검증) — 토큰 재할당 field test(소셜 로그인→로그아웃 시나리오, deferred) · Android 채널 HIGH 팝업 on-device(다음 빌드 재설치) · 🟡 follow-up(N+1 배치화·denied 색대비·웹 라우트 포커스). **테스트로 바꾼 이사일 원복 필요**(D-0 → 실제 날짜, 안 하면 매일 디지스트).
-2. **11단계 배포 후 실측** (verify 리포트 ⏳잔여) — `VITE_APP_ENV`/`environment` 태그 의도값 · Sentry 알림 `environment=production` 필터 · 대시보드 실 페이로드 PII 육안검증 · Sentry retention 콘솔 확정.
-3. **10-4 잔여 콘솔/운영** — Kakao 콘솔 콜백 URL + 위조 user_id smoke · 나머지 시크릿(CLEANUP_TOKEN/DRY_RUN/KAKAO_APP_ID/KAKAO_ADMIN_KEY) · cron-setup.sql(cleanup 스케줄) · 브랜치 보호 RLS CI required check · App Store Connect·EAS production·TestFlight·Data Safety · `npx expo prebuild --clean`
+1. **13단계 커밋 → push → PR** (진행 중) — `feat/quality-lane` 브랜치 → 미커밋 46파일을 Phase별 논리 단위(~6-8 커밋)로 분리 → push → PR(요약→Spec→What→Why→Verify 양식).
+2. **13단계 PR 후 잔여** (verify `[ ]` 2건) — (a) 첫 PR run으로 **`e2e` CI 잡 실측**(로컬 불가 — GitHub Actions supabase start+양엔진) → 통과 후 **브랜치 보호에 `verify`·`e2e` required 추가**(콘솔; 체크 1회 등장 후 Settings→Branches; `verify`=fast 역할, 개명 시 기존 required 깨짐) (b) **배포 후 PostHog `web_vitals` 수신 확인**(production 빌드 전용 → Vercel 배포+실기기 트래픽 후 대시보드 육안). 📄 `13-quality-lane-verify.md`
+3. **12단계 비차단 잔여** — 토큰 재할당 field test · Android 채널 HIGH on-device · **테스트로 바꾼 이사일 원복**(D-0→실제). 📄 `12-push-notifications-verify.md`
+4. **11단계 배포 후 실측** — `VITE_APP_ENV`/environment 태그 · Sentry 알림 필터 · PII 육안 · retention. 📄 `11-observability-verify.md`
+5. **10-4 잔여 콘솔/운영** — Kakao 콜백·시크릿·cron-setup·브랜치보호 RLS CI required·App Store Connect·TestFlight·`expo prebuild --clean`
 
 ## 완료된 것 (요약 인덱스 — 상세는 각 단계 spec/verify + ADR.md)
 
@@ -56,8 +51,15 @@ Expo Push로 데일리 다이제스트 + D-day 마일스톤(7/3/1/0)을 09:00 KS
 
 - **UX 라이팅 정합 + 이모지 정리 + OSS 라이선스 전문형** ✅(코드+문서 — **미커밋**) — `ux-writing-guide.md` 정본 채택·문서 연결(DESIGN/CLAUDE/web), 앱 문구 해요체·능동·다이얼로그(닫기/삭제하기) 정합, MotivationCard·roomMeta 이모지 제거, OSS 페이지 요약형→전문형(전문+SPDX 합성·아코디언). 약관/개인정보는 합쇼체 유지. 📄 `UI-POLISH.md` §15·§16 · `ux-writing-guide.md`
 
+- **13단계 품질 레인(Quality Lane)** ✅(코드+로컬검증 — **미커밋**) — 머지 전 게이트 + 배포후 모니터 안전망(WebView·dev=prod 제약 맞춤). ① 유닛 백필 6영역(D-day·progress essential·재배치·scrub·conditionTags + 순수추출 `memoSaveMachine`/`optimisticToggle`) ② 커버리지 래칫(`scripts/coverage-ratchet.mjs`, baseline web 94%(권장수정 RUM 테스트로 92.93→94 갱신·branches 90.56→92.18)·shared utils 74.3%, 자동상승 금지) ③ 로컬 Supabase 격리(`signInAnonymously`→storageState, `SUPABASE_STORAGE_KEY` 단일출처, `VITE_DISABLE_AI_GUIDE` 가드) ④ E2E Playwright Chromium+WebKit 2플로우(온보딩→대시보드 / 상세토글→소거)+axe WCAG2.1AA(viewport zoom a11y 수정, color-contrast baseline 제외) ⑤ size-limit 두 예산(`@size-limit/file`, 336/345KB) ⑥ web-vitals→PostHog(`captureEvent` 경유·route 패턴 정규화, production 전용) ⑦ `ci.yml` `verify`(=fast)에 ratchet·size-limit + `e2e` 잡(supabase start+양엔진). 📄 `specs/13-quality-lane.md`(+`13-quality-lane-verify.md` 종합 ✅통과) · ADR-099~105(`docs/ADR.md` 반영) _(verify 권장수정 반영: Codex P2 seed `testIgnore` · web-a11y axe 동적상태(설정시트 checkA11y) · RUM 단위테스트(`webVitals.test`) · P1 불변식 주석. 스펙↔구현: AI가드 DashboardPage·온보딩 3스텝·#6 매핑 SQL RPC·flow#2 대시보드토글)_
+
 ## 알려진 문제
 
+- **(13단계) viewport `maximum-scale=1.0` 제거** — 앱에서 핀치 줌 허용(axe WCAG 1.4.4 수정). 네이티브 느낌상 원치 않으면 `apps/web/index.html` 1줄 복구 가능. 입력 줌(iOS)은 textarea가 16px라 무관.
+- **(13단계) axe 게이트에서 `color-contrast` 룰 baseline 제외** — 캘린더 요일헤더(rgba navy 0.3)·muted/placeholder 텍스트 대비 부채(기존 이슈)라 앱 전반 토큰/CSS 변경 필요 → 13단계 스코프 밖. 구조적 위반은 계속 게이트. 별도 a11y/디자인 패스에서 처리.
+- **(13단계) 로컬 `supabase db reset` 시 storage 컨테이너 unhealthy**(비차단) — E2E 2플로우는 storage 무관이라 영향 없음. `supabase start` 단독은 깨끗.
+- ~~**(13단계) ADR 099~105 미추가**~~ → **✅ `docs/ADR.md` 반영 완료**(2026-06-23, max 098 확인 후 099~105 추가, 실제 구현 반영: RUM `route`·`@size-limit/file`·CI `verify` 유지).
+- **(13단계) verify 미체크 `[ ]` 2건은 운영 액션** — 브랜치 보호 required(첫 PR run 후 콘솔)·배포 후 PostHog `web_vitals` 수신(Vercel 배포+실기기 후 대시보드). 코드/로컬로 불가, 머지 파이프라인 따라 해소.
 - urgent/critical 모드 격려 문구는 사용자 상황별 맞춤 교체 검토 (Follow-up)
 - previousMode는 현재 세션 단위. 10단계 인증 후 서버 영속 검토 (Follow-up)
 - CLAUDE.md import 별칭 `@shared/` vs 실제 `@moving/shared` 불일치 (빌드 문제 없음, 정리 필요)
@@ -146,3 +148,16 @@ Expo Push로 데일리 다이제스트 + D-day 마일스톤(7/3/1/0)을 09:00 KS
 - **신규 ADR 번호는 스펙 작성 시점 가정과 실제 `docs/ADR.md` 최대번호가 어긋날 수 있음** — 추가 직전 ADR.md 최대번호 확인 후 +1. (11단계: 스펙 본문은 ADR-084~088로 썼으나 084 선점 → 실제 085~089로 시프트, 양 문서에 매핑 노트)
 - **apps/web에 vitest 추가 시 `tsconfig.app.json`의 `include:["src"]`가 `*.test.ts`까지 tsc(build) 대상으로 잡아 vitest 전역(describe/it/expect) 타입 에러** — build tsconfig에 `exclude:["src/**/*.test.ts"]` 추가 + eslint flat config에 `*.test.ts` `no-undef:off` 블록으로 분리(테스트 전역은 vitest 런타임이 주입). packages/shared는 build에 tsc 단계가 없어 무관, web만 해당
 - **Sentry PII 스크럽을 user/request/breadcrumb 구조화 필드만 막으면 불충분** — 실무 최대 누수 경로는 `event.exception.values[].value`(에러 메시지에 박힌 주소/이메일)·`event.message`·stack frame `filename` 쿼리. `beforeSend`에서 이 자유 텍스트까지 redact(URL query strip + 이메일 마스킹) 필요. 한글 주소·메모는 패턴화 불가라 "메시지에 PII 미보간" 호출부 규율이 1차 방어, 스크럽은 마지막 그물
+- **레포 루트 자산(.github, git-tracked 파일)은 절대경로/`git -C`로 확인** — `cd apps/web` 등 하위 cwd에서 `ls .github`/`git ls-files | grep`/`find .`을 하면 루트를 못 봐 "CI가 없다" 같은 오판을 함(13단계에서 실제 발생). cwd 의존 상대경로 검색 주의 — 루트 확인은 `/Users/.../isakok/` 절대경로 또는 `git -C <root>`
+- **`vite preview`도 기본 IPv6 `::1`만 바인딩** (dev server뿐 아니라) — Playwright webServer가 `127.0.0.1`(IPv4) 접속 실패로 타임아웃. `vite preview ... --host 127.0.0.1` 명시 필수 (STATUS 기존 "Vite dev server --host" 항목의 preview 확장)
+- **size-limit config 파일명은 `.size-limit.js`** (검색 경로) — `size-limit.config.js`는 인식 안 됨("Create Size Limit config" 에러). `type:module` 패키지라 ESM `export default`. 또 cwd가 `@size-limit/*`를 deps에 둔 package.json이어야 플러그인 자동탐색됨 → `pnpm --filter @moving/web size-limit`로 cwd 고정(루트에서 실행 시 플러그인 0개)
+- **`@size-limit/preset-app`은 `@size-limit/time`(헤드리스 Chrome 실행) 포함** — gzip 사이즈만 게이트하려면 `@size-limit/file` 단독 사용(브라우저 의존·CI Chromium 다운로드 제거). per-check `running:false`로는 time 플러그인이 안 꺼짐
+- **로컬 Supabase는 새 키 형식**(`sb_publishable_`/`sb_secret_`, ADR-075 체계) — `.env.test`에 레거시 데모 JWT anon(`eyJ...`) 넣으면 인증 실패. `supabase status -o json`의 `.ANON_KEY`(=publishable) 사용(rls-ci.yml과 동일 jq 파싱). CLI는 2.105.0 핀(latest는 status 포맷 변경)
+- **대시보드 ActionSection은 `slice(0, maxVisible=5)`** — 항목 1개 완료해도 빈자리를 다음 항목이 채워 "보이는 체크박스 수"가 불변. E2E 토글 검증은 카운트 감소가 아니라 **방금 토글한 특정 항목(aria-label "{제목} 완료 처리")이 사라지는지**로 단언
+- **`playwright init-agents`는 cwd에 파일 생성**(`.claude/agents/`·`.mcp.json`·`specs/`) — 모노레포에서 apps/web에 깔리면 루트에서 도는 Claude Code가 에이전트를 못 봄. **에이전트 정의는 루트 `.claude/agents/`로 이동 + `.mcp.json`은 루트에 두되 `"cwd": "apps/web"`**(playwright MCP가 playwright.config 찾게). 그래야 planner/generator/healer가 로드됨
+- **테스트 시작 상태는 UI 말고 prefill(API)로** — E2E에서 검증 시작점의 사전 상태(예: move+체크리스트)는 온보딩 UI 풀코스 대신 RPC를 직접 호출(`e2e/support/prefill.ts`)해 만든다. 빠르고 독립적이며 셋업 UI 변경에 안 깨짐. 온보딩 자체는 별도 flow가 검증 (네이버페이 하네스 발표 prefill)
+- **Playwright setup spec(`seed.spec.ts`)은 브라우저 프로젝트에서 `testIgnore` 필수** — `testDir` 기본 `*.spec.ts` 매칭에 setup 파일이 걸려, `dependencies:['setup']`과 **별개로** chromium/webkit 프로젝트에서 한 번 더 실행됨(`playwright test --list`/실행 출력에 seed가 3회). 정상 런마다 익명유저 추가 생성 + 공유 storageState 재기록. **해결**: setup은 `testMatch`로 그 파일만, 브라우저 프로젝트는 `testIgnore: /seed\.spec\.ts/`로 제외(상수 1개로 단일출처). (13단계 Codex P2)
+- **axe 게이트는 정적 페이지만 검사하면 모달/시트가 통째로 빠진다** — `checkA11y`를 페이지 진입 시점에만 호출하면 열린 시트/모달(포커스 트랩·dialog 시맨틱 등 axe+흐름 교집합 위험)이 한 번도 게이트에 안 들어옴. **해결**: 기존 플로우 안에서 시트 1개를 열고(예: 설정 → '이사 정보 수정') `checkA11y` 호출 — 새 플로우 신설(과생성) 아님. (13단계 web-a11y 🔴)
+- **vitest `vi.mock` 팩토리가 참조하는 스파이는 `vi.hoisted`로 끌어올릴 것** — `vi.mock`은 파일 최상단으로 hoist되는데 top-level `const spy = vi.fn()`은 그보다 늦게 초기화돼 `ReferenceError: Cannot access 'X' before initialization`. **해결**: `const { onLCP, ... } = vi.hoisted(() => ({ onLCP: vi.fn(), ... }))` 후 팩토리에서 참조. (`webVitals.test.ts`)
+- **`coverage.all:false`에서 새 테스트가 그동안 미측정이던 모듈을 import하면 ratchet 하락 위험** — 그 파일의 미커버 라인/분기가 분모에 새로 추가됨. 일부만 테스트하면 aggregate가 baseline 아래로 떨어져 래칫 fail. **해결**: 신규 모듈은 분기까지 충분히 커버(early-return·`??`·ENABLED=false 등 양쪽)하거나 안 끌어옴. 정당한 커버리지 상승 시 `coverage-baseline.json` 수동 갱신으로 잠금(자동 상승 금지 원칙과 별개의 의도적 커밋).
+- **로컬 `supabase status -o json`의 `ANON_KEY`는 레거시 JWT(`eyJ...`)를 반환** — 앱/`.env.test`가 쓰는 publishable 키(`sb_publishable_...`, ADR-075)와 다름. `.env.test` 키 검증은 `status -o json` ANON_KEY가 아니라 **`supabase start` 출력의 `Publishable`과 대조**. 둘 다 결정적이라 `stop --no-backup`→`start` 재기동해도 키 불변(=`.env.test` 갱신 불필요).

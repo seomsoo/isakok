@@ -55,4 +55,15 @@ export default tseslint.config(
       'no-undef': 'off',
     },
   },
+  {
+    // E2E(Playwright)는 Node 컨텍스트(process 등) + page.evaluate 본문의 브라우저 전역이 혼재.
+    // 빌드/typecheck(tsconfig include:src) 대상 밖이고, Playwright 자체 로더가 실행한다.
+    files: ['e2e/**/*.ts', 'playwright.config.ts'],
+    languageOptions: {
+      globals: { ...globals.node, ...globals.browser },
+    },
+    rules: {
+      'no-undef': 'off',
+    },
+  },
 )

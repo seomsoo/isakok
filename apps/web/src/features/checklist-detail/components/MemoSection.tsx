@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { useDebouncedCallback } from 'use-debounce'
 import { useUpdateMemo } from '../hooks/useUpdateMemo'
+import { decideMemoSave, decideAfterSave } from '../memoSaveMachine'
 import { useToast } from '@/shared/components/ToastProvider'
 import { SectionTitle } from './SectionTitle'
 
@@ -25,9 +26,13 @@ export function MemoSection({ itemId, userId, initialMemo }: MemoSectionProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
 
   const save = (value: string) => {
-    if (value === lastSavedRef.current) return
-    if (inFlightRef.current) {
-      pendingRef.current = value
+    const decision = decideMemoSave(value, {
+      lastSaved: lastSavedRef.current,
+      inFlight: inFlightRef.current,
+    })
+    if (decision.type === 'skip') return
+    if (decision.type === 'queue') {
+      pendingRef.current = decision.pending
       return
     }
     inFlightRef.current = true
@@ -36,13 +41,12 @@ export function MemoSection({ itemId, userId, initialMemo }: MemoSectionProps) {
       onSuccess: () => {
         lastSavedRef.current = value
         inFlightRef.current = false
-        const next = pendingRef.current
-        if (next !== null && next !== value) {
-          pendingRef.current = null
-          save(next)
+        const post = decideAfterSave(value, pendingRef.current)
+        pendingRef.current = null
+        if (post.type === 'resave') {
+          save(post.value)
           return
         }
-        pendingRef.current = null
         setSaveStatus('saved')
         if (savedTimerRef.current !== null) clearTimeout(savedTimerRef.current)
         savedTimerRef.current = window.setTimeout(() => setSaveStatus('idle'), 2000)

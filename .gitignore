@@ -11,6 +11,15 @@ coverage/
 .vercel
 .claude/worktrees/
 .playwright-mcp/
+.vscode/
+
+# E2E 세션 토큰 (storageState) — 로컬 Supabase 토큰이라도 커밋 금지 (스펙 13 §3-4)
+apps/web/e2e/.auth/
+# Playwright 산출물 (리포트/트레이스/스냅샷) — 생성물이라 커밋 금지
+apps/web/test-results/
+apps/web/playwright-report/
+apps/web/blob-report/
+apps/web/playwright/.cache/
 
 # Expo generated
 app.json
