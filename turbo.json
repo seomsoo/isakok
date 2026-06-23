@@ -18,6 +18,10 @@
     "test": {
       "cache": false
     },
+    "test:coverage": {
+      "cache": false,
+      "outputs": ["coverage/**"]
+    },
     "clean": {
       "cache": false
     }

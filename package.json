@@ -11,6 +11,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "turbo test",
+    "test:coverage": "turbo run test:coverage",
+    "coverage:ratchet": "node scripts/coverage-ratchet.mjs",
     "clean": "turbo clean",
     "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "verify:fast": "pnpm lint && pnpm typecheck",
