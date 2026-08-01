@@ -37,7 +37,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v2
+        uses: supabase/setup-cli@v3
         with:
           # 버전 핀 고정 — `latest`는 드리프트 위험. v2.106.0(2026-06-11)이 `supabase status` 출력을
           # 바꿔 아래 jq 파싱이 깨졌음(SUPABASE_URL 빈 값 → smoke 전부 실패). v2.105.0(2026-06-04)이
