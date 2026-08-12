@@ -32,6 +32,7 @@ import { TermsPage } from '@/pages/TermsPage'
 import { OssLicensesPage } from '@/pages/OssLicensesPage'
 import { ToastProvider } from '@/shared/components/ToastProvider'
 import { ErrorBoundary } from '@/shared/components/ErrorBoundary'
+import { DevBadge } from '@/shared/components/DevBadge'
 
 const transitionConfig = {
   transitions: [
@@ -100,6 +101,7 @@ export function App() {
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
         <BrowserRouter>
+          <DevBadge />
           <WebReadySignal />
           <Routes>
             <Route element={<TransitionLayout />}>
