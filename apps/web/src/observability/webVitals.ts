@@ -6,7 +6,7 @@ import { isProduction } from './env'
  * Web Vitals RUM (스펙 13 §7, ADR-102) — 실유저 field 성능을 PostHog로 사후 모니터.
  *
  * lab(Lighthouse)은 Chromium이라 iOS WKWebView 성능을 못 봄 → RUM이 iOS 포함 field 진실.
- * 게이트가 아니라 머지 후 관측(머지를 막지 않음). production 빌드 전용 — dev=prod라 internal도
+ * 게이트가 아니라 머지 후 관측(머지를 막지 않음). production 빌드 전용 — internal 배포도
  * production 빌드이므로, 지표 해석 시 섞이지 않게 release_channel로 internal/production 구분.
  */
 const ENABLED = isProduction()

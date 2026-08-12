@@ -8,8 +8,8 @@
  * 실행:
  *   SUPABASE_URL=... SUPABASE_ANON_KEY=... SUPABASE_SERVICE_ROLE_KEY=... npx tsx scripts/verify/rls-smoke.ts
  *
- * CI는 임시 Supabase local stack에서 실행(dev=prod라 실제 DB 미사용). 테스트 데이터를 생성하므로
- * 실제 prod 자격증명으로는 실행 금지.
+ * CI는 로컬 Supabase stack에서 실행(ADR-109 — 결정성·격리 정식 선택). 원격 dev(isakok-dev)
+ * 대상 수동 실행도 가능. 테스트 데이터를 생성하므로 prod 자격증명으로는 실행 금지.
  */
 
 import { createClient } from '@supabase/supabase-js'

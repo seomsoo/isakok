@@ -1,8 +1,8 @@
 /**
  * 관측 레이어 환경 판정 (스펙 11 §4, ADR-088 — 스펙 본문 표기 ADR-087)
  *
- * dev=prod 단일 Supabase 프로젝트(ADR-075)지만 관측 레이어(Sentry/PostHog)는
- * 환경을 분리해 내 테스트가 prod 지표·알림을 오염시키지 않게 한다.
+ * Supabase는 dev/prod 분리(ADR-106), 관측 레이어(Sentry/PostHog)는 무료 플랜(1프로젝트)이라
+ * environment 태그로 분리(ADR-088 유지) — 내 테스트가 prod 지표·알림을 오염시키지 않게 한다.
  *
  * 판정 순서: `VITE_APP_ENV` 명시 변수 1순위 → host/빌드 모드 fallback.
  * preview/internal/prod alias가 섞여 host 기반 판정만으론 오분류 위험이 있어,
