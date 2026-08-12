@@ -24,7 +24,7 @@ docs/              ← 기획 문서, 단계별 스펙 (SDD)
 
 ## 현재 단계
 
-> 10-4단계: 정식 출시 준비 (공개 전 하드닝 + 부가 기능) — 코드 머지 완료(PR #61). 배포·콘솔(마이그레이션 push, Edge Function 배포, 시크릿, Kakao 콘솔, TestFlight) 운영 단계. ADR-075로 dev=prod 단일 프로젝트 운영.
+> 14단계: Supabase dev/prod 환경 분리 (ADR-106~109) — dev=prod(ADR-075) 종료. 기존 `ybcqinanfcarhqkclvue`=prod(`isakok-prod`) 유지, 신규 `yiffgoxnyyngkbasyfaw`=dev(`isakok-dev`) 구축. 로컬·PR 프리뷰·EAS development/preview = dev, 릴리즈 채널(EAS production + Vercel Production)만 prod. 라이브 상태는 docs/STATUS.md 참조.
 
 ## 개발 방법론
 
