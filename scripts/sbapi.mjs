@@ -11,16 +11,18 @@
  */
 import { readFileSync } from 'node:fs'
 
+// SUPABASE_ACCESS_TOKEN이라는 이름은 금지 — supabase CLI가 workdir .env.local을 자동 로드해
+// go-keyring 래핑 값을 그대로 Bearer로 보내며 전 명령이 401로 죽는다 (14단계 실측).
 const envLine = readFileSync(new URL('../.env.local', import.meta.url), 'utf8')
   .split('\n')
-  .find((line) => line.startsWith('SUPABASE_ACCESS_TOKEN='))
+  .find((line) => line.startsWith('SB_MGMT_TOKEN='))
 
 if (!envLine) {
-  console.error('SUPABASE_ACCESS_TOKEN이 .env.local에 없다')
+  console.error('SB_MGMT_TOKEN이 .env.local에 없다')
   process.exit(1)
 }
 
-let token = envLine.slice('SUPABASE_ACCESS_TOKEN='.length).trim()
+let token = envLine.slice('SB_MGMT_TOKEN='.length).trim()
 if (token.startsWith('go-keyring-base64:')) {
   token = Buffer.from(token.slice('go-keyring-base64:'.length), 'base64').toString()
 }

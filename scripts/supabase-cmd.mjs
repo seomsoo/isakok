@@ -58,7 +58,8 @@ function assertProdRefArg(refArg) {
   if (refArg !== PROD_REF) fail('인자 ref가 기대하는 PROD_REF와 불일치 — 대상 확인 후 재실행')
 }
 
-const [command, refArg] = process.argv.slice(2)
+// pnpm run이 '--' 구분자를 그대로 전달하는 경우가 있어 걸러낸다
+const [command, refArg] = process.argv.slice(2).filter((arg) => arg !== '--')
 
 switch (command) {
   case 'db:push:dev':
