@@ -1,26 +1,25 @@
 # 프로젝트 상태
 
-> 마지막 업데이트: 2026-06-23 (**13단계 품질 레인 — 구현+/verify+권장수정+ADR 완료, 로컬 전 게이트 green, 커밋/PR 진행**. /verify 별도세션 종합 ✅통과; Codex P2(seed `testIgnore`)·web-a11y🔴(axe 동적상태=설정시트 checkA11y) 수정·재검증(E2E 5 passed, seed 1회), RUM 단위테스트 보강(web 커버리지 92.93→94%·branches 90.56→92.18%, baseline 갱신), Codex P1 무효+`auth/constants.ts` 불변식 주석, ADR-099~105 `docs/ADR.md` 추가. 잔여: 첫 push로 e2e CI 실측·브랜치보호 콘솔·배포후 PostHog 수신. 개발 0~12 코드완료, 12 푸시 운영 ON, dev=prod ADR-075.)
+> 마지막 업데이트: 2026-06-23 (**13단계 품질 레인 — ✅ 완료·PR #78 머지(squash `767a32d`)·main CI green·클로즈**. /verify 종합 ✅통과; Codex P2(seed `testIgnore`)·web-a11y🔴(axe 동적상태=설정시트) 수정·재검증, RUM 단위테스트 보강(web 92.93→94%·branches 90.56→92.18%, baseline 갱신), Codex P1 무효+불변식 주석, ADR-099~105 추가. **머지 후 잔여 전부 해소**: e2e CI 첫 실측 통과(main 4m1s)·브랜치보호 `verify`·`e2e` required·배포후 PostHog `web_vitals` 수신(`route=/onboarding`). 비차단 1건: size-limit `initial entry` 하향(코드 스플리팅 PR). 개발 0~13 코드완료, 12 푸시 운영 ON, dev=prod ADR-075.)
 
 ## 현재 단계
 
-**13단계 품질 레인 — 구현·/verify·권장수정·ADR 완료, 로컬 전 게이트 green, 미커밋 → 커밋/PR 진행.** Phase 0~E 구현 완료(유닛백필+래칫 · 로컬 Supabase 격리 · E2E 양엔진 2플로우+axe · size-limit · web-vitals RUM · ci.yml verify/e2e). **/verify 별도세션 종합 ✅통과**(`docs/specs/13-quality-lane-verify.md`) — Codex P2(seed `testIgnore`)·web-a11y🔴(axe 동적상태: 설정 '이사 정보 수정' 시트 checkA11y) **수정·재검증**(E2E **5 passed**, seed 1회), RUM 단위테스트 보강(`webVitals.test.ts`+events WEB_VITALS → web 커버리지 92.93→94%·branches 90.56→92.18%, baseline 갱신), Codex P1 무효 판정+`auth/constants.ts` 불변식 주석, **ADR-099~105 `docs/ADR.md` 추가**. lint·typecheck·test:coverage(73)·ratchet·build·size-limit(336/345KB)·E2E 전부 green. 정본 `docs/specs/13-quality-lane.md`(+verify). 디테일·설계판단은 인덱스 줄 참조.
+**13단계 품질 레인 — ✅ 완료·PR #78 머지(squash `767a32d`)·main CI green.** Phase 0~E 전부(유닛백필+래칫 · 로컬 Supabase 격리 · E2E 양엔진 2플로우+axe · size-limit · web-vitals RUM · ci.yml verify/e2e). /verify 종합 ✅통과 — Codex P2(seed `testIgnore`)·web-a11y🔴(axe 동적상태: 설정 '이사 정보 수정' 시트) **수정·재검증**(E2E **5 passed**), RUM 단위테스트 보강(web 92.93→94%·branches 90.56→92.18%, baseline 갱신), Codex P1 무효+`auth/constants.ts` 불변식 주석, ADR-099~105 반영. **머지 후 잔여 전부 해소**: e2e CI 첫 실측 통과(main 4m1s)·브랜치보호 `verify`·`e2e` required·배포후 PostHog `web_vitals` 수신(`route=/onboarding`, ID/PII 미노출 확인). 정본 `docs/specs/13-quality-lane.md`(+verify). 디테일·설계판단은 인덱스 줄 참조.
 
 (개발 0~12 코드완료. 12 푸시 운영 ON(09:00 KST Cron). 11 관측 #70. 10-4 코드 #61. dev=prod ADR-075.)
 
 ## 진행 중인 것
 
-- **13단계 커밋/PR 진행 중** — 구현+/verify+권장수정+ADR 전부 완료, working tree **46파일 미커밋**(현재 `main` 브랜치, origin/main과 동일). 다음: `feat/quality-lane` 브랜치 → Phase별 split 커밋(~6-8) → push → PR. `.env.test`·`apps/web/e2e/.auth`·`coverage/`·`test-results/`·`playwright-report/`는 gitignore(시크릿/생성물). **로컬 Supabase 실행 중**(검증 중 1회 재기동 `stop --no-backup`→`start`) — 정리는 `supabase stop --no-backup`.
-- (13단계 영상학습 추가분: prefill 헬퍼·E2E 가이드 doc(`apps/web/e2e-testing.md`)·Playwright Test Agents(루트 `.claude/agents/`+`.mcp.json` cwd=apps/web)·burn-in `--repeat-each=10` 양엔진 41 passed — 위 13단계 구현에 포함, 커밋 대상)
+- **13단계 관련 진행 중 작업 없음** — PR #78로 머지·클로즈(verify `[ ]` 전부 해소). `.env.test`·`apps/web/e2e/.auth`는 gitignore라 미커밋 정상. 로컬 Supabase는 종료 가능: `supabase stop --no-backup`.
+- (13단계 영상학습 추가분: prefill 헬퍼·E2E 가이드 doc(`apps/web/e2e-testing.md`)·Playwright Test Agents(루트 `.claude/agents/`+`.mcp.json` cwd=apps/web)·burn-in `--repeat-each=10` 양엔진 41 passed — **PR #78 포함·머지됨**. ⚠️ Playwright `playwright-test` MCP는 **새 세션마다 승인 필요**(`claude` 시작 시 프롬프트) — 미승인이면 generator/healer 구동 불가)
 - (네이티브 느낌 §13·§14 + UX 라이팅/OSS §15·§16 — git log상 **PR #76·#77 머지됨**, 기존 "미커밋" 표기 stale. 다음 진입 시 working tree 잔여 확인)
 
 ## 다음 할 것
 
-1. **13단계 커밋 → push → PR** (진행 중) — `feat/quality-lane` 브랜치 → 미커밋 46파일을 Phase별 논리 단위(~6-8 커밋)로 분리 → push → PR(요약→Spec→What→Why→Verify 양식).
-2. **13단계 PR 후 잔여** (verify `[ ]` 2건) — (a) 첫 PR run으로 **`e2e` CI 잡 실측**(로컬 불가 — GitHub Actions supabase start+양엔진) → 통과 후 **브랜치 보호에 `verify`·`e2e` required 추가**(콘솔; 체크 1회 등장 후 Settings→Branches; `verify`=fast 역할, 개명 시 기존 required 깨짐) (b) **배포 후 PostHog `web_vitals` 수신 확인**(production 빌드 전용 → Vercel 배포+실기기 트래픽 후 대시보드 육안). 📄 `13-quality-lane-verify.md`
-3. **12단계 비차단 잔여** — 토큰 재할당 field test · Android 채널 HIGH on-device · **테스트로 바꾼 이사일 원복**(D-0→실제). 📄 `12-push-notifications-verify.md`
-4. **11단계 배포 후 실측** — `VITE_APP_ENV`/environment 태그 · Sentry 알림 필터 · PII 육안 · retention. 📄 `11-observability-verify.md`
-5. **10-4 잔여 콘솔/운영** — Kakao 콜백·시크릿·cron-setup·브랜치보호 RLS CI required·App Store Connect·TestFlight·`expo prebuild --clean`
+1. **13단계 비차단 follow-up** (옵션) — 라우트 코드 스플리팅 + size-limit `initial entry` 하향(깔아둔 baseline 위 before/after 증명) · desktop `useCreateMove` 동적→정적 import 안전망 fix(latent 크래시 정리 — 네이티브 세션 race 대비).
+2. **12단계 비차단 잔여** — 토큰 재할당 field test · Android 채널 HIGH on-device · **테스트로 바꾼 이사일 원복**(D-0→실제). 📄 `12-push-notifications-verify.md`
+3. **11단계 배포 후 실측** — Sentry 알림 필터 · PII 육안 · retention. (`VITE_APP_ENV=production`·environment 태그는 13단계 PostHog 확인 중 검증됨.) 📄 `11-observability-verify.md`
+4. **10-4 잔여 콘솔/운영** — Kakao 콜백·시크릿·cron-setup·브랜치보호 RLS CI required·App Store Connect·TestFlight·`expo prebuild --clean`
 
 ## 완료된 것 (요약 인덱스 — 상세는 각 단계 spec/verify + ADR.md)
 
@@ -51,7 +50,7 @@
 
 - **UX 라이팅 정합 + 이모지 정리 + OSS 라이선스 전문형** ✅(코드+문서 — **미커밋**) — `ux-writing-guide.md` 정본 채택·문서 연결(DESIGN/CLAUDE/web), 앱 문구 해요체·능동·다이얼로그(닫기/삭제하기) 정합, MotivationCard·roomMeta 이모지 제거, OSS 페이지 요약형→전문형(전문+SPDX 합성·아코디언). 약관/개인정보는 합쇼체 유지. 📄 `UI-POLISH.md` §15·§16 · `ux-writing-guide.md`
 
-- **13단계 품질 레인(Quality Lane)** ✅(코드+로컬검증 — **미커밋**) — 머지 전 게이트 + 배포후 모니터 안전망(WebView·dev=prod 제약 맞춤). ① 유닛 백필 6영역(D-day·progress essential·재배치·scrub·conditionTags + 순수추출 `memoSaveMachine`/`optimisticToggle`) ② 커버리지 래칫(`scripts/coverage-ratchet.mjs`, baseline web 94%(권장수정 RUM 테스트로 92.93→94 갱신·branches 90.56→92.18)·shared utils 74.3%, 자동상승 금지) ③ 로컬 Supabase 격리(`signInAnonymously`→storageState, `SUPABASE_STORAGE_KEY` 단일출처, `VITE_DISABLE_AI_GUIDE` 가드) ④ E2E Playwright Chromium+WebKit 2플로우(온보딩→대시보드 / 상세토글→소거)+axe WCAG2.1AA(viewport zoom a11y 수정, color-contrast baseline 제외) ⑤ size-limit 두 예산(`@size-limit/file`, 336/345KB) ⑥ web-vitals→PostHog(`captureEvent` 경유·route 패턴 정규화, production 전용) ⑦ `ci.yml` `verify`(=fast)에 ratchet·size-limit + `e2e` 잡(supabase start+양엔진). 📄 `specs/13-quality-lane.md`(+`13-quality-lane-verify.md` 종합 ✅통과) · ADR-099~105(`docs/ADR.md` 반영) _(verify 권장수정 반영: Codex P2 seed `testIgnore` · web-a11y axe 동적상태(설정시트 checkA11y) · RUM 단위테스트(`webVitals.test`) · P1 불변식 주석. 스펙↔구현: AI가드 DashboardPage·온보딩 3스텝·#6 매핑 SQL RPC·flow#2 대시보드토글)_
+- **13단계 품질 레인(Quality Lane)** ✅(머지 **PR #78** · /verify 종합 ✅ · `web_vitals` 수신 확인) — 머지 전 게이트 + 배포후 모니터 안전망(WebView·dev=prod 제약 맞춤). ① 유닛 백필 6영역(D-day·progress essential·재배치·scrub·conditionTags + 순수추출 `memoSaveMachine`/`optimisticToggle`) ② 커버리지 래칫(`scripts/coverage-ratchet.mjs`, baseline web 94%(권장수정 RUM 테스트로 92.93→94 갱신·branches 90.56→92.18)·shared utils 74.3%, 자동상승 금지) ③ 로컬 Supabase 격리(`signInAnonymously`→storageState, `SUPABASE_STORAGE_KEY` 단일출처, `VITE_DISABLE_AI_GUIDE` 가드) ④ E2E Playwright Chromium+WebKit 2플로우(온보딩→대시보드 / 상세토글→소거)+axe WCAG2.1AA(viewport zoom a11y 수정, color-contrast baseline 제외) ⑤ size-limit 두 예산(`@size-limit/file`, 336/345KB) ⑥ web-vitals→PostHog(`captureEvent` 경유·route 패턴 정규화, production 전용) ⑦ `ci.yml` `verify`(=fast)에 ratchet·size-limit + `e2e` 잡(supabase start+양엔진). 📄 `specs/13-quality-lane.md`(+`13-quality-lane-verify.md` 종합 ✅통과) · ADR-099~105(`docs/ADR.md` 반영) _(verify 권장수정 반영: Codex P2 seed `testIgnore` · web-a11y axe 동적상태(설정시트 checkA11y) · RUM 단위테스트(`webVitals.test`) · P1 불변식 주석. 스펙↔구현: AI가드 DashboardPage·온보딩 3스텝·#6 매핑 SQL RPC·flow#2 대시보드토글)_
 
 ## 알려진 문제
 

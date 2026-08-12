@@ -11,7 +11,7 @@ App Store · Google Play(출시 준비 중)
 - 기획부터 출시 준비까지 전 기능 구현 완료 — Vercel(웹) 배포 · EAS로 iOS·Android 빌드. iOS 실기기 검증 완료, Android 내부 테스트 통과 (양 스토어 프로덕션 출시만 남음)
 - 단계마다 스펙 먼저 작성 → 구현 → 검증하는 [SDD](docs/specs) 방식
 - 설계 판단은 그때그때 [ADR](docs/ADR.md)로 기록
-- 리뷰·자동 수정용 CI 파이프라인 직접 구성
+- 리뷰·자동 수정 + E2E(양 엔진)·접근성·번들 가드를 머지 게이트로 둔 CI 파이프라인 직접 구성
 - RLS(행 단위 권한) 기반 보안 설계
 
 ## 스크린샷
@@ -51,7 +51,7 @@ App Store · Google Play(출시 준비 중)
 | 네이티브 셸      | Expo SDK 55 · React Native 0.83 · Expo Router · react-native-webview  |
 | 백엔드           | Supabase — PostgreSQL + RLS + Auth + Storage + Deno Edge Functions    |
 | AI / 관측 / 알림 | Claude API · Sentry · PostHog · Expo Push                             |
-| 도구             | Turborepo · pnpm · Vitest · GitHub Actions                            |
+| 도구             | Turborepo · pnpm · Vitest · Playwright · GitHub Actions               |
 
 ## 아키텍처
 
@@ -95,7 +95,7 @@ flowchart TB
 
 **보안 우선** — 전 테이블 RLS, 클라이언트 anon key만, 센 키는 Edge Function 전용, Sentry/PostHog로 나가는 데이터에서 개인정보(주소·메모) 스크럽, 레이트 리밋은 별도 RPC.
 
-테스트는 날짜 계산·진척도·해시·긴박도 판정 같은 순수 로직 위주 (Vitest, shared 21 + web 15 케이스). 화면 컴포넌트 커버리지는 아직 부족 — 더 채워야 할 부분.
+테스트는 성격에 따라 나눠서 함 — 날짜 계산·진척도·해시 같은 **순수 로직은 Vitest로** 촘촘히(shared 38 + web 35개), **실제 사용자 흐름은 Playwright로** 진짜 브라우저에서, 카메라·푸시 같은 **네이티브 기능은 직접 손으로** 확인. 테스트가 코드를 얼마나 덮었는지(커버리지)는 _지금보다 낮아지면 빌드를 막는_ 식으로 둬서, 한 번 테스트로 덮은 코드가 슬그머니 빠지는 걸 방지.
 
 ## 개발 인프라 — 커스텀 하네스
 
@@ -140,14 +140,14 @@ flowchart LR
 
 **GitHub Actions 워크플로**
 
-| 워크플로           | 역할                                             |
-| ------------------ | ------------------------------------------------ |
-| `ci.yml`           | lint · typecheck · test · build (머지 차단)      |
-| `auto-fix-bot.yml` | CI 실패 시 봇이 격리 환경에서 최소 수정 시도     |
-| `pr-summarize.yml` | CI 통과 후 변경 요약 코멘트 자동 게시            |
-| `rls-ci.yml`       | RLS 읽기/쓰기 시나리오 스모크 테스트 (머지 차단) |
-| `gitleaks.yml`     | 시크릿 노출 스캔                                 |
-| `db-backup.yml`    | 매일 03:00 KST DB 백업                           |
+| 워크플로           | 역할                                                                  |
+| ------------------ | --------------------------------------------------------------------- |
+| `ci.yml`           | lint·타입·테스트·커버리지·빌드·번들 + E2E(양 엔진)·접근성 (머지 차단) |
+| `auto-fix-bot.yml` | CI 실패 시 봇이 격리 환경에서 최소 수정 시도                          |
+| `pr-summarize.yml` | CI 통과 후 변경 요약 코멘트 자동 게시                                 |
+| `rls-ci.yml`       | RLS 읽기/쓰기 시나리오 스모크 테스트 (머지 차단)                      |
+| `gitleaks.yml`     | 시크릿 노출 스캔                                                      |
+| `db-backup.yml`    | 매일 03:00 KST DB 백업                                                |
 
 **리뷰 서브에이전트** — PR이 올라오면 영역을 나눠 점검. 스펙 일치(spec-reviewer), 민감정보·RLS·인증 흐름(security-auditor), 웹/네이티브 접근성(web · native-a11y-reviewer), loading·empty·error·success 4상태(ux-state-reviewer), 번들·렌더 성능(perf-budget-reviewer), 변경 요약(pr-summarizer), 자동 수정(auto-fixer). 정적 분석(ESLint·Gitleaks)이 놓치는 의미·흐름 단위를 담당.
 
@@ -155,7 +155,24 @@ flowchart LR
 
 **가드레일 — 어디까지 자동화할지** — 자동 머지는 두지 않음. 봇은 제안·수정까지만, 머지는 사람이 결정(`ADR-031`). 범위·시크릿 차단 같은 결정적 가드는 코드(`scripts/auto-fix/`)로, 의미·흐름 판단은 에이전트 담당(`ADR-024`). 테스트 자동 생성처럼 사람 판단이 필요한 건 일부러 자동화 제외(`ADR-027`).
 
-핵심은 AI를 코딩 보조로만 쓰지 않고, 리뷰와 자기 수정을 자동화하는 파이프라인 자체를 설계한 것.
+**테스트도 AI한테 맡기되 고삐는 쥠** — E2E 테스트(진짜 브라우저를 띄워 사용자처럼 클릭하며 동작을 확인하는 테스트)는 초안을 Playwright 에이전트(planner·generator·healer)한테 뽑게 하고, 그중 제일 중요한 흐름 2개만 사람이 골라 남김. 대신 AI한테 어디까지 맡길지 선을 그어둠.
+
+```mermaid
+flowchart LR
+    subgraph Local["내 컴퓨터 — 테스트 만들 때만 (AI 사용)"]
+        P["planner<br/>무엇을 확인할지 계획"] --> G["generator<br/>테스트 초안 작성"]
+        G --> Pick["사람이 핵심 흐름<br/>2개만 골라 남김"]
+    end
+    Pick --> Spec["완성된 테스트<br/>.spec.ts"]
+    Spec --> CI["CI — 이 파일만 그대로 실행<br/>(AI 안 씀 · 늘 같은 결과)"]
+    CI -->|테스트가 깨지면| Healer["healer가 수리<br/>사람이 확인 후 반영<br/>(자동 커밋 안 함)"]
+    Healer --> Spec
+```
+
+- **AI 도구는 테스트를 만들 때 내 컴퓨터에서만** 돌고, 자동 검사(CI)는 다 만들어진 테스트 파일만 그대로 실행 → 검사 단계엔 AI가 안 끼니 결과가 늘 똑같음.
+- 테스트가 깨지면 healer가 고쳐주는데 **자동으로 커밋은 못 하게** 막음. AI가 알아서 고치다 보면 테스트 기준을 슬쩍 느슨하게 바꿔서 진짜 버그를 '통과'로 둔갑시킬 수 있어, 고친 내용은 꼭 사람이 눈으로 보고 반영(`ADR-104`).
+
+핵심은 AI를 코딩 보조로만 쓰지 않고, 리뷰·검증·자기 수정을 파이프라인으로 자동화하되 — 어디까지 맡기고 어디서 사람이 끊을지 선을 그어 설계한 것.
 
 ## 구조
 
