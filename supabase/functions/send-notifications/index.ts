@@ -1,7 +1,8 @@
 // send-notifications (12단계 §7-2, ADR-094). Supabase Cron 전용 서버-서버 함수.
 // 매일 09:00 KST: current active move 기준으로 데일리 다이제스트 + D-day 마일스톤을 평가해
 // notification_log claim 모델로 멱등 발송. verify_jwt=false(config.toml) + PUSH_CRON_TOKEN 내부 검증.
-// 첫 배포는 PUSH_DRY_RUN=true로 평가만 로깅 → 확인 후 false 전환(실유저 직발송, ADR-075 dev=prod).
+// 첫 배포는 PUSH_DRY_RUN=true로 평가만 로깅 → 확인 후 false 전환(prod는 실유저 직발송).
+// dev(isakok-dev)는 cron 미스케줄 + PUSH_DRY_RUN=true 기본 — 검증은 수동 invoke (ADR-107).
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts'
 import { supabaseAdmin } from '../_shared/supabaseAdmin.ts'
 import { log } from '../_shared/logger.ts'
