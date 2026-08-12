@@ -1,5 +1,8 @@
 -- §3 cleanup — Supabase Cron 스케줄 (ADR-076)
 -- 자동 마이그레이션이 아님. 환경 의존(Vault 시크릿·함수 배포 플래그)이라 SQL 에디터/대시보드에서 수동 실행한다.
+-- ⚠️ prod 전용 — dev(isakok-dev)는 cron 미스케줄이 정책 (스펙 14 §2-5). dev 검증은 curl 수동
+--    invoke(CLEANUP_TOKEN 헤더 + DRY_RUN=true)로. 이 파일 변경 자체를 검증할 때만 dev에 일시
+--    세팅 → 검증 후 cron.unschedule로 해제.
 --
 -- ── 사전 준비 ──────────────────────────────────────────────────────────────
 --  1) cleanup 함수 배포 (verify_jwt 비활성 — Cron이 플랫폼 JWT가 아닌 커스텀 토큰으로 호출):

@@ -1,5 +1,8 @@
 -- 푸시 발송 — Supabase Cron 스케줄 (12단계 §8, ADR-094)
 -- 자동 마이그레이션이 아님. 환경 의존(Vault 시크릿·함수 배포 플래그)이라 SQL 에디터/대시보드에서 수동 실행한다.
+-- ⚠️ prod 전용 — dev(isakok-dev)는 cron 미스케줄이 정책 (스펙 14 §2-5). dev 검증은 curl 수동
+--    invoke(PUSH_CRON_TOKEN 헤더 + PUSH_DRY_RUN=true)로. 이 파일 변경 자체를 검증할 때만 dev에
+--    일시 세팅 → 검증 후 cron.unschedule로 해제.
 --
 -- ── 사전 준비 ──────────────────────────────────────────────────────────────
 --  1) 함수 배포 (config.toml에 [functions.send-notifications] verify_jwt=false 선언됨):
