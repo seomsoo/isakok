@@ -14,7 +14,7 @@
 
 ## 2. 격리 아키텍처 (왜 로컬 Supabase인가)
 
-- **dev=prod**(ADR-075)라 "진짜 백엔드 = 프로덕션". E2E가 그걸 때리면 실유저 데이터 오염 → 그래서 **로컬 Supabase**(`supabase start`, Docker)에 대고 돈다. 일회용 컨테이너라 청소 불요.
+- 도입 당시 **dev=prod**(ADR-075)라 실유저 오염 방지가 이유였고, dev/prod 분리(14단계) 후에도 **로컬 Supabase**(`supabase start`, Docker) 유지 — 결정성·격리·PR 동시 실행 무간섭이 정식 근거로 승격(ADR-109). free dev는 자동 pause라 원격 의존 CI는 소음원. 일회용 컨테이너라 청소 불요.
 - 백엔드는 **모킹하지 않는다** — 실제 RPC·RLS·쿼리를 그대로 검증. 유일한 모킹은 **AI 가이드 Edge 함수**(`VITE_DISABLE_AI_GUIDE=true`) — Anthropic API+네트워크라 불가피한 것만.
 - 참고: 백엔드를 *모킹*해야 하는 검증은 Playwright가 아니라 **Vitest 통합/유닛**으로 (브라우저 불요).
 
