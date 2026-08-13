@@ -16,6 +16,7 @@ import {
 import { useSignedUrls } from '@/features/photos/hooks/useSignedUrls'
 import { usePhotos } from '@/features/photos/hooks/usePhotos'
 import { photoKeys } from '@/features/photos/hooks/queryKeys'
+import { parsePhotoType } from '@/features/photos/utils/photoPaths'
 import { useToast } from '@/shared/components/ToastProvider'
 import { ErrorMessage } from '@/shared/components/ErrorMessage'
 import { useUserId } from '@/auth/useSession'
@@ -65,8 +66,7 @@ export function PhotoTrashPage() {
   }
   if (!move) return <Navigate to={ROUTES.LANDING} replace />
 
-  const queryType = searchParams.get('type') as PhotoType | null
-  const photoType: PhotoType = queryType === 'move_out' ? 'move_out' : 'move_in'
+  const photoType: PhotoType = parsePhotoType(searchParams.get('type')) ?? 'move_in'
 
   return <Inner moveId={move.id} photoType={photoType} onBack={goBack} />
 }
@@ -138,14 +138,13 @@ function Inner({ moveId, photoType, onBack }: InnerProps) {
     if (c > 0) counts.set(r.type, c)
   }
 
-  if (activeFilter !== FILTER_ALL && !counts.has(activeFilter)) {
-    setActiveFilter(FILTER_ALL)
-  }
+  // 선택한 방의 삭제 사진이 다 사라지면 전체 필터로 폴백 (렌더 중 setState 대신 파생값)
+  const effectiveFilter = counts.has(activeFilter) ? activeFilter : FILTER_ALL
 
   const filteredPhotos =
-    activeFilter === FILTER_ALL
+    effectiveFilter === FILTER_ALL
       ? deletedPhotos
-      : deletedPhotos.filter((p) => p.room === activeFilter)
+      : deletedPhotos.filter((p) => p.room === effectiveFilter)
 
   return (
     <main className="flex min-h-dvh flex-col bg-[#FAFAFA]">
@@ -195,7 +194,7 @@ function Inner({ moveId, photoType, onBack }: InnerProps) {
               <FilterChip
                 label="전체"
                 count={counts.get(FILTER_ALL) ?? 0}
-                isActive={activeFilter === FILTER_ALL}
+                isActive={effectiveFilter === FILTER_ALL}
                 onClick={() => setActiveFilter(FILTER_ALL)}
               />
               {roomsWithPhotos.map((room) => (
@@ -203,7 +202,7 @@ function Inner({ moveId, photoType, onBack }: InnerProps) {
                   key={room.type}
                   label={room.label}
                   count={counts.get(room.type) ?? 0}
-                  isActive={activeFilter === room.type}
+                  isActive={effectiveFilter === room.type}
                   onClick={() => setActiveFilter(room.type)}
                 />
               ))}
