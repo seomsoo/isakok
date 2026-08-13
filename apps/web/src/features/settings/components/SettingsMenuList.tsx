@@ -2,6 +2,7 @@ import { ChevronRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { isNativeWebView, sendToNative } from '@shared/utils/nativeBridge'
 import { ROUTES } from '@shared/constants/routes'
+import { SUPPORT_EMAIL } from '@shared/constants/support'
 import { useUserId } from '@/auth/useSession'
 
 interface MenuItem {
@@ -71,12 +72,12 @@ export function SettingsMenuList({ onDeleteAccount }: SettingsMenuListProps = {}
     {
       label: '문의하기',
       onClick: () => {
-        window.location.href = 'mailto:usnimoes@gmail.com'
+        window.location.href = `mailto:${SUPPORT_EMAIL}`
       },
     },
     {
       label: '앱 버전',
-      value: 'v1.0.0',
+      value: `v${__APP_VERSION__}`,
     },
   ]
 
