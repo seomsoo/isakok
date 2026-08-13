@@ -1,30 +1,21 @@
 # 프로젝트 상태
 
-> 마지막 업데이트: 2026-08-13 (**14단계 Supabase dev/prod 환경 분리 — 구현+검증 완료(verify 최종 ✅), PR 대기**. 13단계 마감 docs PR #79 머지. `feat/env-separation` 커밋 25개(미푸시), 정본 `specs/14-env-separation.md`(+verify) + ADR-106~109. dev=prod(ADR-075) 종료 — 기존 `ybcqinanfcarhqkclvue`=prod(`isakok-prod`), 신규 `yiffgoxnyyngkbasyfaw`=dev(`isakok-dev`). Phase A~D 실측 통과(스모크·RLS 20/20·CORS 매트릭스·fail-closed·AI 생성·실기기 브릿지) + verify 지적(P1 kakao 웹훅 JWT 회귀 복구 포함) 전부 수정 반영. 잔여는 PR + 머지 후 5건.)
+> 마지막 업데이트: 2026-08-13 (**14단계 Supabase dev/prod 환경 분리 — ✅ 완료·PR #86 머지(squash `67a2ccb`)·머지 후 잔여 해소·클로즈**. dev=prod(ADR-075) 종료 — 기존 `ybcqinanfcarhqkclvue`=prod(`isakok-prod`), 신규 `yiffgoxnyyngkbasyfaw`=dev(`isakok-dev`). verify 최종 ✅(P1 kakao 웹훅 JWT 회귀 복구 포함 전건 수정), 머지 후: 구 시크릿 삭제·백업 dispatch 그린+**restore 테스트 통과**·`main:dev` 재발행(dev 웹 배지 반영)·관리 토큰 제거. 잔여는 prod DB 비번 rotate 권장 + §14-6 dev 완주 실측.)
 
 ## 현재 단계
 
-**14단계 Supabase dev/prod 환경 분리 — 구현+검증 완료(verify 최종 ✅), PR 대기.** 정본 `docs/specs/14-env-separation.md` + `14-env-separation-verify.md`(최초 ❌→수정 반영→최종 ✅) · ADR-106~109(체인 주석 포함). 브랜치 `feat/env-separation` 커밋 25개(1~3파일 단위, **미푸시**). PR용 스크린샷 루트 `stage14-dev-badge-dashboard.png`(untracked) 준비됨.
+**14단계 Supabase dev/prod 환경 분리 — ✅ 완료·PR #86 머지(squash `67a2ccb`)·머지 후 잔여 해소·클로즈.** 정본 `docs/specs/14-env-separation.md` + `14-env-separation-verify.md`(최초 ❌→수정 반영→최종 ✅, §14-9 restore 실측 포함) · ADR-106~109. 다음 단계 대기.
 
-**verify 세션용 실측 결과 요약** (§14 골격 대조용 — 재실측 가능한 건 재실측 권장):
-
-- **dev 구축**: isakok-dev(Seoul·free) — 마이그레이션 28/28 + seed 46, 함수 9개(cleanup `--no-verify-jwt`), legacy JWT **비활성**(prod도 비활성 확인), 시크릿 전부 신규(ANTHROPIC dev 키+spend limit 포함), Auth 익명 ON·Google provider(prod 설정 복사, ID 3종+skip nonce)·Site/Redirect URL, cron 미스케줄
-- **코드**: cors env화(fail-closed 합집합) · `scripts/supabase-cmd.mjs` 가드 6명령(거부 3케이스+긍정 실측, pnpm `--` 필터) · `lib/envFingerprint`+테스트 6 · DevBadge · .env 3파일 dev 전환(루트↔web 심링크 해체) · db-backup rename · `scripts/sbapi.mjs`(Management API 헬퍼)
-- **채널**: Vercel Preview env=dev · `dev` 미러 브랜치+`isakok-dev.vercel.app`(gitBranch 할당) · **Vercel Authentication 해제**(ADR-108 — WebView가 SSO 통과 불가) · EAS development/preview env 15종(스펙에 없던 `GOOGLE_SERVICES_JSON` 파일 시크릿 포함) · eas.json 전환(env 등록 후 순서 준수)
-- **prod 하드닝(Phase D)**: `ENVIRONMENT`/`ALLOWED_ORIGINS` **부재 확인**(=prod가 localhost 허용 중이었음) 후 선설정 → 함수만 재배포(가드 경유) → CORS 매트릭스(prod origin만 204, localhost·LAN·isakok-dev·무작위 403) → Auth Redirect localhost 잔재 원래 없음 확인 → rename `isakok-prod`. GitHub `SUPABASE_PROD_DB_URL` 생성됨(**구 `SUPABASE_DB_URL`은 머지 후 삭제** — main 워크플로가 구 이름 참조 중)
-- **실측 통과**: 로컬 웹 스모크(익명→온보딩→체크리스트 41→토글 1/41, 세션은 E2E prefill 방식 주입) · DEV 배지 표시 · dev CORS 6-origin+fail-closed(시크릿 unset 실측 후 복구) · dev 대상 RLS 스모크 **18/18** · AI 생성 e2e(가이드 43개 생성→cache_hit→적용 43) · 캐시 시딩(**아래 정정 참조** — prod 완성 5건→dev, 키셋 일치, generating_at 전부 NULL) · 웹 번들 ref 검증(isakok-dev=dev ref만/isakok=prod ref만) · **EAS preview APK 실기기: 온보딩→대시보드+Google 로그인 ✅**(세션 브릿지 §14-1 완결) · Apple/Kakao 통제 실패+에러 응답 내부정보 미노출(`API_FAIL`/`NOT_FOUND`만)
-- ⚠️ **캐시 시딩 오판→정정 기록**(verify에 보존할 것): 최초 anon REST 카운트로 "prod 캐시 0건 no-op" 판단 → `ai_guide_cache`는 10-2부터 service-role 전용이라 **RLS 차단을 빈 테이블로 오독**한 것. Management API query(서비스 레벨)로 재측정 시 prod 완성 5건 → 정식 시딩 수행·검증 완료
-- lint·typecheck·test(79개)·build 그린. 문서 sweep(README·e2e-testing·워크플로 헤더·코드 주석 8곳) 완료, CLAUDE.md 현재 단계 갱신
+(운영 상태: 로컬 링크는 dev 고정(`supabase/.temp/project-ref`=yiffgox…), 로컬 .env 3파일 전부 dev 값 — prod 키 로컬 상주 없음. dev 웹 배포는 `git push origin main:dev`로만 — 규칙은 CLAUDE.md Git 섹션.)
 
 ## 진행 중인 것
 
-- **14단계 verify 완료(최종 ✅) + 리뷰 지적 전부 수정 반영** — 별도 세션 verify(Codex P1 1·🔴 1·P2 2 + 🟡 6)를 구현 세션 후속에서 전부 수정·재검증(`14-env-separation-verify.md` 종합 판정 참조). 특히 **P1: Phase D 재배포가 prod kakao-unlink-webhook을 JWT ON으로 깨뜨렸던 것**을 config.toml 선언+재배포로 복구(양쪽 `verify_jwt=false` 실측). PR 생성 대기.
-- 로컬 링크는 dev 고정(`supabase/.temp/project-ref`=yiffgox…). 로컬 .env 3파일 전부 dev 값(prod 키 로컬 상주 종료).
+- **없음** — 14단계 머지·클로즈. 스크린샷 `stage14-dev-badge-dashboard.png`(루트, untracked)는 PR #86에 첨부 후 삭제 가능.
 
 ## 다음 할 것
 
-1. **PR 생성**(`feat/env-separation`, 스크린샷 `stage14-dev-badge-dashboard.png` 첨부) → squash 머지
-2. **머지 후 잔여 3+2건**: ① 구 GitHub 시크릿 `SUPABASE_DB_URL` 삭제 ② db-backup `workflow_dispatch` 1회 + **아티팩트 restore 테스트**(§14-9 — 일회용 Postgres 복원·row count sanity) ③ `git push origin main:dev` 재발행(dev 웹에 DEV 배지·fingerprint 반영) ④ `.env.local`의 `SB_MGMT_TOKEN` 제거 ⑤ (보안 강박 시) 세션 노출 키 rotate — Anthropic dev 키(spend limit 있음)·Management API 토큰
+1. **(권장) prod DB 비밀번호 rotate** — 백업 시크릿 재설정 과정에서 비번이 세션 대화에 노출됨. Supabase 대시보드(isakok-prod) → Database → Reset password → `SUPABASE_PROD_DB_URL` 재설정(클립보드 복사 후 `pbpaste | gh secret set SUPABASE_PROD_DB_URL`) → 백업 dispatch 1회로 확인. Anthropic dev 키(spend limit 있음)·Management API 토큰도 rotate 판단
+2. **§14-6 회원 전용 영역 dev 완주 실측** — linkIdentity 승격·사진 게이트·계정 삭제를 isakok-dev.vercel.app에서 Google 로그인으로 수동 1회
 3. **13단계 비차단 follow-up** (옵션) — 라우트 코드 스플리팅 + size-limit `initial entry` 하향(깔아둔 baseline 위 before/after 증명) · desktop `useCreateMove` 동적→정적 import 안전망 fix(latent 크래시 정리 — 네이티브 세션 race 대비).
 4. **12단계 비차단 잔여** — 토큰 재할당 field test · Android 채널 HIGH on-device · **테스트로 바꾼 이사일 원복**(D-0→실제). 📄 `12-push-notifications-verify.md`
 5. **11단계 배포 후 실측** — Sentry 알림 필터 · PII 육안 · retention. (`VITE_APP_ENV=production`·environment 태그는 13단계 PostHog 확인 중 검증됨.) 📄 `11-observability-verify.md`
@@ -59,12 +50,13 @@
 
 - **UX 라이팅 정합 + 이모지 정리 + OSS 라이선스 전문형** ✅(코드+문서 — **미커밋**) — `ux-writing-guide.md` 정본 채택·문서 연결(DESIGN/CLAUDE/web), 앱 문구 해요체·능동·다이얼로그(닫기/삭제하기) 정합, MotivationCard·roomMeta 이모지 제거, OSS 페이지 요약형→전문형(전문+SPDX 합성·아코디언). 약관/개인정보는 합쇼체 유지. 📄 `UI-POLISH.md` §15·§16 · `ux-writing-guide.md`
 
+- **14단계 Supabase dev/prod 환경 분리** ✅(머지 **PR #86** · verify 최초 ❌→수정 반영→최종 ✅ · 머지 후 잔여 해소) — dev=prod(ADR-075) 종료: 기존=prod(`isakok-prod`) 유지·신규 `isakok-dev` 구축(마이그레이션 28+seed 46·함수 9·시크릿 전부 신규·익명+Google, Apple/Kakao는 통제 실패 parity). 채널 매핑 고정(로컬·PR 프리뷰·EAS dev/preview→dev, 릴리즈 채널만 prod) + DEV 배지 + startup fingerprint(env×ref throw). CORS 시크릿화(fail-closed) — prod localhost 잔재 제거. ref 가드 배포 스크립트 6종(prod 통합 명령 없음). dev 미러 브랜치(`isakok-dev.vercel.app`, Vercel Auth 해제). 백업 `SUPABASE_PROD_DB_URL` 각인 + **restore 테스트 실측**(테이블 11·시드 46 sanity). verify P1: 벌크 배포가 kakao-unlink-webhook JWT를 켜버린 회귀 → config.toml 선언+양쪽 재배포 복구. 📄 `specs/14-env-separation.md`(+verify) · ADR-106~109
 - **13단계 품질 레인(Quality Lane)** ✅(머지 **PR #78** · /verify 종합 ✅ · `web_vitals` 수신 확인 · 마감 docs **PR #79**(verify 리포트·STATUS·README 정합)) — 머지 전 게이트 + 배포후 모니터 안전망(WebView·dev=prod 제약 맞춤). ① 유닛 백필 6영역(D-day·progress essential·재배치·scrub·conditionTags + 순수추출 `memoSaveMachine`/`optimisticToggle`) ② 커버리지 래칫(`scripts/coverage-ratchet.mjs`, baseline web 94%(권장수정 RUM 테스트로 92.93→94 갱신·branches 90.56→92.18)·shared utils 74.3%, 자동상승 금지) ③ 로컬 Supabase 격리(`signInAnonymously`→storageState, `SUPABASE_STORAGE_KEY` 단일출처, `VITE_DISABLE_AI_GUIDE` 가드) ④ E2E Playwright Chromium+WebKit 2플로우(온보딩→대시보드 / 상세토글→소거)+axe WCAG2.1AA(viewport zoom a11y 수정, color-contrast baseline 제외) ⑤ size-limit 두 예산(`@size-limit/file`, 336/345KB) ⑥ web-vitals→PostHog(`captureEvent` 경유·route 패턴 정규화, production 전용) ⑦ `ci.yml` `verify`(=fast)에 ratchet·size-limit + `e2e` 잡(supabase start+양엔진). 📄 `specs/13-quality-lane.md`(+`13-quality-lane-verify.md` 종합 ✅통과) · ADR-099~105(`docs/ADR.md` 반영) _(verify 권장수정 반영: Codex P2 seed `testIgnore` · web-a11y axe 동적상태(설정시트 checkA11y) · RUM 단위테스트(`webVitals.test`) · P1 불변식 주석. 스펙↔구현: AI가드 DashboardPage·온보딩 3스텝·#6 매핑 SQL RPC·flow#2 대시보드토글)_
 
 ## 알려진 문제
 
-- **(14단계) 세션 대화에 dev 자격 노출** — Anthropic dev 키(spend limit로 방어)·Management API 토큰(`SB_MGMT_TOKEN`, .env.local gitignore). 머지 후 잔여 ⑤에서 rotate/제거 판단. dev publishable 키는 공개 성격이라 무해
-- **(14단계) dev 웹(isakok-dev.vercel.app)은 아직 main 스냅샷 서빙** — DEV 배지·fingerprint 미포함(14 코드 머지 전). PR 머지 후 `main:dev` 재발행으로 해소
+- **(14단계) 세션 대화에 자격 증명 노출** — **prod DB 비밀번호**(백업 시크릿 재설정 중 — rotate **권장**, "다음 할 것" 1) · Anthropic dev 키(spend limit로 방어) · Management API 토큰(사용 후 .env.local에서 제거됨, 키체인 원본은 유효 — rotate 판단). dev publishable 키는 공개 성격이라 무해
+- ~~**(14단계) dev 웹(isakok-dev.vercel.app)은 아직 main 스냅샷 서빙**~~ → **✅ 해소** — PR #86 머지 후 `main:dev` 재발행, 새 번들에 DEV 배지·fingerprint 포함 실측
 - ~~**(14단계) rls-smoke가 dev `ai_guide_cache`에 `__rls_smoke_test__` 행 잔존시킴**~~ → **✅ 해소** — Cleanup에 시드 행 삭제 추가 + 시드 upsert assert 2건 + move 실패 조기 중단(20/20 재실측, 잔존 0 확인)
 - **(13단계) viewport `maximum-scale=1.0` 제거** — 앱에서 핀치 줌 허용(axe WCAG 1.4.4 수정). 네이티브 느낌상 원치 않으면 `apps/web/index.html` 1줄 복구 가능. 입력 줌(iOS)은 textarea가 16px라 무관.
 - **(13단계) axe 게이트에서 `color-contrast` 룰 baseline 제외** — 캘린더 요일헤더(rgba navy 0.3)·muted/placeholder 텍스트 대비 부채(기존 이슈)라 앱 전반 토큰/CSS 변경 필요 → 13단계 스코프 밖. 구조적 위반은 계속 게이트. 별도 a11y/디자인 패스에서 처리.

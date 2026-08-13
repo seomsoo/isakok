@@ -24,7 +24,7 @@ docs/              ← 기획 문서, 단계별 스펙 (SDD)
 
 ## 현재 단계
 
-> 14단계: Supabase dev/prod 환경 분리 (ADR-106~109) — dev=prod(ADR-075) 종료. 기존 `ybcqinanfcarhqkclvue`=prod(`isakok-prod`) 유지, 신규 `yiffgoxnyyngkbasyfaw`=dev(`isakok-dev`) 구축. 로컬·PR 프리뷰·EAS development/preview = dev, 릴리즈 채널(EAS production + Vercel Production)만 prod. 라이브 상태는 docs/STATUS.md 참조.
+> 14단계 완료(PR #86): Supabase dev/prod 분리 (ADR-106~109) — dev=prod(ADR-075) 종료. 기존 `ybcqinanfcarhqkclvue`=prod(`isakok-prod`), 신규 `yiffgoxnyyngkbasyfaw`=dev(`isakok-dev`). 로컬·PR 프리뷰·EAS development/preview = dev, 릴리즈 채널(EAS production + Vercel Production)만 prod. 다음 단계 미정 — 라이브 상태는 docs/STATUS.md 참조.
 
 ## 개발 방법론
 
@@ -52,7 +52,7 @@ docs/              ← 기획 문서, 단계별 스펙 (SDD)
 9. ✅ 관측 — Sentry·PostHog·업타임 (11단계, PR #70)
 10. ✅ 푸시 알림 — 데일리 다이제스트 + D-day, 운영 ON (12단계, PR #71·#72)
 11. ✅ 품질 레인 — E2E 양엔진·axe·커버리지 래칫·size-limit·RUM (13단계, PR #78)
-12. 🔄 Supabase dev/prod 환경 분리 — 구현+검증 완료, PR 대기 (14단계, ADR-106~109)
+12. ✅ Supabase dev/prod 환경 분리 — 채널 매핑·가드·fingerprint (14단계, PR #86, ADR-106~109)
 
 ## 보안 규칙 (전역 — 절대 위반 금지)
 
