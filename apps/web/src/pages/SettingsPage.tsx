@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useGoBack } from '@/shared/hooks/useGoBack'
 import { ChevronLeft } from 'lucide-react'
@@ -18,6 +18,13 @@ export function SettingsPage() {
   const { data: move, isPending, isFetching, isError, refetch } = useCurrentMove()
   const [isEditing, setIsEditing] = useState(false)
   const [isDeletingAccount, setIsDeletingAccount] = useState(false)
+
+  // 설정에서만 진입하는 lazy 청크 프리페치 — 실제 내비게이션 때 지연 0 (실패는 진입 시 재시도)
+  useEffect(() => {
+    void import('@/pages/PrivacyPage').catch(() => {})
+    void import('@/pages/TermsPage').catch(() => {})
+    void import('@/pages/OssLicensesPage').catch(() => {})
+  }, [])
 
   if (isPending || (isFetching && !move)) {
     return (

@@ -57,6 +57,11 @@ interface InnerProps {
 function Inner({ moveId, room, roomMeta, photoType, onBack, onTrash }: InnerProps) {
   const toast = useToast()
   const { userId, isAnonymous } = useUserId()
+
+  // 휴지통은 이 화면에서만 진입 — lazy 청크 프리페치 (실패는 진입 시 재시도)
+  useEffect(() => {
+    void import('@/pages/PhotoTrashPage').catch(() => {})
+  }, [])
   const {
     data: allPhotos = [],
     isLoading,
