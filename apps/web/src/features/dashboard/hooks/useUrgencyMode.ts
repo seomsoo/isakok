@@ -12,7 +12,6 @@ import { captureEvent, ANALYTICS_EVENTS } from '@/observability/events'
 export interface UseUrgencyModeResult {
   mode: UrgencyMode
   daysUntilMove: number
-  today: string
   isTransitioned: boolean
   transitionMessage: string | null
 }
@@ -41,5 +40,5 @@ export function useUrgencyMode(movingDate: string): UseUrgencyModeResult {
     }
   }, [mode, previousMode, setPreviousMode])
 
-  return { mode, daysUntilMove, today, isTransitioned, transitionMessage }
+  return { mode, daysUntilMove, isTransitioned, transitionMessage }
 }

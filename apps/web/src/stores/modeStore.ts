@@ -6,7 +6,6 @@ interface ModeStore {
   setPreviousMode: (mode: UrgencyMode) => void
   transitionDismissed: boolean
   dismissTransition: () => void
-  resetTransition: () => void
 }
 
 export const useModeStore = create<ModeStore>((set) => ({
@@ -14,5 +13,4 @@ export const useModeStore = create<ModeStore>((set) => ({
   setPreviousMode: (mode) => set({ previousMode: mode, transitionDismissed: false }),
   transitionDismissed: false,
   dismissTransition: () => set({ transitionDismissed: true }),
-  resetTransition: () => set({ transitionDismissed: false }),
 }))
