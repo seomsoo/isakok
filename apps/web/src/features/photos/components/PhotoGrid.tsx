@@ -5,6 +5,7 @@ import type { PropertyPhoto, PhotoType } from '@/services/photos'
 import { useUpdatePhotoMemo } from '../hooks/useUpdatePhotoMemo'
 import { useDeletePhoto, MAX_DELETED_PER_ROOM } from '../hooks/useDeletePhoto'
 import { useDeletedPhotos } from '../hooks/useDeletedPhotos'
+import { photoDisplayDate, formatKoreanDate, formatKoreanTime12h } from '../utils/photoDate'
 import { DeletePhotoDialog } from './DeletePhotoDialog'
 import { PhotoFullscreenViewer } from './PhotoFullscreenViewer'
 import { useUserId } from '@/auth/useSession'
@@ -14,35 +15,12 @@ const MEMO_MAX_LENGTH = 200
 interface PhotoGridProps {
   photos: PropertyPhoto[]
   urlMap?: Record<string, string>
-  uploadingCount?: number
   moveId: string
   photoType: PhotoType
   room: string
 }
 
-function formatStampTime(iso: string | null | undefined): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  const h = d.getHours()
-  const period = h < 12 ? '오전' : '오후'
-  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h
-  return `${period} ${h12}:${String(d.getMinutes()).padStart(2, '0')}`
-}
-
-function formatStampDate(iso: string | null | undefined): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`
-}
-
-export function PhotoGrid({
-  photos,
-  urlMap,
-  uploadingCount = 0,
-  moveId,
-  photoType,
-  room,
-}: PhotoGridProps) {
+export function PhotoGrid({ photos, urlMap, moveId, photoType, room }: PhotoGridProps) {
   const { userId } = useUserId()
   const uid = userId ?? ''
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
@@ -53,7 +31,7 @@ export function PhotoGrid({
   const isTrashFull = deletedPhotos.length >= MAX_DELETED_PER_ROOM
 
   return (
-    <div className="space-y-5 px-5 pb-24" aria-busy={uploadingCount > 0 ? 'true' : undefined}>
+    <div className="space-y-5 px-5 pb-24">
       {photos.map((p) => (
         <PhotoCard
           key={p.id}
@@ -61,7 +39,6 @@ export function PhotoGrid({
           url={urlMap?.[p.storage_path]}
           moveId={moveId}
           photoType={photoType}
-          room={room}
           userId={uid}
           isMenuOpen={menuOpenId === p.id}
           onMenuToggle={() => setMenuOpenId(menuOpenId === p.id ? null : p.id)}
@@ -72,16 +49,6 @@ export function PhotoGrid({
           }}
           onPhotoTap={() => setFullscreenPhoto(p)}
         />
-      ))}
-
-      {Array.from({ length: uploadingCount }).map((_, i) => (
-        <div
-          key={`uploading-${i}`}
-          className="flex aspect-4/3 w-full items-center justify-center rounded-2xl bg-surface"
-          aria-label="사진 업로드 중"
-        >
-          <Loader2 size={24} className="animate-spin text-muted" />
-        </div>
       ))}
 
       {deleteTarget && (
@@ -112,7 +79,6 @@ interface PhotoCardProps {
   url?: string
   moveId: string
   photoType: PhotoType
-  room: string
   userId: string
   isMenuOpen: boolean
   onMenuToggle: () => void
@@ -133,9 +99,9 @@ function PhotoCard({
   onDelete,
   onPhotoTap,
 }: PhotoCardProps) {
-  const dateIso = photo.taken_at ?? photo.uploaded_at ?? photo.created_at
-  const stampDate = formatStampDate(dateIso)
-  const stampTime = formatStampTime(dateIso)
+  const dateIso = photoDisplayDate(photo)
+  const stampDate = formatKoreanDate(dateIso)
+  const stampTime = formatKoreanTime12h(dateIso)
   const [memo, setMemo] = useState(photo.memo ?? '')
   const [isEditingMemo, setIsEditingMemo] = useState(false)
   const updateMemo = useUpdatePhotoMemo(moveId, photoType, userId)
