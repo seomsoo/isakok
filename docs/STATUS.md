@@ -1,25 +1,27 @@
 # 프로젝트 상태
 
-> 마지막 업데이트: 2026-08-13 (**14단계 Supabase dev/prod 환경 분리 — ✅ 완료·PR #86 머지(squash `67a2ccb`)·머지 후 잔여 해소·클로즈**. dev=prod(ADR-075) 종료 — 기존 `ybcqinanfcarhqkclvue`=prod(`isakok-prod`), 신규 `yiffgoxnyyngkbasyfaw`=dev(`isakok-dev`). verify 최종 ✅(P1 kakao 웹훅 JWT 회귀 복구 포함 전건 수정), 머지 후: 구 시크릿 삭제·백업 dispatch 그린+**restore 테스트 통과**·`main:dev` 재발행(dev 웹 배지 반영)·관리 토큰 제거. 잔여는 prod DB 비번 rotate 권장 + §14-6 dev 완주 실측.)
+> 마지막 업데이트: 2026-08-14 (**품질 리팩토링 세션** — `/code-review`(클로즈 커밋 `bf19b2b` 문서 정합 15건 지적) + `/simplify`(apps/web/src 4관점 리뷰 53건 → 30여 건 적용: 죽은코드 −694줄·쿼리 캐시 단일화·콜드 페이지 4개 코드 스플리팅·ESLint 레이어 존·버전 자동주입) → **PR #88 생성·Codex 리뷰 진행 중**. 엔트리 번들 337→322KB gzip(size-limit 여유 7.5→22.7KB). 14단계는 클로즈 유지, 다음 단계 미정.)
 
 ## 현재 단계
 
-**14단계 Supabase dev/prod 환경 분리 — ✅ 완료·PR #86 머지(squash `67a2ccb`)·머지 후 잔여 해소·클로즈.** 정본 `docs/specs/14-env-separation.md` + `14-env-separation-verify.md`(최초 ❌→수정 반영→최종 ✅, §14-9 restore 실측 포함) · ADR-106~109. 다음 단계 대기.
+**14단계 Supabase dev/prod 환경 분리 — ✅ 완료·PR #86 머지(squash `67a2ccb`)·머지 후 잔여 해소·클로즈.** 정본 `docs/specs/14-env-separation.md` + `14-env-separation-verify.md`(최초 ❌→수정 반영→최종 ✅, §14-9 restore 실측 포함) · ADR-106~109. 다음 단계 미정 — 지금은 **품질 리팩토링 PR #88**(`refactor/simplify-web`, 27커밋) 리뷰·머지 대기.
 
 (운영 상태: 로컬 링크는 dev 고정(`supabase/.temp/project-ref`=yiffgox…), 로컬 .env 3파일 전부 dev 값 — prod 키 로컬 상주 없음. dev 웹 배포는 `git push origin main:dev`로만 — 규칙은 CLAUDE.md Git 섹션.)
 
 ## 진행 중인 것
 
-- **없음** — 14단계 머지·클로즈. 스크린샷 `stage14-dev-badge-dashboard.png`(루트, untracked)는 PR #86에 첨부 후 삭제 가능.
+- **PR #88 `refactor(web): simplify app code and split cold-page bundles` 리뷰·머지 대기** — /simplify 4관점 리뷰 결과 적용 27커밋: 죽은코드 삭제(−694줄, PhotoDetailSheet 등 7파일+moveStore), 타임라인 쿼리 캐시 모드별 중복 해소(낙관적 업데이트 미스 포함), 토글마다 moves 리페치 제거, 중복 유틸 통합(정렬·재배치맵·사진날짜·photoType 파싱), 콜드 페이지 4개(약관·개인정보·라이선스·휴지통) lazy 스플리팅(+프리페치·실패 재시도), ESLint no-restricted-imports 레이어 존 실등록, 설정 화면 버전 `__APP_VERSION__` 자동주입. 상세·검증 결과는 PR #88 본문
+- ~~스크린샷 `stage14-dev-badge-dashboard.png`(루트, untracked)는 PR #86에 첨부 후 삭제 가능~~ → **❌ 증거 유실 확정**(code-review): PR #86에 첨부된 적 없고 파일도 디스크·git 히스토리에 없음. 필요 시 isakok-dev.vercel.app에서 재캡처
 
 ## 다음 할 것
 
-1. **(권장) prod DB 비밀번호 rotate** — 백업 시크릿 재설정 과정에서 비번이 세션 대화에 노출됨. Supabase 대시보드(isakok-prod) → Database → Reset password → `SUPABASE_PROD_DB_URL` 재설정(클립보드 복사 후 `pbpaste | gh secret set SUPABASE_PROD_DB_URL`) → 백업 dispatch 1회로 확인. Anthropic dev 키(spend limit 있음)·Management API 토큰도 rotate 판단
-2. **§14-6 회원 전용 영역 dev 완주 실측** — linkIdentity 승격·사진 게이트·계정 삭제를 isakok-dev.vercel.app에서 Google 로그인으로 수동 1회
-3. **13단계 비차단 follow-up** (옵션) — 라우트 코드 스플리팅 + size-limit `initial entry` 하향(깔아둔 baseline 위 before/after 증명) · desktop `useCreateMove` 동적→정적 import 안전망 fix(latent 크래시 정리 — 네이티브 세션 race 대비).
-4. **12단계 비차단 잔여** — 토큰 재할당 field test · Android 채널 HIGH on-device · **테스트로 바꾼 이사일 원복**(D-0→실제). 📄 `12-push-notifications-verify.md`
-5. **11단계 배포 후 실측** — Sentry 알림 필터 · PII 육안 · retention. (`VITE_APP_ENV=production`·environment 태그는 13단계 PostHog 확인 중 검증됨.) 📄 `11-observability-verify.md`
-6. **10-4 잔여 콘솔/운영** — Kakao 콜백·시크릿·cron-setup·브랜치보호 RLS CI required·App Store Connect·TestFlight·`expo prebuild --clean`
+1. **PR #88 머지** — Codex 리뷰 **진행 중**(2026-08-14). 리뷰 결과 반영 → 머지 → 새 브랜치에서 **체크리스트 `select('*')` 컬럼 축소 + `Record<string, unknown>` 캐스트 67곳 타입 관통** (코드리뷰 우선순위 3+4 — 타입을 먼저 정의하면 컬럼 축소 누락을 컴파일러가 잡아줌)
+2. **code-review(bf19b2b) 문서 정합 잔여 수정** — STATUS 쪽은 2026-08-14 반영 완료(스크린샷 유실 오기재·백업 known-issue 스트라이크·AI e2e 증거 복원), `14-env-separation-verify.md` 쪽 ~9건 잔여: 누락 섹션 이연 2건·§2/§8/§11/§컨벤션/§스코프크립 잔존 표기를 완료 기록과 정합화, GOOGLE_SERVICES_JSON 근거 인용 보수, 스모크 세션 E2E prefill 주입 뉘앙스 복원
+3. **§14-6 회원 전용 영역 dev 완주 실측** — linkIdentity 승격·사진 게이트·계정 삭제를 isakok-dev.vercel.app에서 Google 로그인으로 수동 1회
+4. **13단계 비차단 follow-up** (옵션) — ~~라우트 코드 스플리팅~~(✅ PR #88) → 남은 것: size-limit `initial entry` 한도 하향(322KB 실측 위 래칫 다운) · desktop `useCreateMove` 동적→정적 import 안전망 fix(latent 크래시 정리 — 네이티브 세션 race 대비).
+5. **12단계 비차단 잔여** — 토큰 재할당 field test · Android 채널 HIGH on-device · **테스트로 바꾼 이사일 원복**(D-0→실제). 📄 `12-push-notifications-verify.md`
+6. **11단계 배포 후 실측** — Sentry 알림 필터 · PII 육안 · retention. (`VITE_APP_ENV=production`·environment 태그는 13단계 PostHog 확인 중 검증됨.) 📄 `11-observability-verify.md`
+7. **10-4 잔여 콘솔/운영** — Kakao 콜백·시크릿·cron-setup·브랜치보호 RLS CI required·App Store Connect·TestFlight·`expo prebuild --clean`
 
 ## 완료된 것 (요약 인덱스 — 상세는 각 단계 spec/verify + ADR.md)
 
@@ -50,12 +52,15 @@
 
 - **UX 라이팅 정합 + 이모지 정리 + OSS 라이선스 전문형** ✅(코드+문서 — **미커밋**) — `ux-writing-guide.md` 정본 채택·문서 연결(DESIGN/CLAUDE/web), 앱 문구 해요체·능동·다이얼로그(닫기/삭제하기) 정합, MotivationCard·roomMeta 이모지 제거, OSS 페이지 요약형→전문형(전문+SPDX 합성·아코디언). 약관/개인정보는 합쇼체 유지. 📄 `UI-POLISH.md` §15·§16 · `ux-writing-guide.md`
 
-- **14단계 Supabase dev/prod 환경 분리** ✅(머지 **PR #86** · verify 최초 ❌→수정 반영→최종 ✅ · 머지 후 잔여 해소) — dev=prod(ADR-075) 종료: 기존=prod(`isakok-prod`) 유지·신규 `isakok-dev` 구축(마이그레이션 28+seed 46·함수 9·시크릿 전부 신규·익명+Google, Apple/Kakao는 통제 실패 parity). 채널 매핑 고정(로컬·PR 프리뷰·EAS dev/preview→dev, 릴리즈 채널만 prod) + DEV 배지 + startup fingerprint(env×ref throw). CORS 시크릿화(fail-closed) — prod localhost 잔재 제거. ref 가드 배포 스크립트 6종(prod 통합 명령 없음). dev 미러 브랜치(`isakok-dev.vercel.app`, Vercel Auth 해제). 백업 `SUPABASE_PROD_DB_URL` 각인 + **restore 테스트 실측**(테이블 11·시드 46 sanity). verify P1: 벌크 배포가 kakao-unlink-webhook JWT를 켜버린 회귀 → config.toml 선언+양쪽 재배포 복구. 📄 `specs/14-env-separation.md`(+verify) · ADR-106~109
+- **14단계 Supabase dev/prod 환경 분리** ✅(머지 **PR #86** · verify 최초 ❌→수정 반영→최종 ✅ · 머지 후 잔여 해소) — dev=prod(ADR-075) 종료: 기존=prod(`isakok-prod`) 유지·신규 `isakok-dev` 구축(마이그레이션 28+seed 46·함수 9·시크릿 전부 신규·익명+Google, Apple/Kakao는 통제 실패 parity). 채널 매핑 고정(로컬·PR 프리뷰·EAS dev/preview→dev, 릴리즈 채널만 prod) + DEV 배지 + startup fingerprint(env×ref throw). CORS 시크릿화(fail-closed) — prod의 `ENVIRONMENT`/`ALLOWED_ORIGINS` **부재를 실측 확인**(=prod가 localhost 허용 중이었음) 후 잔재 제거. dev **AI 가이드 e2e 실측**(가이드 43개 생성→cache_hit→적용 43 — 단, 스모크 세션은 E2E prefill 주입이라 로그인 경로는 미검증). ref 가드 배포 스크립트 6종(prod 통합 명령 없음). dev 미러 브랜치(`isakok-dev.vercel.app`, Vercel Auth 해제). 백업 `SUPABASE_PROD_DB_URL` 각인 + **restore 테스트 실측**(테이블 11·시드 46 sanity). verify P1: 벌크 배포가 kakao-unlink-webhook JWT를 켜버린 회귀 → config.toml 선언+양쪽 재배포 복구. 📄 `specs/14-env-separation.md`(+verify) · ADR-106~109
 - **13단계 품질 레인(Quality Lane)** ✅(머지 **PR #78** · /verify 종합 ✅ · `web_vitals` 수신 확인 · 마감 docs **PR #79**(verify 리포트·STATUS·README 정합)) — 머지 전 게이트 + 배포후 모니터 안전망(WebView·dev=prod 제약 맞춤). ① 유닛 백필 6영역(D-day·progress essential·재배치·scrub·conditionTags + 순수추출 `memoSaveMachine`/`optimisticToggle`) ② 커버리지 래칫(`scripts/coverage-ratchet.mjs`, baseline web 94%(권장수정 RUM 테스트로 92.93→94 갱신·branches 90.56→92.18)·shared utils 74.3%, 자동상승 금지) ③ 로컬 Supabase 격리(`signInAnonymously`→storageState, `SUPABASE_STORAGE_KEY` 단일출처, `VITE_DISABLE_AI_GUIDE` 가드) ④ E2E Playwright Chromium+WebKit 2플로우(온보딩→대시보드 / 상세토글→소거)+axe WCAG2.1AA(viewport zoom a11y 수정, color-contrast baseline 제외) ⑤ size-limit 두 예산(`@size-limit/file`, 336/345KB) ⑥ web-vitals→PostHog(`captureEvent` 경유·route 패턴 정규화, production 전용) ⑦ `ci.yml` `verify`(=fast)에 ratchet·size-limit + `e2e` 잡(supabase start+양엔진). 📄 `specs/13-quality-lane.md`(+`13-quality-lane-verify.md` 종합 ✅통과) · ADR-099~105(`docs/ADR.md` 반영) _(verify 권장수정 반영: Codex P2 seed `testIgnore` · web-a11y axe 동적상태(설정시트 checkA11y) · RUM 단위테스트(`webVitals.test`) · P1 불변식 주석. 스펙↔구현: AI가드 DashboardPage·온보딩 3스텝·#6 매핑 SQL RPC·flow#2 대시보드토글)_
+
+- **품질 리팩토링 패스(/code-review + /simplify)** 🟡(**PR #88** Codex 리뷰 진행 중 — `refactor/simplify-web` 27커밋) — apps/web/src 4관점 리뷰 53건 중 30여 건 적용: 죽은코드 −694줄(7파일+moveStore+미사용 prop)·타임라인 캐시 모드별 5중화 해소·토글 moves 리페치 제거·중복 유틸 통합(sortByGuidePriority·computeOverdueDisplayDates·photoDate·photoPaths)·콜드 페이지 4개 lazy(엔트리 337→322KB gzip, 프리페치+청크 실패 재시도)·ESLint 레이어 존 실등록·버전 자동주입. 상세는 PR #88 본문 _(전용 spec 없음 — 핵심 보존)_
 
 ## 알려진 문제
 
-- **(14단계) 세션 대화에 자격 증명 노출** — **prod DB 비밀번호**(백업 시크릿 재설정 중 — rotate **권장**, "다음 할 것" 1) · Anthropic dev 키(spend limit로 방어) · Management API 토큰(사용 후 .env.local에서 제거됨, 키체인 원본은 유효 — rotate 판단). dev publishable 키는 공개 성격이라 무해
+- **(code-review 2026-08-14, `bf19b2b` 대상) 14단계 클로즈 문서 정합 지적 15건** — 확정 10·추정 1(+추가 스위프 4). STATUS 쪽은 **2026-08-14 반영 완료**(스크린샷 유실 오기재·백업 known-issue 스트라이크·AI e2e 증거 복원), `14-env-separation-verify.md` 쪽 ~9건 잔여("다음 할 것" 2)
+- **(14단계) 세션 대화에 자격 증명 노출** — **prod DB 비밀번호**(백업 시크릿 재설정 중 노출) · Anthropic dev 키(spend limit로 방어) · Management API 토큰(사용 후 .env.local에서 제거됨, 키체인 원본은 유효). dev publishable 키는 공개 성격이라 무해
 - ~~**(14단계) dev 웹(isakok-dev.vercel.app)은 아직 main 스냅샷 서빙**~~ → **✅ 해소** — PR #86 머지 후 `main:dev` 재발행, 새 번들에 DEV 배지·fingerprint 포함 실측
 - ~~**(14단계) rls-smoke가 dev `ai_guide_cache`에 `__rls_smoke_test__` 행 잔존시킴**~~ → **✅ 해소** — Cleanup에 시드 행 삭제 추가 + 시드 upsert assert 2건 + move 실패 조기 중단(20/20 재실측, 잔존 0 확인)
 - **(13단계) viewport `maximum-scale=1.0` 제거** — 앱에서 핀치 줌 허용(axe WCAG 1.4.4 수정). 네이티브 느낌상 원치 않으면 `apps/web/index.html` 1줄 복구 가능. 입력 줌(iOS)은 textarea가 16px라 무관.
@@ -77,7 +82,7 @@
 - **service_role 키 이번 세션 chat 컨텍스트 노출** — Legacy JWT-based API keys disable로 즉시 무효화됨. 새 sb*secret*... 키도 chat에 잠시 노출 — 향후 보안 강박 시 dashboard에서 "+ New secret key" 발급 + 옛 secret disable로 재정리 가능
 - **익명 cleanup 작업 미구현** — 30일 미활동 + 이사 일정 도래 시 자동 파기 정책. 약관엔 명시되어 있지만 cron job 미구현. 사진 저장 게이트(ADR-074, 10-5+) 적용 전까지 익명 사진이 서버에 쌓일 수 있음
 - **Custom domain 미구매** — `isakok.vercel.app` 사용. WebView 앱이라 도메인 가시성 작아 지금은 ROI 낮음. 10-4 폐쇄 테스트 전 또는 GitHub README 강조 시점에 재검토 (ADR-075 분리 트리거 일부)
-- **DB 백업 워크플로우 첫 실행 검증 미실시** — workflow_dispatch는 default branch 필수라 PR 머지 후 검증. 머지 직후 또는 다음날 KST 03:00 cron 자동 실행으로 확인
+- ~~**DB 백업 워크플로우 첫 실행 검증 미실시** — workflow_dispatch는 default branch 필수라 PR 머지 후 검증~~ → **✅ 해소**(14단계 머지 후) — dispatch 그린 + restore 테스트 실측 통과(테이블 11·시드 46 sanity, verify §14-9)
 - **EAS Secrets visibility 분류** — 7개 변수 중 SUPABASE_ANON_KEY + KAKAO_NATIVE_APP_KEY는 Sensitive, 나머지는 Plain text 권장. 사용자가 모두 Sensitive로 통일했어도 안전한 default (동작은 동일)
 - **(10-4 코드 해결)** Apple revoke(§4)·익명 cleanup(§3)·Kakao 웹훅(§5) 구현 완료 → 위 "Apple token revoke 미구현"·"익명 cleanup 작업 미구현"·"Kakao 콘솔 web 등록" 항목의 코드 부분 해소. **콘솔 등록·함수 배포·cron 설정은 사용자 액션 잔존**
 - **10-4 §2 네이티브 미디어·압축은 EAS 빌드 실기기 검증 필요** — 로컬은 typecheck/lint만 통과. iOS WebP 인코딩은 JPEG 폴백으로 방어하나 실기기 확인 권장
@@ -170,3 +175,5 @@
 - **같은 SHA로 브랜치만 새로 push하면 Vercel이 배포를 안 만든다** — `git push origin main:dev`가 main HEAD와 동일 SHA면 빌드 미트리거(DEPLOYMENT_NOT_FOUND 지속). 브랜치 배포가 필요하면 새 커밋이 생긴 뒤 push
 - **Vercel Standard Protection(Vercel Authentication)은 프리뷰 브랜치 도메인까지 SSO 302로 막는다** — WebView는 SSO 통과 불가라 네이티브 페어링 도메인은 보호 해제 필요(ADR-108). 또 `vercel domains add`(CLI)는 production에 자동 할당하므로 브랜치 도메인은 API POST에 `gitBranch` 동시 지정으로(브랜치가 원격에 먼저 존재해야 함)
 - **pnpm run은 `--` 구분자를 스크립트 argv에 그대로 전달** — 인자 검증 wrapper는 `argv.filter(a => a !== '--')` 필요 (supabase-cmd 가드가 첫 실행에서 `--`를 ref로 오인·거부)
+- **TanStack Query: select 파생 파라미터(mode 등)를 쿼리 키에 넣지 말 것** — 같은 fetch가 파생값별로 중복 캐시되고(N배 스토리지+리페치), `setQueryData` 낙관적 업데이트가 기본 키만 겨냥해 빗나감. `select`는 관찰자(observer)별 실행이라 키는 fetch 단위로 (PR #88에서 타임라인 모드별 5중 캐시 해소)
+- **다건 일괄 수정 후 요약에 적은 항목이 실제 적용됐는지 `git status`/diff로 1:1 대조** — /simplify 마무리 요약에 DetailHeader `displayDate` 제거를 "적용"으로 적었으나 실제 미적용(커밋 직전 발견). 요약 항목 수와 변경 파일 목록을 대조하면 잡힘
