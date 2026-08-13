@@ -66,6 +66,7 @@ docs/              ← 기획 문서, 단계별 스펙 (SDD)
 ## Git
 
 - 브랜치: main + feature branch (feat/기능명, fix/버그명)
+  - `dev` 브랜치는 **작업 브랜치 아님** — `isakok-dev.vercel.app`이 서빙할 main 스냅샷을 가리키는 배포 미러(ADR-108). 직접 커밋·PR·머지 금지, 갱신은 `git push origin main:dev`로만(fast-forward). 갱신 시점: EAS preview 네이티브 테스트 직전(스펙 14 §4-2 publish 절차 — push → 배포·SHA 확인 → 그 후 빌드). 상시 동기화 불필요, 낡아 있어도 정상
 - 커밋: Conventional Commits (영어)
   - 형식: `type(scope): subject`
   - type: feat, fix, refactor, chore, docs, test, style
