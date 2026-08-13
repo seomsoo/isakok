@@ -322,9 +322,9 @@ import { TodayTasks } from '@/features/dashboard/components/TodayTasks'
 - prefer-const: error
 - eslint-plugin-react-hooks
 - eslint-plugin-import (import 순서)
-- **아키텍처 보호 (no-restricted-imports)**:
-  - `features/**/components/`에서 `@supabase/supabase-js`, `@/services/*`, `@/lib/*` import 금지
-  - `stores/`에서 `@supabase/supabase-js`, `@/services/*` import 금지
+- **아키텍처 보호 (@typescript-eslint/no-restricted-imports)**:
+  - `features/**/components/`에서 `@supabase/supabase-js`, `@/lib/supabase`, `@/services/*` import 금지 (`@/services/*`는 타입 import만 허용, `@/lib/cn`은 허용)
+  - `stores/`에서 `@supabase/supabase-js`, `@/lib/supabase`, `@/services/*` import 금지
 
 ### Prettier
 
