@@ -15,7 +15,6 @@ interface DetailHeaderProps {
   assignedDate: string
   dDayOffset: number
   mode?: UrgencyMode
-  displayDate?: string
 }
 
 function getDDayTag(diffDays: number, dDayOffset: number): string | null {
@@ -41,16 +40,13 @@ export function DetailHeader({
   assignedDate,
   dDayOffset,
   mode = 'relaxed',
-  displayDate,
 }: DetailHeaderProps) {
-  // 빠듯 모드: display_date 기반으로 D-day/날짜 계산
-  const effectiveDate = mode === 'tight' && displayDate ? displayDate : assignedDate
-  const diffDays = differenceInCalendarDays(parseLocalDate(effectiveDate), new Date())
+  const diffDays = differenceInCalendarDays(parseLocalDate(assignedDate), new Date())
 
   // 급한/초급한: 과거 항목이면 D-day 칩 숨김, 날짜 텍스트는 원본 기준 유지
   const hideDdayTag = (mode === 'urgent' || mode === 'critical') && diffDays < 0
   const ddayTag = hideDdayTag ? null : getDDayTag(diffDays, dDayOffset)
-  const dateText = getDateText(diffDays, effectiveDate, dDayOffset)
+  const dateText = getDateText(diffDays, assignedDate, dDayOffset)
 
   return (
     <header className="pt-2 pb-3">
