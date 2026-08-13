@@ -133,6 +133,7 @@ supabase db push --include-seed   # 마이그레이션 00001~00028 + seed.sql(�
 
 - `apple-token-exchange` / `cleanup` / `delete-account` / `generate-ai-guide` / `health` / `kakao-token-exchange` / `kakao-unlink-webhook` / `register-push-token` / `send-notifications` — **전부 배포** (아티팩트 parity 100%, §3-0).
 - deploy 주의: `cleanup`은 `--no-verify-jwt` 필요(config.toml 미선언), `health`/`send-notifications`는 config.toml `verify_jwt = false` — `functions:deploy:dev` 스크립트에 인코딩(§5-2).
+- **[정정 — verify Codex P1]** 위 목록이 `kakao-unlink-webhook`(KakaoAK 헤더 인증, verify_jwt 꺼짐 필수 — ADR-078)을 누락 → 배포 래퍼로 전파되어 Phase D에서 prod 웹훅이 JWT ON으로 재배포되는 사고 발생. config.toml `[functions.kakao-unlink-webhook] verify_jwt = false` **선언 방식**으로 수정(스크립트 특례가 아니라 모든 배포 경로에 적용) + 양쪽 재배포로 복구.
 - Apple/Kakao 관련 함수는 배포되지만 시크릿 미투입(§9-1) → **호출 시 통제된 실패가 의도된 상태**(§3-0). verify에서 실패 응답에 내부 정보 미노출 확인(§14).
 
 ### 2-4. `ai_guide_cache` 1회 시딩 (ADR-069 역방향 부활 — secret-safe 절차)
