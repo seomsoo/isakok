@@ -32,7 +32,7 @@ docs/              ← 기획 문서, 단계별 스펙 (SDD)
 - **TDD**: packages/shared/utils/ — 테스트 먼저 작성 → 구현
 - **작업 단위**: Claude Code 작업 1개 = 파일 1~3개 = 커밋 1개
 
-## 개발 순서 (0~10단계)
+## 개발 순서
 
 0. ✅ 프로젝트 세팅
 1. ✅ Supabase 세팅 + 시드 데이터
@@ -48,7 +48,11 @@ docs/              ← 기획 문서, 단계별 스펙 (SDD)
    10-1. ✅ 네이티브 인증 + 세션 브릿지
    10-2. ✅ RLS 활성화 + Edge Function/Storage 보안 (PR #47 머지 완료)
    10-3. ✅ 계정 삭제 + 약관 + release-gate (PR #59 머지, Android 비공개 테스트 진행 중)
-   10-4. 🔄 정식 출시 준비 (사진 게이트·네이티브 미디어·cleanup·Apple/Kakao 인증·RLS CI) — 코드 머지(PR #61), 배포·콘솔 단계
+   10-4. ✅ 정식 출시 준비 (사진 게이트·네이티브 미디어·cleanup·Apple/Kakao 인증·RLS CI) — 코드 머지(PR #61), 콘솔 잔여는 STATUS
+9. ✅ 관측 — Sentry·PostHog·업타임 (11단계, PR #70)
+10. ✅ 푸시 알림 — 데일리 다이제스트 + D-day, 운영 ON (12단계, PR #71·#72)
+11. ✅ 품질 레인 — E2E 양엔진·axe·커버리지 래칫·size-limit·RUM (13단계, PR #78)
+12. 🔄 Supabase dev/prod 환경 분리 — 구현+검증 완료, PR 대기 (14단계, ADR-106~109)
 
 ## 보안 규칙 (전역 — 절대 위반 금지)
 
