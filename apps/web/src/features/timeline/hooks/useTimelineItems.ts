@@ -11,9 +11,11 @@ import {
   format,
 } from 'date-fns'
 import { ko } from 'date-fns/locale'
-import { rescheduleOverdueItems, URGENCY_GROUP_LABELS, type UrgencyMode } from '@moving/shared'
+import { URGENCY_GROUP_LABELS, type UrgencyMode } from '@moving/shared'
 import { getTimelineItems } from '@/services/checklist'
 import { queryKeys } from '@/features/dashboard/hooks/queryKeys'
+import { sortByGuidePriority } from '@/shared/utils/sortByGuidePriority'
+import { computeOverdueDisplayDates } from '@/shared/utils/overdueDisplayDates'
 
 export interface PeriodGroup {
   key: string
@@ -40,12 +42,6 @@ const PERIOD_KEYS = {
   AFTER_MOVE: 'AFTER_MOVE',
 } as const
 
-const GUIDE_PRIORITY: Record<string, number> = {
-  critical: 0,
-  warning: 1,
-  tip: 2,
-}
-
 export function useTimelineItems(
   moveId: string,
   userId: string,
@@ -53,7 +49,8 @@ export function useTimelineItems(
   mode: UrgencyMode = 'relaxed',
 ) {
   return useQuery({
-    queryKey: [...queryKeys.timelineItems(moveId), mode],
+    // mode는 select(클라이언트 파생)에만 영향 — 키에 넣으면 같은 fetch가 모드별로 중복 캐시됨
+    queryKey: queryKeys.timelineItems(moveId),
     queryFn: () => getTimelineItems(moveId, userId),
     enabled: !!moveId && !!userId && !!movingDate,
     select: (data) => {
@@ -69,20 +66,7 @@ export function useTimelineItems(
 }
 
 function applyReschedule(items: Record<string, unknown>[], movingDate: string) {
-  const today = format(new Date(), 'yyyy-MM-dd')
-  const mapped = rescheduleOverdueItems(
-    items.map((item) => ({
-      id: item.id as string,
-      assigned_date: item.assigned_date as string,
-      is_completed: item.is_completed as boolean,
-      guide_type:
-        ((item.master_checklist_items as { guide_type?: 'critical' | 'warning' | 'tip' } | null)
-          ?.guide_type as 'critical' | 'warning' | 'tip') ?? 'tip',
-    })),
-    today,
-    movingDate,
-  )
-  const displayMap = new Map(mapped.map((r) => [r.id, r.display_date]))
+  const displayMap = computeOverdueDisplayDates(items, movingDate)
   return items.map((item) => {
     const display = displayMap.get(item.id as string)
     if (!display) return item
@@ -106,18 +90,6 @@ export function getDateLabel(assignedDate: string, movingDate: string): string {
   if (daysFromMoving === 0) return '이사 당일'
   if (daysFromMoving > 0) return `이사 후 ${daysFromMoving}일`
   return format(assigned, 'M월 d일 (E)', { locale: ko })
-}
-
-function sortByGuide(items: Record<string, unknown>[]) {
-  return [...items].sort((a, b) => {
-    const masterA = a.master_checklist_items as Record<string, unknown> | null
-    const masterB = b.master_checklist_items as Record<string, unknown> | null
-    const pDiff =
-      (GUIDE_PRIORITY[masterA?.guide_type as string] ?? 3) -
-      (GUIDE_PRIORITY[masterB?.guide_type as string] ?? 3)
-    if (pDiff !== 0) return pDiff
-    return (a.assigned_date as string).localeCompare(b.assigned_date as string)
-  })
 }
 
 function groupByPeriod(items: Record<string, unknown>[], movingDate: string): TimelinePeriods {
@@ -225,14 +197,7 @@ function groupByPeriod(items: Record<string, unknown>[], movingDate: string): Ti
 
   const thisWeekPeriod = periods.get(PERIOD_KEYS.THIS_WEEK)
   if (thisWeekPeriod) {
-    thisWeekPeriod.overdueItems.sort((a, b) => {
-      const masterA = a.master_checklist_items as Record<string, unknown> | null
-      const masterB = b.master_checklist_items as Record<string, unknown> | null
-      return (
-        (GUIDE_PRIORITY[masterA?.guide_type as string] ?? 3) -
-        (GUIDE_PRIORITY[masterB?.guide_type as string] ?? 3)
-      )
-    })
+    thisWeekPeriod.overdueItems = sortByGuidePriority(thisWeekPeriod.overdueItems)
   }
 
   const result: PeriodGroup[] = []
@@ -308,7 +273,7 @@ function groupByUrgency(
     periods.push({
       key: 'ESSENTIAL',
       label: URGENCY_GROUP_LABELS.essential,
-      items: sortByGuide(essentials),
+      items: sortByGuidePriority(essentials),
       completedCount: 0,
       totalCount: essentials.length,
       isCurrent: true,
@@ -353,7 +318,7 @@ function groupByUrgency(
       periods.push({
         key,
         label,
-        items: sortByGuide(items),
+        items: sortByGuidePriority(items),
         completedCount: 0,
         totalCount: items.length,
         isCurrent,
