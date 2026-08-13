@@ -13,7 +13,7 @@ export function DevBadge() {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none fixed right-2 top-2 z-50 rounded-md bg-warning/90 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-white"
+      className="pointer-events-none fixed right-2 top-[calc(env(safe-area-inset-top)+0.5rem)] z-50 rounded-md bg-warning/90 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-white"
     >
       DEV
     </div>
