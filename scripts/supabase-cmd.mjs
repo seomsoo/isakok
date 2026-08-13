@@ -33,6 +33,7 @@ function linkedRef() {
 
 function run(args) {
   const result = spawnSync('npx', ['supabase', ...args], { stdio: 'inherit' })
+  if (result.error) fail(`supabase CLI 실행 실패: ${result.error.message}`)
   if (result.status !== 0) process.exit(result.status ?? 1)
 }
 
@@ -99,7 +100,19 @@ switch (command) {
     if (!dbUrl) {
       fail('PROD_DB_URL 필요 — read -s PROD_DB_URL && export PROD_DB_URL 로 일시 주입(파일 저장 금지)')
     }
-    if (!dbUrl.includes(PROD_REF)) fail('PROD_DB_URL이 prod ref를 포함하지 않는다 — 대상 불일치')
+    // substring 포함이 아니라 URL 파싱으로 정확 대조 — 직결(db.<ref>...)은 hostname,
+    // pooler는 username(postgres.<ref>)에 ref가 실리므로 두 형태만 허용 (verify security 🟡)
+    let target
+    try {
+      target = new URL(dbUrl)
+    } catch {
+      fail('PROD_DB_URL이 URL 형식이 아니다')
+    }
+    const directHost = target.hostname === `db.${PROD_REF}.supabase.co`
+    const poolerHost =
+      target.hostname.endsWith('.pooler.supabase.com') &&
+      decodeURIComponent(target.username).endsWith(`.${PROD_REF}`)
+    if (!directHost && !poolerHost) fail('PROD_DB_URL의 대상이 prod ref와 불일치')
     run(['db', 'push', '--dry-run', '--db-url', dbUrl])
     const rl = createInterface({ input: process.stdin, output: process.stdout })
     const answer = await rl.question('위 dry-run 목록을 prod에 적용할까? (yes 입력 시 실행): ')
