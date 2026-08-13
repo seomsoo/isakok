@@ -1,4 +1,5 @@
 import type { PhotoType } from '@/services/photos'
+import { formatKoreanDate } from '../utils/photoDate'
 
 interface ReportHeaderProps {
   photoType: PhotoType
@@ -6,11 +7,6 @@ interface ReportHeaderProps {
   totalCount: number
   memoCount: number
   roomCount: number
-}
-
-function formatDate(d: Date | null): string {
-  if (!d) return ''
-  return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`
 }
 
 export function ReportHeader({
@@ -22,7 +18,7 @@ export function ReportHeader({
 }: ReportHeaderProps) {
   const typeLabel = photoType === 'move_in' ? '입주 기록' : '퇴실 기록'
   const typeSuffix = photoType === 'move_in' ? '입주' : '퇴실'
-  const dateStr = formatDate(earliestDate)
+  const dateStr = formatKoreanDate(earliestDate)
 
   return (
     <section className="mx-4 rounded-[20px] bg-white px-5 pb-5 pt-[22px]">
@@ -33,8 +29,7 @@ export function ReportHeader({
 
       <h1 className="mt-2.5 text-[26px] font-bold leading-[1.2] tracking-tight text-secondary">
         {dateStr ? `${dateStr} ${typeSuffix}` : typeSuffix}
-        <br />
-        집 상태 리포트
+        <br />집 상태 리포트
       </h1>
 
       <div className="mt-3.5 text-[14px] tabular-nums tracking-tight text-muted">

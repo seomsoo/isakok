@@ -1,6 +1,7 @@
 import { MessageSquare, Loader2 } from 'lucide-react'
 import type { PropertyPhoto } from '@/services/photos'
 import { cn } from '@/lib/cn'
+import { photoDisplayDate, formatKoreanDate } from '../utils/photoDate'
 
 interface PhotoCardProps {
   photo: PropertyPhoto
@@ -10,12 +11,8 @@ interface PhotoCardProps {
 
 export function PhotoCard({ photo, signedUrl, onPress }: PhotoCardProps) {
   const hasMemo = !!photo.memo && photo.memo.trim().length > 0
-  const dateLabel = (() => {
-    const iso = photo.taken_at ?? photo.uploaded_at ?? photo.created_at
-    if (!iso) return ''
-    const d = new Date(iso)
-    return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 촬영`
-  })()
+  const formatted = formatKoreanDate(photoDisplayDate(photo))
+  const dateLabel = formatted ? `${formatted} 촬영` : ''
 
   return (
     <button
