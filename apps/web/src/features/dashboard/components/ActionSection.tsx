@@ -9,9 +9,10 @@ import {
 import { ROUTES, checklistDetailPath } from '@shared/constants/routes'
 import { Badge } from '@/shared/components/Badge'
 import { sortByGuidePriority } from '@/shared/utils/sortByGuidePriority'
+import type { ChecklistItemWithMaster } from '@/services/checklist'
 
 interface ActionSectionProps {
-  items: Record<string, unknown>[]
+  items: ChecklistItemWithMaster[]
   nextUpcomingDate?: string
   mode: UrgencyMode
   onToggle: (id: string, isCompleted: boolean) => void
@@ -21,10 +22,7 @@ export function ActionSection({ items, nextUpcomingDate, mode, onToggle }: Actio
   // 초급한 모드: 필수 항목만
   const filtered =
     mode === 'critical'
-      ? items.filter((item) => {
-          const master = item.master_checklist_items as Record<string, unknown> | null
-          return master?.is_skippable === false
-        })
+      ? items.filter((item) => item.master_checklist_items?.is_skippable === false)
       : items
 
   if (filtered.length === 0) {
@@ -67,29 +65,29 @@ export function ActionSection({ items, nextUpcomingDate, mode, onToggle }: Actio
       </div>
       <div className="mt-3 flex flex-col gap-2.5">
         {visible.map((item) => {
-          const master = item.master_checklist_items as Record<string, unknown> | null
-          const guideType = master?.guide_type as string
+          const master = item.master_checklist_items
+          const guideType = master?.guide_type
 
           return (
             <Link
-              key={item.id as string}
-              to={checklistDetailPath(item.id as string, 'dashboard')}
+              key={item.id}
+              to={checklistDetailPath(item.id, 'dashboard')}
               className="flex items-center gap-3 rounded-2xl bg-surface py-7 px-4"
             >
               <button
                 type="button"
                 role="checkbox"
                 aria-checked={false}
-                aria-label={`${master?.title as string} 완료 처리`}
+                aria-label={`${master?.title ?? ''} 완료 처리`}
                 onClick={(e) => {
                   e.preventDefault()
                   e.stopPropagation()
-                  onToggle(item.id as string, true)
+                  onToggle(item.id, true)
                 }}
                 className="flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 border-border transition-transform duration-100 active:scale-90 motion-reduce:transition-none"
               />
               <p className="min-w-0 flex-1 truncate text-body font-medium text-secondary">
-                {master?.title as string}
+                {master?.title}
               </p>
               <div className="flex shrink-0 items-center gap-1.5">
                 {guideType === 'critical' && (
@@ -103,7 +101,7 @@ export function ActionSection({ items, nextUpcomingDate, mode, onToggle }: Actio
                   </Badge>
                 )}
                 <Badge variant="category" className="px-1.5 text-xs">
-                  {master?.category as string}
+                  {master?.category}
                 </Badge>
               </div>
               <ChevronRight size={18} className="shrink-0 text-placeholder" />

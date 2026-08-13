@@ -3,22 +3,23 @@ import { ROUTES } from '@shared/constants/routes'
 import { Link } from 'react-router-dom'
 import { ChevronRight } from 'lucide-react'
 import { type UrgencyMode, isNativeWebView, sendToNative } from '@moving/shared'
+import type { ChecklistItemWithMaster } from '@/services/checklist'
 
 interface UpcomingSectionProps {
-  items: Record<string, unknown>[]
+  items: ChecklistItemWithMaster[]
   mode: UrgencyMode
 }
 
 interface GroupedItems {
   label: string
-  items: Record<string, unknown>[]
+  items: ChecklistItemWithMaster[]
 }
 
-function groupByTimeframe(items: Record<string, unknown>[]): GroupedItems[] {
-  const groups: Record<string, Record<string, unknown>[]> = {}
+function groupByTimeframe(items: ChecklistItemWithMaster[]): GroupedItems[] {
+  const groups: Record<string, ChecklistItemWithMaster[]> = {}
 
   for (const item of items) {
-    const daysUntil = differenceInCalendarDays(parseISO(item.assigned_date as string), new Date())
+    const daysUntil = differenceInCalendarDays(parseISO(item.assigned_date), new Date())
 
     let label: string
     if (daysUntil <= 1) label = '내일'
@@ -70,20 +71,16 @@ export function UpcomingSection({ items, mode }: UpcomingSectionProps) {
           <div key={group.label} className="bg-tertiary/60 rounded-xl px-5 py-3 transition-colors">
             <p className="text-body-sm font-semibold text-muted ">{group.label}</p>
             <div className="mt-2 flex flex-col ">
-              {group.items.map((item) => {
-                const master = item.master_checklist_items as Record<string, unknown> | null
-
-                return (
-                  <div
-                    key={item.id as string}
-                    className=" flex border-l-4 border-primary/30  items-center gap-2.5 rounded-l-none rounded-xl px-2 py-1 transition-colors  active:bg-secondary/5"
-                  >
-                    <p className="text-body font-medium text-secondary">
-                      {(master?.title as string) ?? ''}
-                    </p>
-                  </div>
-                )
-              })}
+              {group.items.map((item) => (
+                <div
+                  key={item.id}
+                  className=" flex border-l-4 border-primary/30  items-center gap-2.5 rounded-l-none rounded-xl px-2 py-1 transition-colors  active:bg-secondary/5"
+                >
+                  <p className="text-body font-medium text-secondary">
+                    {item.master_checklist_items?.title ?? ''}
+                  </p>
+                </div>
+              ))}
             </div>
           </div>
         ))}
