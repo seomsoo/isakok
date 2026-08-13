@@ -3,6 +3,14 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { sentryVitePlugin } from '@sentry/vite-plugin'
 import path from 'path'
+import { readFileSync } from 'node:fs'
+
+// 설정 화면 "앱 버전" 표기가 package.json과 자동 동기화되도록 빌드 시 주입
+const appVersion = (
+  JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8')) as {
+    version: string
+  }
+).version
 
 // Sentry 소스맵 업로드 (스펙 11 §1-2): SENTRY_AUTH_TOKEN이 있을 때만 활성.
 // 그때만 소스맵을 생성→업로드→삭제하므로 산출물(dist)에 .map이 남지 않는다.
@@ -46,6 +54,7 @@ export default defineConfig({
   define: {
     // init이 읽는 release를 plugin과 동일값으로 주입
     __SENTRY_RELEASE__: JSON.stringify(sentryRelease),
+    __APP_VERSION__: JSON.stringify(appVersion),
   },
   resolve: {
     alias: {
