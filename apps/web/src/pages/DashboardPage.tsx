@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { Navigate, Link } from 'react-router-dom'
-import { differenceInCalendarDays, format, parseISO } from 'date-fns'
+import { format, parseISO } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { Settings } from 'lucide-react'
 import {
@@ -77,7 +77,7 @@ export function DashboardPage() {
   }
   if (!move) return <Navigate to={ROUTES.LANDING} replace />
 
-  const daysRemaining = differenceInCalendarDays(parseISO(move.moving_date), new Date())
+  const daysRemaining = daysUntilMove
   const isEssentialMode = mode === 'urgent' || mode === 'critical'
   const progress = isEssentialMode
     ? calculateEssentialProgress(
@@ -157,8 +157,6 @@ export function DashboardPage() {
       <DevTabBar />
       {/* 푸시 soft-ask: 이 마운트(대시보드)가 스펙 §6-1 "온보딩 직후"의 근사 — 첫 진입 1회 + push_prompt_seen_at 영구가드 (네이티브 + 미노출 조건일 때만 렌더, 그 외 null) */}
       <PushPermissionSheet />
-      {/* daysUntilMove referenced for future use */}
-      <span className="sr-only">{daysUntilMove}</span>
     </div>
   )
 }
