@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { Suspense, useEffect } from 'react'
 import {
   BrowserRouter,
   Routes,
@@ -26,13 +26,20 @@ import { ChecklistDetailPage } from '@/pages/ChecklistDetailPage'
 import { PhotosPage } from '@/pages/PhotosPage'
 import { PhotoRoomPage } from '@/pages/PhotoRoomPage'
 import { PhotoReportPage } from '@/pages/PhotoReportPage'
-import { PhotoTrashPage } from '@/pages/PhotoTrashPage'
-import { PrivacyPage } from '@/pages/PrivacyPage'
-import { TermsPage } from '@/pages/TermsPage'
-import { OssLicensesPage } from '@/pages/OssLicensesPage'
 import { ToastProvider } from '@/shared/components/ToastProvider'
 import { ErrorBoundary } from '@/shared/components/ErrorBoundary'
 import { DevBadge } from '@/shared/components/DevBadge'
+import { lazyPage } from '@/shared/components/lazyPage'
+
+// 콜드 페이지만 스플리팅 (설정/휴지통 경유 진입 지점에서 프리페치됨 — SettingsPage·PhotoRoomPage)
+const PhotoTrashPage = lazyPage(() =>
+  import('@/pages/PhotoTrashPage').then((m) => m.PhotoTrashPage),
+)
+const PrivacyPage = lazyPage(() => import('@/pages/PrivacyPage').then((m) => m.PrivacyPage))
+const TermsPage = lazyPage(() => import('@/pages/TermsPage').then((m) => m.TermsPage))
+const OssLicensesPage = lazyPage(() =>
+  import('@/pages/OssLicensesPage').then((m) => m.OssLicensesPage),
+)
 
 const transitionConfig = {
   transitions: [
@@ -50,9 +57,12 @@ function TransitionLayout() {
     <div className="h-dvh overflow-y-auto relative z-0 overflow-x-clip">
       <Ssgoi config={transitionConfig}>
         <SsgoiTransition key={pathname} id={pathname}>
-          {/* 라우트별 경계 — pathname 키로 화면 이동 시 자동 복구 */}
+          {/* 라우트별 경계 — pathname 키로 화면 이동 시 자동 복구. 청크 로드 실패도 여기서 처리 */}
           <ErrorBoundary key={pathname}>
-            <Outlet />
+            {/* lazy 청크 로딩 중 폴백 — 앱 배경색과 동일해 깜빡임 없음 */}
+            <Suspense fallback={<main className="min-h-dvh bg-neutral" />}>
+              <Outlet />
+            </Suspense>
           </ErrorBoundary>
         </SsgoiTransition>
       </Ssgoi>
