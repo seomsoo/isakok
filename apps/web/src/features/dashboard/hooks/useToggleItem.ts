@@ -73,7 +73,6 @@ export function useToggleItem(moveId: string, userId: string) {
     onSettled: (_data, _err, variables) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.todayItems(moveId) })
       queryClient.invalidateQueries({ queryKey: queryKeys.timelineItems(moveId) })
-      queryClient.invalidateQueries({ queryKey: queryKeys.currentMove })
       queryClient.invalidateQueries({ queryKey: queryKeys.itemDetail(variables.itemId) })
     },
   })
