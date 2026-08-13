@@ -1,7 +1,11 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { type UrgencyMode } from '@moving/shared'
-import { getDashboardItems } from '@/services/checklist'
+import {
+  getDashboardItems,
+  type DashboardItems,
+  type RescheduledChecklistItem,
+} from '@/services/checklist'
 import { computeOverdueDisplayDates } from '@/shared/utils/overdueDisplayDates'
 import { queryKeys } from './queryKeys'
 
@@ -25,7 +29,9 @@ export function useDashboardItemsWithMode(
 ) {
   const query = useDashboardItems(moveId, userId)
 
-  const data = useMemo(() => {
+  const data = useMemo<
+    (Omit<DashboardItems, 'overdue'> & { overdue: RescheduledChecklistItem[] }) | undefined
+  >(() => {
     if (!query.data) return query.data
     const { overdue, today, upcoming } = query.data
 
@@ -35,7 +41,7 @@ export function useDashboardItemsWithMode(
 
     const rescheduledOverdue = overdue.map((item) => ({
       ...item,
-      display_date: displayMap.get(item.id as string) ?? item.assigned_date,
+      display_date: displayMap.get(item.id) ?? item.assigned_date,
     }))
 
     return { overdue: rescheduledOverdue, today, upcoming }

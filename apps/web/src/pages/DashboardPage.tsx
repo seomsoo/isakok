@@ -83,9 +83,7 @@ export function DashboardPage() {
     ? calculateEssentialProgress(
         (allItems ?? []).map((item) => ({
           is_completed: item.is_completed,
-          is_skippable:
-            (item.master_checklist_items as { is_skippable?: boolean } | null)?.is_skippable ===
-            true,
+          is_skippable: item.master_checklist_items?.is_skippable === true,
         })),
       )
     : calculateProgress(allItems ?? [])
@@ -100,7 +98,7 @@ export function DashboardPage() {
   const actionItems = [...overdue, ...today]
 
   const nextUpcomingDate = upcoming[0]
-    ? format(parseISO(upcoming[0].assigned_date as string), 'M월 d일 (E)', { locale: ko })
+    ? format(parseISO(upcoming[0].assigned_date), 'M월 d일 (E)', { locale: ko })
     : undefined
 
   return (

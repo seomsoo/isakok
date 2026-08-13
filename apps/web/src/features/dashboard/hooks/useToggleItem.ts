@@ -1,6 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { requestHaptic } from '@moving/shared'
-import { toggleChecklistItem } from '@/services/checklist'
+import {
+  toggleChecklistItem,
+  type ChecklistItemWithMaster,
+  type DashboardItems,
+} from '@/services/checklist'
 import { useToast } from '@/shared/components/ToastProvider'
 import { captureEvent, ANALYTICS_EVENTS } from '@/observability/events'
 import { toggleItemsCompletion } from '../optimisticToggle'
@@ -22,35 +26,26 @@ export function useToggleItem(moveId: string, userId: string) {
       await queryClient.cancelQueries({ queryKey: queryKeys.todayItems(moveId) })
       await queryClient.cancelQueries({ queryKey: queryKeys.timelineItems(moveId) })
 
-      const previousToday = queryClient.getQueryData(queryKeys.todayItems(moveId))
-      const previousTimeline = queryClient.getQueryData(queryKeys.timelineItems(moveId))
+      const previousToday = queryClient.getQueryData<DashboardItems>(queryKeys.todayItems(moveId))
+      const previousTimeline = queryClient.getQueryData<ChecklistItemWithMaster[]>(
+        queryKeys.timelineItems(moveId),
+      )
 
       // 한 번의 토글에 단일 시각 스냅샷 — 세 섹션/타임라인이 동일 completed_at을 갖게
       const now = new Date().toISOString()
 
-      queryClient.setQueryData(
-        queryKeys.todayItems(moveId),
-        (
-          old:
-            | {
-                today: Record<string, unknown>[]
-                overdue: Record<string, unknown>[]
-                upcoming: Record<string, unknown>[]
-              }
-            | undefined,
-        ) => {
-          if (!old) return old
-          return {
-            overdue: toggleItemsCompletion(old.overdue, itemId, isCompleted, now),
-            today: toggleItemsCompletion(old.today, itemId, isCompleted, now),
-            upcoming: toggleItemsCompletion(old.upcoming, itemId, isCompleted, now),
-          }
-        },
-      )
+      queryClient.setQueryData(queryKeys.todayItems(moveId), (old: DashboardItems | undefined) => {
+        if (!old) return old
+        return {
+          overdue: toggleItemsCompletion(old.overdue, itemId, isCompleted, now),
+          today: toggleItemsCompletion(old.today, itemId, isCompleted, now),
+          upcoming: toggleItemsCompletion(old.upcoming, itemId, isCompleted, now),
+        }
+      })
 
       queryClient.setQueryData(
         queryKeys.timelineItems(moveId),
-        (old: Record<string, unknown>[] | undefined) => {
+        (old: ChecklistItemWithMaster[] | undefined) => {
           if (!old) return old
           return toggleItemsCompletion(old, itemId, isCompleted, now)
         },
