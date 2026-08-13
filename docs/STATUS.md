@@ -1,25 +1,35 @@
 # 프로젝트 상태
 
-> 마지막 업데이트: 2026-06-23 (**13단계 품질 레인 — ✅ 완료·PR #78 머지(squash `767a32d`)·main CI green·클로즈**. /verify 종합 ✅통과; Codex P2(seed `testIgnore`)·web-a11y🔴(axe 동적상태=설정시트) 수정·재검증, RUM 단위테스트 보강(web 92.93→94%·branches 90.56→92.18%, baseline 갱신), Codex P1 무효+불변식 주석, ADR-099~105 추가. **머지 후 잔여 전부 해소**: e2e CI 첫 실측 통과(main 4m1s)·브랜치보호 `verify`·`e2e` required·배포후 PostHog `web_vitals` 수신(`route=/onboarding`). 비차단 1건: size-limit `initial entry` 하향(코드 스플리팅 PR). 개발 0~13 코드완료, 12 푸시 운영 ON, dev=prod ADR-075.)
+> 마지막 업데이트: 2026-08-13 (**14단계 Supabase dev/prod 환경 분리 — 구현 완료·검증 대기(별도 세션 /verify)**. 13단계 마감 docs PR #79 머지. `feat/env-separation` 커밋 16개(미푸시), 정본 `specs/14-env-separation.md` + ADR-106~109 반영. dev=prod(ADR-075) 종료 — 기존 `ybcqinanfcarhqkclvue`=prod(`isakok-prod`), 신규 `yiffgoxnyyngkbasyfaw`=dev(`isakok-dev`). Phase A~D 코어 전부 실측 통과(스모크·RLS 18/18·CORS 매트릭스·fail-closed·AI 생성·실기기 브릿지). 잔여는 verify + PR + 머지 후 3건.)
 
 ## 현재 단계
 
-**13단계 품질 레인 — ✅ 완료·PR #78 머지(squash `767a32d`)·main CI green.** Phase 0~E 전부(유닛백필+래칫 · 로컬 Supabase 격리 · E2E 양엔진 2플로우+axe · size-limit · web-vitals RUM · ci.yml verify/e2e). /verify 종합 ✅통과 — Codex P2(seed `testIgnore`)·web-a11y🔴(axe 동적상태: 설정 '이사 정보 수정' 시트) **수정·재검증**(E2E **5 passed**), RUM 단위테스트 보강(web 92.93→94%·branches 90.56→92.18%, baseline 갱신), Codex P1 무효+`auth/constants.ts` 불변식 주석, ADR-099~105 반영. **머지 후 잔여 전부 해소**: e2e CI 첫 실측 통과(main 4m1s)·브랜치보호 `verify`·`e2e` required·배포후 PostHog `web_vitals` 수신(`route=/onboarding`, ID/PII 미노출 확인). 정본 `docs/specs/13-quality-lane.md`(+verify). 디테일·설계판단은 인덱스 줄 참조.
+**14단계 Supabase dev/prod 환경 분리 — 구현 완료·검증 대기.** 정본 `docs/specs/14-env-separation.md` · ADR-106~109(ADR.md 반영완료·체인 주석 포함). 브랜치 `feat/env-separation` 커밋 16개(1~3파일 단위, **미푸시**). PR용 스크린샷 루트 `stage14-dev-badge-dashboard.png`(untracked) 준비됨.
 
-(개발 0~12 코드완료. 12 푸시 운영 ON(09:00 KST Cron). 11 관측 #70. 10-4 코드 #61. dev=prod ADR-075.)
+**verify 세션용 실측 결과 요약** (§14 골격 대조용 — 재실측 가능한 건 재실측 권장):
+
+- **dev 구축**: isakok-dev(Seoul·free) — 마이그레이션 28/28 + seed 46, 함수 9개(cleanup `--no-verify-jwt`), legacy JWT **비활성**(prod도 비활성 확인), 시크릿 전부 신규(ANTHROPIC dev 키+spend limit 포함), Auth 익명 ON·Google provider(prod 설정 복사, ID 3종+skip nonce)·Site/Redirect URL, cron 미스케줄
+- **코드**: cors env화(fail-closed 합집합) · `scripts/supabase-cmd.mjs` 가드 6명령(거부 3케이스+긍정 실측, pnpm `--` 필터) · `lib/envFingerprint`+테스트 6 · DevBadge · .env 3파일 dev 전환(루트↔web 심링크 해체) · db-backup rename · `scripts/sbapi.mjs`(Management API 헬퍼)
+- **채널**: Vercel Preview env=dev · `dev` 미러 브랜치+`isakok-dev.vercel.app`(gitBranch 할당) · **Vercel Authentication 해제**(ADR-108 — WebView가 SSO 통과 불가) · EAS development/preview env 15종(스펙에 없던 `GOOGLE_SERVICES_JSON` 파일 시크릿 포함) · eas.json 전환(env 등록 후 순서 준수)
+- **prod 하드닝(Phase D)**: `ENVIRONMENT`/`ALLOWED_ORIGINS` **부재 확인**(=prod가 localhost 허용 중이었음) 후 선설정 → 함수만 재배포(가드 경유) → CORS 매트릭스(prod origin만 204, localhost·LAN·isakok-dev·무작위 403) → Auth Redirect localhost 잔재 원래 없음 확인 → rename `isakok-prod`. GitHub `SUPABASE_PROD_DB_URL` 생성됨(**구 `SUPABASE_DB_URL`은 머지 후 삭제** — main 워크플로가 구 이름 참조 중)
+- **실측 통과**: 로컬 웹 스모크(익명→온보딩→체크리스트 41→토글 1/41, 세션은 E2E prefill 방식 주입) · DEV 배지 표시 · dev CORS 6-origin+fail-closed(시크릿 unset 실측 후 복구) · dev 대상 RLS 스모크 **18/18** · AI 생성 e2e(가이드 43개 생성→cache_hit→적용 43) · 캐시 시딩(**아래 정정 참조** — prod 완성 5건→dev, 키셋 일치, generating_at 전부 NULL) · 웹 번들 ref 검증(isakok-dev=dev ref만/isakok=prod ref만) · **EAS preview APK 실기기: 온보딩→대시보드+Google 로그인 ✅**(세션 브릿지 §14-1 완결) · Apple/Kakao 통제 실패+에러 응답 내부정보 미노출(`API_FAIL`/`NOT_FOUND`만)
+- ⚠️ **캐시 시딩 오판→정정 기록**(verify에 보존할 것): 최초 anon REST 카운트로 "prod 캐시 0건 no-op" 판단 → `ai_guide_cache`는 10-2부터 service-role 전용이라 **RLS 차단을 빈 테이블로 오독**한 것. Management API query(서비스 레벨)로 재측정 시 prod 완성 5건 → 정식 시딩 수행·검증 완료
+- lint·typecheck·test(79개)·build 그린. 문서 sweep(README·e2e-testing·워크플로 헤더·코드 주석 8곳) 완료, CLAUDE.md 현재 단계 갱신
 
 ## 진행 중인 것
 
-- **13단계 관련 진행 중 작업 없음** — PR #78로 머지·클로즈(verify `[ ]` 전부 해소). `.env.test`·`apps/web/e2e/.auth`는 gitignore라 미커밋 정상. 로컬 Supabase는 종료 가능: `supabase stop --no-backup`.
-- (13단계 영상학습 추가분: prefill 헬퍼·E2E 가이드 doc(`apps/web/e2e-testing.md`)·Playwright Test Agents(루트 `.claude/agents/`+`.mcp.json` cwd=apps/web)·burn-in `--repeat-each=10` 양엔진 41 passed — **PR #78 포함·머지됨**. ⚠️ Playwright `playwright-test` MCP는 **새 세션마다 승인 필요**(`claude` 시작 시 프롬프트) — 미승인이면 generator/healer 구동 불가)
-- (네이티브 느낌 §13·§14 + UX 라이팅/OSS §15·§16 — git log상 **PR #76·#77 머지됨**, 기존 "미커밋" 표기 stale. 다음 진입 시 working tree 잔여 확인)
+- **14단계 /verify 대기** — 검증은 구현 세션과 분리 원칙. 위 실측 요약과 `specs/14-env-separation.md` §14 골격(12항목) 대조로 `14-env-separation-verify.md` 작성.
+- 로컬 링크는 dev 고정(`supabase/.temp/project-ref`=yiffgox…). 로컬 .env 3파일 전부 dev 값(prod 키 로컬 상주 종료).
 
 ## 다음 할 것
 
-1. **13단계 비차단 follow-up** (옵션) — 라우트 코드 스플리팅 + size-limit `initial entry` 하향(깔아둔 baseline 위 before/after 증명) · desktop `useCreateMove` 동적→정적 import 안전망 fix(latent 크래시 정리 — 네이티브 세션 race 대비).
-2. **12단계 비차단 잔여** — 토큰 재할당 field test · Android 채널 HIGH on-device · **테스트로 바꾼 이사일 원복**(D-0→실제). 📄 `12-push-notifications-verify.md`
-3. **11단계 배포 후 실측** — Sentry 알림 필터 · PII 육안 · retention. (`VITE_APP_ENV=production`·environment 태그는 13단계 PostHog 확인 중 검증됨.) 📄 `11-observability-verify.md`
-4. **10-4 잔여 콘솔/운영** — Kakao 콜백·시크릿·cron-setup·브랜치보호 RLS CI required·App Store Connect·TestFlight·`expo prebuild --clean`
+1. **별도 세션 `/verify`** → `docs/specs/14-env-separation-verify.md` 작성(§14 골격 12항목. 캐시 시딩 오판→정정 과정은 문제+수정 두 줄 구조로 보존)
+2. (선택) `/codex:review --background` → **PR 생성**(`feat/env-separation`, 스크린샷 첨부) → squash 머지
+3. **머지 후 잔여 3+2건**: ① 구 GitHub 시크릿 `SUPABASE_DB_URL` 삭제 ② db-backup `workflow_dispatch` 1회 + **아티팩트 restore 테스트**(§14-9 — 일회용 Postgres 복원·row count sanity) ③ `git push origin main:dev` 재발행(dev 웹에 DEV 배지·fingerprint 반영) ④ `.env.local`의 `SB_MGMT_TOKEN` 제거 ⑤ (보안 강박 시) 세션 노출 키 rotate — Anthropic dev 키(spend limit 있음)·Management API 토큰
+4. **13단계 비차단 follow-up** (옵션) — 라우트 코드 스플리팅 + size-limit `initial entry` 하향(깔아둔 baseline 위 before/after 증명) · desktop `useCreateMove` 동적→정적 import 안전망 fix(latent 크래시 정리 — 네이티브 세션 race 대비).
+5. **12단계 비차단 잔여** — 토큰 재할당 field test · Android 채널 HIGH on-device · **테스트로 바꾼 이사일 원복**(D-0→실제). 📄 `12-push-notifications-verify.md`
+6. **11단계 배포 후 실측** — Sentry 알림 필터 · PII 육안 · retention. (`VITE_APP_ENV=production`·environment 태그는 13단계 PostHog 확인 중 검증됨.) 📄 `11-observability-verify.md`
+7. **10-4 잔여 콘솔/운영** — Kakao 콜백·시크릿·cron-setup·브랜치보호 RLS CI required·App Store Connect·TestFlight·`expo prebuild --clean`
 
 ## 완료된 것 (요약 인덱스 — 상세는 각 단계 spec/verify + ADR.md)
 
@@ -50,10 +60,13 @@
 
 - **UX 라이팅 정합 + 이모지 정리 + OSS 라이선스 전문형** ✅(코드+문서 — **미커밋**) — `ux-writing-guide.md` 정본 채택·문서 연결(DESIGN/CLAUDE/web), 앱 문구 해요체·능동·다이얼로그(닫기/삭제하기) 정합, MotivationCard·roomMeta 이모지 제거, OSS 페이지 요약형→전문형(전문+SPDX 합성·아코디언). 약관/개인정보는 합쇼체 유지. 📄 `UI-POLISH.md` §15·§16 · `ux-writing-guide.md`
 
-- **13단계 품질 레인(Quality Lane)** ✅(머지 **PR #78** · /verify 종합 ✅ · `web_vitals` 수신 확인) — 머지 전 게이트 + 배포후 모니터 안전망(WebView·dev=prod 제약 맞춤). ① 유닛 백필 6영역(D-day·progress essential·재배치·scrub·conditionTags + 순수추출 `memoSaveMachine`/`optimisticToggle`) ② 커버리지 래칫(`scripts/coverage-ratchet.mjs`, baseline web 94%(권장수정 RUM 테스트로 92.93→94 갱신·branches 90.56→92.18)·shared utils 74.3%, 자동상승 금지) ③ 로컬 Supabase 격리(`signInAnonymously`→storageState, `SUPABASE_STORAGE_KEY` 단일출처, `VITE_DISABLE_AI_GUIDE` 가드) ④ E2E Playwright Chromium+WebKit 2플로우(온보딩→대시보드 / 상세토글→소거)+axe WCAG2.1AA(viewport zoom a11y 수정, color-contrast baseline 제외) ⑤ size-limit 두 예산(`@size-limit/file`, 336/345KB) ⑥ web-vitals→PostHog(`captureEvent` 경유·route 패턴 정규화, production 전용) ⑦ `ci.yml` `verify`(=fast)에 ratchet·size-limit + `e2e` 잡(supabase start+양엔진). 📄 `specs/13-quality-lane.md`(+`13-quality-lane-verify.md` 종합 ✅통과) · ADR-099~105(`docs/ADR.md` 반영) _(verify 권장수정 반영: Codex P2 seed `testIgnore` · web-a11y axe 동적상태(설정시트 checkA11y) · RUM 단위테스트(`webVitals.test`) · P1 불변식 주석. 스펙↔구현: AI가드 DashboardPage·온보딩 3스텝·#6 매핑 SQL RPC·flow#2 대시보드토글)_
+- **13단계 품질 레인(Quality Lane)** ✅(머지 **PR #78** · /verify 종합 ✅ · `web_vitals` 수신 확인 · 마감 docs **PR #79**(verify 리포트·STATUS·README 정합)) — 머지 전 게이트 + 배포후 모니터 안전망(WebView·dev=prod 제약 맞춤). ① 유닛 백필 6영역(D-day·progress essential·재배치·scrub·conditionTags + 순수추출 `memoSaveMachine`/`optimisticToggle`) ② 커버리지 래칫(`scripts/coverage-ratchet.mjs`, baseline web 94%(권장수정 RUM 테스트로 92.93→94 갱신·branches 90.56→92.18)·shared utils 74.3%, 자동상승 금지) ③ 로컬 Supabase 격리(`signInAnonymously`→storageState, `SUPABASE_STORAGE_KEY` 단일출처, `VITE_DISABLE_AI_GUIDE` 가드) ④ E2E Playwright Chromium+WebKit 2플로우(온보딩→대시보드 / 상세토글→소거)+axe WCAG2.1AA(viewport zoom a11y 수정, color-contrast baseline 제외) ⑤ size-limit 두 예산(`@size-limit/file`, 336/345KB) ⑥ web-vitals→PostHog(`captureEvent` 경유·route 패턴 정규화, production 전용) ⑦ `ci.yml` `verify`(=fast)에 ratchet·size-limit + `e2e` 잡(supabase start+양엔진). 📄 `specs/13-quality-lane.md`(+`13-quality-lane-verify.md` 종합 ✅통과) · ADR-099~105(`docs/ADR.md` 반영) _(verify 권장수정 반영: Codex P2 seed `testIgnore` · web-a11y axe 동적상태(설정시트 checkA11y) · RUM 단위테스트(`webVitals.test`) · P1 불변식 주석. 스펙↔구현: AI가드 DashboardPage·온보딩 3스텝·#6 매핑 SQL RPC·flow#2 대시보드토글)_
 
 ## 알려진 문제
 
+- **(14단계) 세션 대화에 dev 자격 노출** — Anthropic dev 키(spend limit로 방어)·Management API 토큰(`SB_MGMT_TOKEN`, .env.local gitignore). 머지 후 잔여 ⑤에서 rotate/제거 판단. dev publishable 키는 공개 성격이라 무해
+- **(14단계) dev 웹(isakok-dev.vercel.app)은 아직 main 스냅샷 서빙** — DEV 배지·fingerprint 미포함(14 코드 머지 전). PR 머지 후 `main:dev` 재발행으로 해소
+- **(14단계) rls-smoke가 dev `ai_guide_cache`에 `__rls_smoke_test__` 행 잔존시킴** — 이번엔 수동 삭제. 스크립트 cleanup에 해당 시드 행 삭제 보강은 follow-up(비차단, dev 전용)
 - **(13단계) viewport `maximum-scale=1.0` 제거** — 앱에서 핀치 줌 허용(axe WCAG 1.4.4 수정). 네이티브 느낌상 원치 않으면 `apps/web/index.html` 1줄 복구 가능. 입력 줌(iOS)은 textarea가 16px라 무관.
 - **(13단계) axe 게이트에서 `color-contrast` 룰 baseline 제외** — 캘린더 요일헤더(rgba navy 0.3)·muted/placeholder 텍스트 대비 부채(기존 이슈)라 앱 전반 토큰/CSS 변경 필요 → 13단계 스코프 밖. 구조적 위반은 계속 게이트. 별도 a11y/디자인 패스에서 처리.
 - **(13단계) 로컬 `supabase db reset` 시 storage 컨테이너 unhealthy**(비차단) — E2E 2플로우는 storage 무관이라 영향 없음. `supabase start` 단독은 깨끗.
@@ -160,3 +173,9 @@
 - **vitest `vi.mock` 팩토리가 참조하는 스파이는 `vi.hoisted`로 끌어올릴 것** — `vi.mock`은 파일 최상단으로 hoist되는데 top-level `const spy = vi.fn()`은 그보다 늦게 초기화돼 `ReferenceError: Cannot access 'X' before initialization`. **해결**: `const { onLCP, ... } = vi.hoisted(() => ({ onLCP: vi.fn(), ... }))` 후 팩토리에서 참조. (`webVitals.test.ts`)
 - **`coverage.all:false`에서 새 테스트가 그동안 미측정이던 모듈을 import하면 ratchet 하락 위험** — 그 파일의 미커버 라인/분기가 분모에 새로 추가됨. 일부만 테스트하면 aggregate가 baseline 아래로 떨어져 래칫 fail. **해결**: 신규 모듈은 분기까지 충분히 커버(early-return·`??`·ENABLED=false 등 양쪽)하거나 안 끌어옴. 정당한 커버리지 상승 시 `coverage-baseline.json` 수동 갱신으로 잠금(자동 상승 금지 원칙과 별개의 의도적 커밋).
 - **로컬 `supabase status -o json`의 `ANON_KEY`는 레거시 JWT(`eyJ...`)를 반환** — 앱/`.env.test`가 쓰는 publishable 키(`sb_publishable_...`, ADR-075)와 다름. `.env.test` 키 검증은 `status -o json` ANON_KEY가 아니라 **`supabase start` 출력의 `Publishable`과 대조**. 둘 다 결정적이라 `stop --no-backup`→`start` 재기동해도 키 불변(=`.env.test` 갱신 불필요).
+- **supabase CLI는 workdir의 `.env.local`을 자동 로드** — `SUPABASE_ACCESS_TOKEN=` 이름으로 넣으면(키체인 `go-keyring-base64:` 래핑 값 그대로) 모든 CLI 명령이 그 값을 Bearer로 전송해 401("JWT could not be decoded"/"Invalid access token format"). Management API용 토큰은 **다른 이름**(`SB_MGMT_TOKEN`)으로 저장. 원인 불명 401이면 .env.local 자동 로드부터 의심 (14단계 실측)
+- **RLS로 잠긴 테이블의 데이터 존재 확인을 anon REST 카운트로 하지 말 것** — 차단이 곧 0건이라 빈 테이블과 구분 불가(count=exact도 `*/0`). 존재/카운트 확인은 서비스 레벨(Management API `database/query`)로 (14단계: prod ai_guide_cache 5건을 0건으로 오판 — RLS smoke의 `data.length===0` 교훈의 일반화)
+- **zsh에서 `UID`는 읽기전용 예약 정수 변수** — 셸 변수명으로 쓰면 "bad math expression". `USER_ID` 등으로
+- **같은 SHA로 브랜치만 새로 push하면 Vercel이 배포를 안 만든다** — `git push origin main:dev`가 main HEAD와 동일 SHA면 빌드 미트리거(DEPLOYMENT_NOT_FOUND 지속). 브랜치 배포가 필요하면 새 커밋이 생긴 뒤 push
+- **Vercel Standard Protection(Vercel Authentication)은 프리뷰 브랜치 도메인까지 SSO 302로 막는다** — WebView는 SSO 통과 불가라 네이티브 페어링 도메인은 보호 해제 필요(ADR-108). 또 `vercel domains add`(CLI)는 production에 자동 할당하므로 브랜치 도메인은 API POST에 `gitBranch` 동시 지정으로(브랜치가 원격에 먼저 존재해야 함)
+- **pnpm run은 `--` 구분자를 스크립트 argv에 그대로 전달** — 인자 검증 wrapper는 `argv.filter(a => a !== '--')` 필요 (supabase-cmd 가드가 첫 실행에서 `--`를 ref로 오인·거부)
