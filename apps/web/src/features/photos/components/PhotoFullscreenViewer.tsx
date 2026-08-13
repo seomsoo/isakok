@@ -3,17 +3,12 @@ import { createPortal } from 'react-dom'
 import { X, Loader2 } from 'lucide-react'
 import type { PropertyPhoto } from '@/services/photos'
 import { isNativeWebView, sendToNative } from '@moving/shared'
+import { photoDisplayDate, formatKoreanDateTime } from '../utils/photoDate'
 
 interface PhotoFullscreenViewerProps {
   photo: PropertyPhoto
   signedUrl?: string
   onClose: () => void
-}
-
-function formatDateTime(iso: string | null | undefined): string {
-  if (!iso) return ''
-  const d = new Date(iso)
-  return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일 ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
 export function PhotoFullscreenViewer({ photo, signedUrl, onClose }: PhotoFullscreenViewerProps) {
@@ -111,7 +106,7 @@ export function PhotoFullscreenViewer({ photo, signedUrl, onClose }: PhotoFullsc
     }
   }
 
-  const dateIso = photo.taken_at ?? photo.uploaded_at ?? photo.created_at
+  const dateIso = photoDisplayDate(photo)
 
   return createPortal(
     <div
@@ -123,7 +118,9 @@ export function PhotoFullscreenViewer({ photo, signedUrl, onClose }: PhotoFullsc
       <div className="relative z-10 flex shrink-0 items-center justify-between px-4 pb-2 pt-[calc(env(safe-area-inset-top)+8px)]">
         <div className="w-10" />
         {dateIso ? (
-          <span className="text-[15px] font-medium text-white/70">{formatDateTime(dateIso)}</span>
+          <span className="text-[15px] font-medium text-white/70">
+            {formatKoreanDateTime(dateIso)}
+          </span>
         ) : (
           <div />
         )}

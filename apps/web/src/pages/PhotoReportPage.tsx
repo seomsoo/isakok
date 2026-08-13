@@ -13,10 +13,12 @@ import { PhotoFullscreenViewer } from '@/features/photos/components/PhotoFullscr
 import { useToast } from '@/shared/components/ToastProvider'
 import { useUserId } from '@/auth/useSession'
 import { useGoBack } from '@/shared/hooks/useGoBack'
+import { photoDisplayDate } from '@/features/photos/utils/photoDate'
+import { parsePhotoType, photosPath } from '@/features/photos/utils/photoPaths'
 import type { PhotoType, PropertyPhoto } from '@/services/photos'
 
 function photoDate(p: PropertyPhoto): Date | null {
-  const iso = p.taken_at ?? p.uploaded_at ?? p.created_at
+  const iso = photoDisplayDate(p)
   if (!iso) return null
   const d = new Date(iso)
   return Number.isNaN(d.getTime()) ? null : d
@@ -39,9 +41,8 @@ export function PhotoReportPage() {
   const { userId } = useUserId()
 
   const { data: move, isPending, isError: isMoveError, refetch: refetchMove } = useCurrentMove()
-  const queryType = searchParams.get('type') as PhotoType | null
-  const photoType: PhotoType = queryType === 'move_out' ? 'move_out' : 'move_in'
-  const goBack = useGoBack(`/photos?type=${photoType}`)
+  const photoType: PhotoType = parsePhotoType(searchParams.get('type')) ?? 'move_in'
+  const goBack = useGoBack(photosPath(photoType))
 
   const {
     data: photos = [],
@@ -91,7 +92,7 @@ export function PhotoReportPage() {
     )
   }
   if (!move) return <Navigate to={ROUTES.LANDING} replace />
-  if (photos.length === 0) return <Navigate to={`/photos?type=${photoType}`} replace />
+  if (photos.length === 0) return <Navigate to={photosPath(photoType)} replace />
 
   const earliest =
     photos

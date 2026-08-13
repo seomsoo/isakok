@@ -49,6 +49,53 @@ export default tseslint.config(
     },
   },
   {
+    // 아키텍처 보호 — features/**/components는 순수 UI: supabase 클라이언트·서비스 직접 접근 금지.
+    // 데이터는 hooks가 가져와 props로 내려줌 (레이어 규칙, apps/web/CLAUDE.md). 타입 import는 허용.
+    files: ['src/features/**/components/**/*.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@supabase/supabase-js',
+              message: 'components는 순수 UI — supabase는 services/hooks 레이어에서만.',
+            },
+            {
+              name: '@/lib/supabase',
+              message: 'components는 순수 UI — supabase는 services/hooks 레이어에서만.',
+            },
+          ],
+          patterns: [
+            {
+              group: ['@/services/*'],
+              allowTypeImports: true,
+              message: 'components는 props/훅으로 데이터를 받으세요 (타입 import만 허용).',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    // stores/는 UI 상태만 — 서버 데이터·서비스 접근 금지 (레이어 규칙).
+    files: ['src/stores/**/*.ts'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            { name: '@supabase/supabase-js', message: 'stores/는 UI 상태만 — 서버 접근 금지.' },
+            { name: '@/lib/supabase', message: 'stores/는 UI 상태만 — 서버 접근 금지.' },
+          ],
+          patterns: [
+            { group: ['@/services/*'], message: 'stores/는 UI 상태만 — 서비스 호출 금지.' },
+          ],
+        },
+      ],
+    },
+  },
+  {
     // 테스트 파일은 vitest 전역(describe/it/expect/vi)을 런타임에 주입받음 — no-undef 비대상.
     files: ['**/*.test.ts'],
     rules: {

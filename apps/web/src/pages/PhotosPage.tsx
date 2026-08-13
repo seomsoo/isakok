@@ -15,6 +15,12 @@ import { ErrorMessage } from '@/shared/components/ErrorMessage'
 import { useToast } from '@/shared/components/ToastProvider'
 import { useUserId } from '@/auth/useSession'
 import { captureEvent, ANALYTICS_EVENTS } from '@/observability/events'
+import {
+  parsePhotoType,
+  photosPath,
+  photoRoomPath,
+  photoReportPath,
+} from '@/features/photos/utils/photoPaths'
 import type { PhotoType } from '@/services/photos'
 
 export function PhotosPage() {
@@ -26,13 +32,8 @@ export function PhotosPage() {
   const { data: move, isPending } = useCurrentMove()
 
   const daysUntilMove = move ? differenceInCalendarDays(parseISO(move.moving_date), new Date()) : 0
-  const queryType = searchParams.get('type') as PhotoType | null
   const photoType: PhotoType =
-    queryType === 'move_in' || queryType === 'move_out'
-      ? queryType
-      : daysUntilMove > 0
-        ? 'move_out'
-        : 'move_in'
+    parsePhotoType(searchParams.get('type')) ?? (daysUntilMove > 0 ? 'move_out' : 'move_in')
 
   const {
     data: photos = [],
@@ -100,7 +101,7 @@ export function PhotosPage() {
   }
 
   function handleTypeChange(next: PhotoType) {
-    navigate(`/photos?type=${next}`, { replace: true })
+    navigate(photosPath(next), { replace: true })
   }
 
   return (
@@ -128,7 +129,7 @@ export function PhotosPage() {
                   room={room}
                   photos={roomPhotos}
                   urlMap={urlMap}
-                  onOpen={() => navigate(`/photos/${room.type}?type=${photoType}`)}
+                  onOpen={() => navigate(photoRoomPath(room.type, photoType))}
                   onAdd={() => handleAddTrigger(room.type)}
                 />
               )
@@ -140,7 +141,7 @@ export function PhotosPage() {
       {photos.length > 0 && (
         <button
           type="button"
-          onClick={() => navigate(`/photos/report?type=${photoType}`)}
+          onClick={() => navigate(photoReportPath(photoType))}
           className="mx-5 mt-4 flex w-[calc(100%-40px)] items-center justify-between rounded-2xl bg-white px-5 py-4"
         >
           <span className="text-[15px] font-semibold tracking-tight text-secondary">

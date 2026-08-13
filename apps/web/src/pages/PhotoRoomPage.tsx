@@ -15,15 +15,15 @@ import { useToast } from '@/shared/components/ToastProvider'
 import { useUserId } from '@/auth/useSession'
 import { useGoBack } from '@/shared/hooks/useGoBack'
 import { captureEvent, ANALYTICS_EVENTS } from '@/observability/events'
+import { parsePhotoType, photosPath, photoTrashPath } from '@/features/photos/utils/photoPaths'
 import type { PhotoType } from '@/services/photos'
 
 export function PhotoRoomPage() {
   const { room } = useParams<{ room: string }>()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const toast = useToast()
-  const photoType = searchParams.get('type') === 'move_out' ? 'move_out' : 'move_in'
-  const goBack = useGoBack(`/photos?type=${photoType}`)
+  const photoType = parsePhotoType(searchParams.get('type')) ?? 'move_in'
+  const goBack = useGoBack(photosPath(photoType))
 
   const { data: move, isPending } = useCurrentMove()
 
@@ -40,8 +40,7 @@ export function PhotoRoomPage() {
       roomMeta={roomMeta}
       photoType={photoType}
       onBack={goBack}
-      onTrash={() => navigate(`/photos/trash?type=${photoType}`, { replace: true })}
-      toast={toast}
+      onTrash={() => navigate(photoTrashPath(photoType), { replace: true })}
     />
   )
 }
@@ -53,11 +52,16 @@ interface InnerProps {
   photoType: PhotoType
   onBack: () => void
   onTrash: () => void
-  toast: ReturnType<typeof useToast>
 }
 
-function Inner({ moveId, room, roomMeta, photoType, onBack, onTrash, toast }: InnerProps) {
+function Inner({ moveId, room, roomMeta, photoType, onBack, onTrash }: InnerProps) {
+  const toast = useToast()
   const { userId, isAnonymous } = useUserId()
+
+  // 휴지통은 이 화면에서만 진입 — lazy 청크 프리페치 (실패는 진입 시 재시도)
+  useEffect(() => {
+    void import('@/pages/PhotoTrashPage').catch(() => {})
+  }, [])
   const {
     data: allPhotos = [],
     isLoading,

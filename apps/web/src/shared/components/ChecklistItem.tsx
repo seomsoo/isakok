@@ -6,10 +6,8 @@ import { Badge } from './Badge'
 interface ChecklistItemProps {
   id: string
   title: string
-  category?: string
   isCompleted: boolean
   guideType?: 'tip' | 'warning' | 'critical'
-  dateLabel?: string
   onToggle: (id: string, isCompleted: boolean) => void
   onPress?: () => void
 }
@@ -17,10 +15,8 @@ interface ChecklistItemProps {
 export function ChecklistItem({
   id,
   title,
-  category,
   isCompleted,
   guideType,
-  dateLabel,
   onToggle,
   onPress,
 }: ChecklistItemProps) {
@@ -65,12 +61,6 @@ export function ChecklistItem({
         >
           {title}
         </span>
-        {category && (
-          <div className="flex items-center gap-1.5">
-            <Badge variant="category">{category}</Badge>
-          </div>
-        )}
-        {dateLabel && <span className="text-label text-muted">{dateLabel}</span>}
       </button>
 
       {/* 우측 */}

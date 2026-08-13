@@ -32,6 +32,9 @@ export {
 // 상수 (platform)
 export { PLATFORM } from './constants/platform'
 
+// 상수 (support)
+export { SUPPORT_EMAIL } from './constants/support'
+
 // 인증 (13단계 — E2E 세션 시딩과 앱 클라이언트의 storageKey 단일 출처)
 export { SUPABASE_STORAGE_KEY } from './auth/constants'
 

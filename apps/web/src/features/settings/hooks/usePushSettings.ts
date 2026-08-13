@@ -10,8 +10,7 @@ import {
   onPushStatus,
   type PushStatus,
 } from '@/push/pushBridge'
-
-const pushEnabledKey = (userId: string | null) => ['push', 'enabled', userId] as const
+import { pushKeys } from '@/push/queryKeys'
 
 /**
  * 설정 화면 푸시 토글 상태 + 동작 (12단계 §6-2).
@@ -26,7 +25,7 @@ export function usePushSettings() {
   const [status, setStatus] = useState<PushStatus | null>(null)
 
   const enabledQuery = useQuery({
-    queryKey: pushEnabledKey(userId),
+    queryKey: pushKeys.enabled(userId),
     queryFn: () => getPushEnabled(userId as string),
     enabled: !!userId,
     staleTime: 60_000,
@@ -36,7 +35,7 @@ export function usePushSettings() {
     const cleanup = onPushStatus((s) => {
       setStatus(s)
       // 등록 성공 시 네이티브가 push_enabled를 서버에서 true로 바꾸므로 재조회로 동기화.
-      qc.invalidateQueries({ queryKey: pushEnabledKey(userId) })
+      qc.invalidateQueries({ queryKey: pushKeys.enabled(userId) })
     })
     requestPushStatus()
     return cleanup
@@ -58,13 +57,13 @@ export function usePushSettings() {
 
   // 토글 OFF: 앱 토글만 끔(권한/토큰은 유지). 낙관적 반영 후 RPC.
   const disable = useCallback(async () => {
-    qc.setQueryData(pushEnabledKey(userId), false)
+    qc.setQueryData(pushKeys.enabled(userId), false)
     try {
       await setPushEnabled(false)
     } catch (err) {
       console.error('[usePushSettings] disable', err)
       toast.error('알림 설정 변경에 실패했어요. 다시 시도해주세요.')
-      qc.invalidateQueries({ queryKey: pushEnabledKey(userId) })
+      qc.invalidateQueries({ queryKey: pushKeys.enabled(userId) })
     }
   }, [qc, userId, toast])
 

@@ -8,29 +8,13 @@ import {
 } from '@moving/shared'
 import { ROUTES, checklistDetailPath } from '@shared/constants/routes'
 import { Badge } from '@/shared/components/Badge'
+import { sortByGuidePriority } from '@/shared/utils/sortByGuidePriority'
 
 interface ActionSectionProps {
   items: Record<string, unknown>[]
   nextUpcomingDate?: string
   mode: UrgencyMode
   onToggle: (id: string, isCompleted: boolean) => void
-}
-
-const GUIDE_PRIORITY: Record<string, number> = {
-  critical: 0,
-  warning: 1,
-  tip: 2,
-}
-
-function sortByUrgency(items: Record<string, unknown>[]) {
-  return [...items].sort((a, b) => {
-    const masterA = a.master_checklist_items as Record<string, unknown> | null
-    const masterB = b.master_checklist_items as Record<string, unknown> | null
-    const priorityA = GUIDE_PRIORITY[masterA?.guide_type as string] ?? 3
-    const priorityB = GUIDE_PRIORITY[masterB?.guide_type as string] ?? 3
-    if (priorityA !== priorityB) return priorityA - priorityB
-    return (a.assigned_date as string).localeCompare(b.assigned_date as string)
-  })
 }
 
 export function ActionSection({ items, nextUpcomingDate, mode, onToggle }: ActionSectionProps) {
@@ -56,7 +40,7 @@ export function ActionSection({ items, nextUpcomingDate, mode, onToggle }: Actio
     )
   }
 
-  const sorted = sortByUrgency(filtered)
+  const sorted = sortByGuidePriority(filtered)
   const maxVisible = mode === 'urgent' || mode === 'critical' ? 5 : 3
   const visible = sorted.slice(0, maxVisible)
 

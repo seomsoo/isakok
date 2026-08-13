@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { checklistDetailPath } from '@shared/constants/routes'
 import { cn } from '@/lib/cn'
 import { ChecklistItem } from '@/shared/components/ChecklistItem'
+import { sortByGuidePriority } from '@/shared/utils/sortByGuidePriority'
 import { getDateLabel } from '@/features/timeline/hooks/useTimelineItems'
 import type { PeriodGroup } from '@/features/timeline/hooks/useTimelineItems'
 
@@ -10,23 +11,6 @@ interface PeriodSectionProps {
   period: PeriodGroup
   movingDate: string
   onToggleItem: (id: string, isCompleted: boolean) => void
-}
-
-const GUIDE_PRIORITY: Record<string, number> = {
-  critical: 0,
-  warning: 1,
-  tip: 2,
-}
-
-function sortByGuideType(items: Record<string, unknown>[]) {
-  return [...items].sort((a, b) => {
-    const masterA = a.master_checklist_items as Record<string, unknown> | null
-    const masterB = b.master_checklist_items as Record<string, unknown> | null
-    return (
-      (GUIDE_PRIORITY[masterA?.guide_type as string] ?? 3) -
-      (GUIDE_PRIORITY[masterB?.guide_type as string] ?? 3)
-    )
-  })
 }
 
 /**
@@ -50,7 +34,7 @@ function groupItemsByDate(
     }
   }
 
-  return groups.map((g) => ({ ...g, items: sortByGuideType(g.items) }))
+  return groups.map((g) => ({ ...g, items: sortByGuidePriority(g.items) }))
 }
 
 export const PeriodSection = forwardRef<HTMLDivElement, PeriodSectionProps>(function PeriodSection(
