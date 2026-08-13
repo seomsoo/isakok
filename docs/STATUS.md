@@ -1,21 +1,21 @@
 # 프로젝트 상태
 
-> 마지막 업데이트: 2026-08-14 (**품질 리팩토링 세션** — `/code-review`(클로즈 커밋 `bf19b2b` 문서 정합 15건 지적) + `/simplify`(apps/web/src 4관점 리뷰 53건 → 30여 건 적용: 죽은코드 −694줄·쿼리 캐시 단일화·콜드 페이지 4개 코드 스플리팅·ESLint 레이어 존·버전 자동주입) → **PR #88 생성·Codex 리뷰 진행 중**. 엔트리 번들 337→322KB gzip(size-limit 여유 7.5→22.7KB). 14단계는 클로즈 유지, 다음 단계 미정.)
+> 마지막 업데이트: 2026-08-14 (**체크리스트 타입 관통 세션** — PR #88 머지(squash `f249675`) 후 코드리뷰 우선순위 3+4 후속: `refactor/checklist-types` 7커밋. 컬럼 배열 단일 출처로 `ChecklistItemWithMaster` 정의 → 서비스→훅→페이지→컴포넌트 관통 + 리스트 select 축소(user 4·master 4컬럼), `Record<string, unknown>`/`as` 캐스트 96곳 제거. 검증: typecheck/lint/test/build/size-limit + dev·로컬 PostgREST select 실증(200/오타 400 대조) + E2E 양엔진 5/5 → **PR #89 생성·리뷰 대기**. 14단계는 클로즈 유지, 다음 단계 미정.)
 
 ## 현재 단계
 
-**14단계 Supabase dev/prod 환경 분리 — ✅ 완료·PR #86 머지(squash `67a2ccb`)·머지 후 잔여 해소·클로즈.** 정본 `docs/specs/14-env-separation.md` + `14-env-separation-verify.md`(최초 ❌→수정 반영→최종 ✅, §14-9 restore 실측 포함) · ADR-106~109. 다음 단계 미정 — 지금은 **품질 리팩토링 PR #88**(`refactor/simplify-web`, 27커밋) 리뷰·머지 대기.
+**14단계 Supabase dev/prod 환경 분리 — ✅ 완료·PR #86 머지(squash `67a2ccb`)·머지 후 잔여 해소·클로즈.** 정본 `docs/specs/14-env-separation.md` + `14-env-separation-verify.md`(최초 ❌→수정 반영→최종 ✅, §14-9 restore 실측 포함) · ADR-106~109. 다음 단계 미정 — 품질 리팩토링 PR #88 머지 완료, 지금은 **체크리스트 타입 관통 PR #89**(`refactor/checklist-types`, 7커밋) 리뷰·머지 대기.
 
 (운영 상태: 로컬 링크는 dev 고정(`supabase/.temp/project-ref`=yiffgox…), 로컬 .env 3파일 전부 dev 값 — prod 키 로컬 상주 없음. dev 웹 배포는 `git push origin main:dev`로만 — 규칙은 CLAUDE.md Git 섹션.)
 
 ## 진행 중인 것
 
-- **PR #88 `refactor(web): simplify app code and split cold-page bundles` 리뷰·머지 대기** — /simplify 4관점 리뷰 결과 적용 27커밋: 죽은코드 삭제(−694줄, PhotoDetailSheet 등 7파일+moveStore), 타임라인 쿼리 캐시 모드별 중복 해소(낙관적 업데이트 미스 포함), 토글마다 moves 리페치 제거, 중복 유틸 통합(정렬·재배치맵·사진날짜·photoType 파싱), 콜드 페이지 4개(약관·개인정보·라이선스·휴지통) lazy 스플리팅(+프리페치·실패 재시도), ESLint no-restricted-imports 레이어 존 실등록, 설정 화면 버전 `__APP_VERSION__` 자동주입. 상세·검증 결과는 PR #88 본문
+- **PR #89 `refactor(checklist): thread typed rows through dashboard and timeline` 리뷰·머지 대기** — 코드리뷰(bf19b2b) 우선순위 3+4 후속 7커밋: 컬럼 배열 단일 출처(`satisfies keyof Tables<…>` → select 문자열+`Pick` 타입 동시 생성)로 `ChecklistItemWithMaster` 정의, 서비스→훅(useTodayItems·useToggleItem·useTimelineItems)→페이지→섹션 컴포넌트 5종 관통, 리스트 select 축소(user: id·assigned_date·is_completed·completed_at / master: title·category·guide_type·is_skippable), 재배치 파생 필드(display_date·\_original_date) 클라이언트 파생 명시, 캐스트 96곳 제거. Codex 리뷰 미실시(머지 전 `/codex:review` 예정). 상세·검증은 PR #89 본문
 - ~~스크린샷 `stage14-dev-badge-dashboard.png`(루트, untracked)는 PR #86에 첨부 후 삭제 가능~~ → **❌ 증거 유실 확정**(code-review): PR #86에 첨부된 적 없고 파일도 디스크·git 히스토리에 없음. 필요 시 isakok-dev.vercel.app에서 재캡처
 
 ## 다음 할 것
 
-1. **PR #88 머지** — Codex 리뷰 **진행 중**(2026-08-14). 리뷰 결과 반영 → 머지 → 새 브랜치에서 **체크리스트 `select('*')` 컬럼 축소 + `Record<string, unknown>` 캐스트 67곳 타입 관통** (코드리뷰 우선순위 3+4 — 타입을 먼저 정의하면 컬럼 축소 누락을 컴파일러가 잡아줌)
+1. **PR #89 머지** — `/codex:review --background` 실행 → 결과 반영 → squash 머지. ~~체크리스트 select 축소 + 캐스트 타입 관통~~(✅ 구현·검증 완료, PR #89)
 2. **code-review(bf19b2b) 문서 정합 잔여 수정** — STATUS 쪽은 2026-08-14 반영 완료(스크린샷 유실 오기재·백업 known-issue 스트라이크·AI e2e 증거 복원), `14-env-separation-verify.md` 쪽 ~9건 잔여: 누락 섹션 이연 2건·§2/§8/§11/§컨벤션/§스코프크립 잔존 표기를 완료 기록과 정합화, GOOGLE_SERVICES_JSON 근거 인용 보수, 스모크 세션 E2E prefill 주입 뉘앙스 복원
 3. **§14-6 회원 전용 영역 dev 완주 실측** — linkIdentity 승격·사진 게이트·계정 삭제를 isakok-dev.vercel.app에서 Google 로그인으로 수동 1회
 4. **13단계 비차단 follow-up** (옵션) — ~~라우트 코드 스플리팅~~(✅ PR #88) → 남은 것: size-limit `initial entry` 한도 하향(322KB 실측 위 래칫 다운) · desktop `useCreateMove` 동적→정적 import 안전망 fix(latent 크래시 정리 — 네이티브 세션 race 대비).
@@ -55,7 +55,9 @@
 - **14단계 Supabase dev/prod 환경 분리** ✅(머지 **PR #86** · verify 최초 ❌→수정 반영→최종 ✅ · 머지 후 잔여 해소) — dev=prod(ADR-075) 종료: 기존=prod(`isakok-prod`) 유지·신규 `isakok-dev` 구축(마이그레이션 28+seed 46·함수 9·시크릿 전부 신규·익명+Google, Apple/Kakao는 통제 실패 parity). 채널 매핑 고정(로컬·PR 프리뷰·EAS dev/preview→dev, 릴리즈 채널만 prod) + DEV 배지 + startup fingerprint(env×ref throw). CORS 시크릿화(fail-closed) — prod의 `ENVIRONMENT`/`ALLOWED_ORIGINS` **부재를 실측 확인**(=prod가 localhost 허용 중이었음) 후 잔재 제거. dev **AI 가이드 e2e 실측**(가이드 43개 생성→cache_hit→적용 43 — 단, 스모크 세션은 E2E prefill 주입이라 로그인 경로는 미검증). ref 가드 배포 스크립트 6종(prod 통합 명령 없음). dev 미러 브랜치(`isakok-dev.vercel.app`, Vercel Auth 해제). 백업 `SUPABASE_PROD_DB_URL` 각인 + **restore 테스트 실측**(테이블 11·시드 46 sanity). verify P1: 벌크 배포가 kakao-unlink-webhook JWT를 켜버린 회귀 → config.toml 선언+양쪽 재배포 복구. 📄 `specs/14-env-separation.md`(+verify) · ADR-106~109
 - **13단계 품질 레인(Quality Lane)** ✅(머지 **PR #78** · /verify 종합 ✅ · `web_vitals` 수신 확인 · 마감 docs **PR #79**(verify 리포트·STATUS·README 정합)) — 머지 전 게이트 + 배포후 모니터 안전망(WebView·dev=prod 제약 맞춤). ① 유닛 백필 6영역(D-day·progress essential·재배치·scrub·conditionTags + 순수추출 `memoSaveMachine`/`optimisticToggle`) ② 커버리지 래칫(`scripts/coverage-ratchet.mjs`, baseline web 94%(권장수정 RUM 테스트로 92.93→94 갱신·branches 90.56→92.18)·shared utils 74.3%, 자동상승 금지) ③ 로컬 Supabase 격리(`signInAnonymously`→storageState, `SUPABASE_STORAGE_KEY` 단일출처, `VITE_DISABLE_AI_GUIDE` 가드) ④ E2E Playwright Chromium+WebKit 2플로우(온보딩→대시보드 / 상세토글→소거)+axe WCAG2.1AA(viewport zoom a11y 수정, color-contrast baseline 제외) ⑤ size-limit 두 예산(`@size-limit/file`, 336/345KB) ⑥ web-vitals→PostHog(`captureEvent` 경유·route 패턴 정규화, production 전용) ⑦ `ci.yml` `verify`(=fast)에 ratchet·size-limit + `e2e` 잡(supabase start+양엔진). 📄 `specs/13-quality-lane.md`(+`13-quality-lane-verify.md` 종합 ✅통과) · ADR-099~105(`docs/ADR.md` 반영) _(verify 권장수정 반영: Codex P2 seed `testIgnore` · web-a11y axe 동적상태(설정시트 checkA11y) · RUM 단위테스트(`webVitals.test`) · P1 불변식 주석. 스펙↔구현: AI가드 DashboardPage·온보딩 3스텝·#6 매핑 SQL RPC·flow#2 대시보드토글)_
 
-- **품질 리팩토링 패스(/code-review + /simplify)** 🟡(**PR #88** Codex 리뷰 진행 중 — `refactor/simplify-web` 27커밋) — apps/web/src 4관점 리뷰 53건 중 30여 건 적용: 죽은코드 −694줄(7파일+moveStore+미사용 prop)·타임라인 캐시 모드별 5중화 해소·토글 moves 리페치 제거·중복 유틸 통합(sortByGuidePriority·computeOverdueDisplayDates·photoDate·photoPaths)·콜드 페이지 4개 lazy(엔트리 337→322KB gzip, 프리페치+청크 실패 재시도)·ESLint 레이어 존 실등록·버전 자동주입. 상세는 PR #88 본문 _(전용 spec 없음 — 핵심 보존)_
+- **품질 리팩토링 패스(/code-review + /simplify)** ✅(**PR #88** 머지 squash `f249675` — `refactor/simplify-web` 27커밋) — apps/web/src 4관점 리뷰 53건 중 30여 건 적용: 죽은코드 −694줄(7파일+moveStore+미사용 prop)·타임라인 캐시 모드별 5중화 해소·토글 moves 리페치 제거·중복 유틸 통합(sortByGuidePriority·computeOverdueDisplayDates·photoDate·photoPaths)·콜드 페이지 4개 lazy(엔트리 337→322KB gzip, 프리페치+청크 실패 재시도)·ESLint 레이어 존 실등록·버전 자동주입. 상세는 PR #88 본문 _(전용 spec 없음 — 핵심 보존)_
+
+- **체크리스트 타입 관통 리팩토링** 🟡(**PR #89** 리뷰 대기 — `refactor/checklist-types` 7커밋) — untyped supabase 클라이언트로 인한 `Record<string, unknown>`/`as` 캐스트 96곳 제거. 컬럼 배열 단일 출처(`as const satisfies keyof Tables<…>` → select 문자열+`Pick` 행 타입 동시 생성)로 타입↔쿼리 불일치 구조적 차단, 리스트 select 실사용 8컬럼으로 축소, 유틸 3종 구조적 제약 제네릭화, 재배치 파생 필드 타입 명시. 동작 변경 없음(E2E 양엔진 5/5 + PostgREST select 실증). 상세는 PR #89 본문 _(전용 spec 없음 — 핵심 보존)_
 
 ## 알려진 문제
 
@@ -177,3 +179,5 @@
 - **pnpm run은 `--` 구분자를 스크립트 argv에 그대로 전달** — 인자 검증 wrapper는 `argv.filter(a => a !== '--')` 필요 (supabase-cmd 가드가 첫 실행에서 `--`를 ref로 오인·거부)
 - **TanStack Query: select 파생 파라미터(mode 등)를 쿼리 키에 넣지 말 것** — 같은 fetch가 파생값별로 중복 캐시되고(N배 스토리지+리페치), `setQueryData` 낙관적 업데이트가 기본 키만 겨냥해 빗나감. `select`는 관찰자(observer)별 실행이라 키는 fetch 단위로 (PR #88에서 타임라인 모드별 5중 캐시 해소)
 - **다건 일괄 수정 후 요약에 적은 항목이 실제 적용됐는지 `git status`/diff로 1:1 대조** — /simplify 마무리 요약에 DetailHeader `displayDate` 제거를 "적용"으로 적었으나 실제 미적용(커밋 직전 발견). 요약 항목 수와 변경 파일 목록을 대조하면 잡힘
+- **untyped supabase-js 클라이언트에 non-literal select 문자열(`string` 타입)을 넘기면 결과가 `GenericStringError[]`로 추론됨** — 조합 문자열(`arr.join()`)은 타입 레벨 select 파서가 못 읽음(리터럴은 any로 통과). **해결**: `.select<string, RowType>(...)`으로 결과 타입 명시 — 단 RowType은 select 문자열과 같은 컬럼 배열에서 생성해 단일 출처 유지 (PR #89 `services/checklist.ts` 패턴)
+- **제네릭 `T` 반환 함수에서 스프레드 중 프로퍼티 직접 덮어쓰기(`{ ...item, is_completed: x }`)는 TS2322로 거부됨** — T가 리터럴 서브타입으로 인스턴스화될 수 있어서. **해결**: patch를 별도 객체로 만들어 `{ ...item, ...patch }`로 반환 — 교차 타입 `T & P`는 T에 할당 가능이라 `as T` 캐스트 불필요 (PR #89 `optimisticToggle.ts`)
