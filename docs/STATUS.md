@@ -1,10 +1,10 @@
 # 프로젝트 상태
 
-> 마지막 업데이트: 2026-08-13 (**14단계 Supabase dev/prod 환경 분리 — 구현 완료·검증 대기(별도 세션 /verify)**. 13단계 마감 docs PR #79 머지. `feat/env-separation` 커밋 16개(미푸시), 정본 `specs/14-env-separation.md` + ADR-106~109 반영. dev=prod(ADR-075) 종료 — 기존 `ybcqinanfcarhqkclvue`=prod(`isakok-prod`), 신규 `yiffgoxnyyngkbasyfaw`=dev(`isakok-dev`). Phase A~D 코어 전부 실측 통과(스모크·RLS 18/18·CORS 매트릭스·fail-closed·AI 생성·실기기 브릿지). 잔여는 verify + PR + 머지 후 3건.)
+> 마지막 업데이트: 2026-08-13 (**14단계 Supabase dev/prod 환경 분리 — 구현+검증 완료(verify 최종 ✅), PR 대기**. 13단계 마감 docs PR #79 머지. `feat/env-separation` 커밋 25개(미푸시), 정본 `specs/14-env-separation.md`(+verify) + ADR-106~109. dev=prod(ADR-075) 종료 — 기존 `ybcqinanfcarhqkclvue`=prod(`isakok-prod`), 신규 `yiffgoxnyyngkbasyfaw`=dev(`isakok-dev`). Phase A~D 실측 통과(스모크·RLS 20/20·CORS 매트릭스·fail-closed·AI 생성·실기기 브릿지) + verify 지적(P1 kakao 웹훅 JWT 회귀 복구 포함) 전부 수정 반영. 잔여는 PR + 머지 후 5건.)
 
 ## 현재 단계
 
-**14단계 Supabase dev/prod 환경 분리 — 구현 완료·검증 대기.** 정본 `docs/specs/14-env-separation.md` · ADR-106~109(ADR.md 반영완료·체인 주석 포함). 브랜치 `feat/env-separation` 커밋 16개(1~3파일 단위, **미푸시**). PR용 스크린샷 루트 `stage14-dev-badge-dashboard.png`(untracked) 준비됨.
+**14단계 Supabase dev/prod 환경 분리 — 구현+검증 완료(verify 최종 ✅), PR 대기.** 정본 `docs/specs/14-env-separation.md` + `14-env-separation-verify.md`(최초 ❌→수정 반영→최종 ✅) · ADR-106~109(체인 주석 포함). 브랜치 `feat/env-separation` 커밋 25개(1~3파일 단위, **미푸시**). PR용 스크린샷 루트 `stage14-dev-badge-dashboard.png`(untracked) 준비됨.
 
 **verify 세션용 실측 결과 요약** (§14 골격 대조용 — 재실측 가능한 건 재실측 권장):
 
@@ -18,18 +18,17 @@
 
 ## 진행 중인 것
 
-- **14단계 /verify 대기** — 검증은 구현 세션과 분리 원칙. 위 실측 요약과 `specs/14-env-separation.md` §14 골격(12항목) 대조로 `14-env-separation-verify.md` 작성.
+- **14단계 verify 완료(최종 ✅) + 리뷰 지적 전부 수정 반영** — 별도 세션 verify(Codex P1 1·🔴 1·P2 2 + 🟡 6)를 구현 세션 후속에서 전부 수정·재검증(`14-env-separation-verify.md` 종합 판정 참조). 특히 **P1: Phase D 재배포가 prod kakao-unlink-webhook을 JWT ON으로 깨뜨렸던 것**을 config.toml 선언+재배포로 복구(양쪽 `verify_jwt=false` 실측). PR 생성 대기.
 - 로컬 링크는 dev 고정(`supabase/.temp/project-ref`=yiffgox…). 로컬 .env 3파일 전부 dev 값(prod 키 로컬 상주 종료).
 
 ## 다음 할 것
 
-1. **별도 세션 `/verify`** → `docs/specs/14-env-separation-verify.md` 작성(§14 골격 12항목. 캐시 시딩 오판→정정 과정은 문제+수정 두 줄 구조로 보존)
-2. (선택) `/codex:review --background` → **PR 생성**(`feat/env-separation`, 스크린샷 첨부) → squash 머지
-3. **머지 후 잔여 3+2건**: ① 구 GitHub 시크릿 `SUPABASE_DB_URL` 삭제 ② db-backup `workflow_dispatch` 1회 + **아티팩트 restore 테스트**(§14-9 — 일회용 Postgres 복원·row count sanity) ③ `git push origin main:dev` 재발행(dev 웹에 DEV 배지·fingerprint 반영) ④ `.env.local`의 `SB_MGMT_TOKEN` 제거 ⑤ (보안 강박 시) 세션 노출 키 rotate — Anthropic dev 키(spend limit 있음)·Management API 토큰
-4. **13단계 비차단 follow-up** (옵션) — 라우트 코드 스플리팅 + size-limit `initial entry` 하향(깔아둔 baseline 위 before/after 증명) · desktop `useCreateMove` 동적→정적 import 안전망 fix(latent 크래시 정리 — 네이티브 세션 race 대비).
-5. **12단계 비차단 잔여** — 토큰 재할당 field test · Android 채널 HIGH on-device · **테스트로 바꾼 이사일 원복**(D-0→실제). 📄 `12-push-notifications-verify.md`
-6. **11단계 배포 후 실측** — Sentry 알림 필터 · PII 육안 · retention. (`VITE_APP_ENV=production`·environment 태그는 13단계 PostHog 확인 중 검증됨.) 📄 `11-observability-verify.md`
-7. **10-4 잔여 콘솔/운영** — Kakao 콜백·시크릿·cron-setup·브랜치보호 RLS CI required·App Store Connect·TestFlight·`expo prebuild --clean`
+1. **PR 생성**(`feat/env-separation`, 스크린샷 `stage14-dev-badge-dashboard.png` 첨부) → squash 머지
+2. **머지 후 잔여 3+2건**: ① 구 GitHub 시크릿 `SUPABASE_DB_URL` 삭제 ② db-backup `workflow_dispatch` 1회 + **아티팩트 restore 테스트**(§14-9 — 일회용 Postgres 복원·row count sanity) ③ `git push origin main:dev` 재발행(dev 웹에 DEV 배지·fingerprint 반영) ④ `.env.local`의 `SB_MGMT_TOKEN` 제거 ⑤ (보안 강박 시) 세션 노출 키 rotate — Anthropic dev 키(spend limit 있음)·Management API 토큰
+3. **13단계 비차단 follow-up** (옵션) — 라우트 코드 스플리팅 + size-limit `initial entry` 하향(깔아둔 baseline 위 before/after 증명) · desktop `useCreateMove` 동적→정적 import 안전망 fix(latent 크래시 정리 — 네이티브 세션 race 대비).
+4. **12단계 비차단 잔여** — 토큰 재할당 field test · Android 채널 HIGH on-device · **테스트로 바꾼 이사일 원복**(D-0→실제). 📄 `12-push-notifications-verify.md`
+5. **11단계 배포 후 실측** — Sentry 알림 필터 · PII 육안 · retention. (`VITE_APP_ENV=production`·environment 태그는 13단계 PostHog 확인 중 검증됨.) 📄 `11-observability-verify.md`
+6. **10-4 잔여 콘솔/운영** — Kakao 콜백·시크릿·cron-setup·브랜치보호 RLS CI required·App Store Connect·TestFlight·`expo prebuild --clean`
 
 ## 완료된 것 (요약 인덱스 — 상세는 각 단계 spec/verify + ADR.md)
 
@@ -66,7 +65,7 @@
 
 - **(14단계) 세션 대화에 dev 자격 노출** — Anthropic dev 키(spend limit로 방어)·Management API 토큰(`SB_MGMT_TOKEN`, .env.local gitignore). 머지 후 잔여 ⑤에서 rotate/제거 판단. dev publishable 키는 공개 성격이라 무해
 - **(14단계) dev 웹(isakok-dev.vercel.app)은 아직 main 스냅샷 서빙** — DEV 배지·fingerprint 미포함(14 코드 머지 전). PR 머지 후 `main:dev` 재발행으로 해소
-- **(14단계) rls-smoke가 dev `ai_guide_cache`에 `__rls_smoke_test__` 행 잔존시킴** — 이번엔 수동 삭제. 스크립트 cleanup에 해당 시드 행 삭제 보강은 follow-up(비차단, dev 전용)
+- ~~**(14단계) rls-smoke가 dev `ai_guide_cache`에 `__rls_smoke_test__` 행 잔존시킴**~~ → **✅ 해소** — Cleanup에 시드 행 삭제 추가 + 시드 upsert assert 2건 + move 실패 조기 중단(20/20 재실측, 잔존 0 확인)
 - **(13단계) viewport `maximum-scale=1.0` 제거** — 앱에서 핀치 줌 허용(axe WCAG 1.4.4 수정). 네이티브 느낌상 원치 않으면 `apps/web/index.html` 1줄 복구 가능. 입력 줌(iOS)은 textarea가 16px라 무관.
 - **(13단계) axe 게이트에서 `color-contrast` 룰 baseline 제외** — 캘린더 요일헤더(rgba navy 0.3)·muted/placeholder 텍스트 대비 부채(기존 이슈)라 앱 전반 토큰/CSS 변경 필요 → 13단계 스코프 밖. 구조적 위반은 계속 게이트. 별도 a11y/디자인 패스에서 처리.
 - **(13단계) 로컬 `supabase db reset` 시 storage 컨테이너 unhealthy**(비차단) — E2E 2플로우는 storage 무관이라 영향 없음. `supabase start` 단독은 깨끗.
