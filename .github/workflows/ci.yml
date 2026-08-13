@@ -1,5 +1,7 @@
 name: CI
 
+# 빌드는 더미 env, E2E는 로컬 Supabase stack — dev/prod 분리(14단계)와 무관하게 원격 무의존 유지 (ADR-109).
+
 on:
   pull_request:
     branches: [main]

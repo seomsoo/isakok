@@ -1,6 +1,14 @@
-const ALLOWED_ORIGINS = ['https://isakok-dev.vercel.app', 'https://isakok.vercel.app']
+// 허용 origin은 프로젝트별 함수 시크릿 ALLOWED_ORIGINS(콤마 구분)로 주입 (스펙 14 §5-1, ADR-109).
+// fail-closed: 시크릿 미설정 시 묵시적 '*' 없음 — 아래 development 합집합 외엔 전면 403.
+// ⚠️ 배포 순서: 시크릿을 먼저 설정한 뒤 이 코드를 배포할 것 — 역순이면 해당 프로젝트 CORS 전면 차단.
+const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ?? '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean)
 
-if (Deno.env.get('ENVIRONMENT') !== 'production') {
+// 합집합 규칙: development에서만 로컬 origin 추가. LAN origin(http://192.168.x.x:5173 등)은
+// 자동 허용하지 않음 — 네이티브 development 빌드용 LAN은 dev 시크릿에 명시한다 (§9-1).
+if (Deno.env.get('ENVIRONMENT') === 'development') {
   ALLOWED_ORIGINS.push('http://localhost:5173')
 }
 

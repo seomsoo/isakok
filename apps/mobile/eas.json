@@ -12,12 +12,12 @@
       "extends": "base",
       "developmentClient": true,
       "distribution": "internal",
-      "environment": "production"
+      "environment": "development"
     },
     "preview": {
       "extends": "base",
       "distribution": "internal",
-      "environment": "production"
+      "environment": "preview"
     },
     "production": {
       "extends": "base",

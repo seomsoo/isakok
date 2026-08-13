@@ -16,7 +16,13 @@
     "clean": "turbo clean",
     "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm build",
     "verify:fast": "pnpm lint && pnpm typecheck",
-    "auto-fix:check-scope": "tsx scripts/auto-fix/check-scope.ts"
+    "auto-fix:check-scope": "tsx scripts/auto-fix/check-scope.ts",
+    "db:push:dev": "node scripts/supabase-cmd.mjs db:push:dev",
+    "functions:deploy:dev": "node scripts/supabase-cmd.mjs functions:deploy:dev",
+    "deploy:dev": "node scripts/supabase-cmd.mjs deploy:dev",
+    "db:reset:dev": "node scripts/supabase-cmd.mjs db:reset:dev",
+    "functions:deploy:prod": "node scripts/supabase-cmd.mjs functions:deploy:prod",
+    "db:push:prod": "node scripts/supabase-cmd.mjs db:push:prod"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

@@ -380,6 +380,12 @@ verify_jwt = false
 [functions.send-notifications]
 verify_jwt = false
 
+# 카카오 "연결 끊기" 웹훅 (10-4, ADR-078): KakaoAK 헤더 인증 서버-서버 콜백이라 JWT 검증 끔.
+# 14단계 verify Codex P1 — 이 선언이 없으면 전체 함수 deploy가 기본값(ON)으로 되돌려
+# 게이트웨이가 카카오 콜백을 핸들러 도달 전에 거부한다.
+[functions.kakao-unlink-webhook]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327

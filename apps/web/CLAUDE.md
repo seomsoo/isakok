@@ -107,7 +107,7 @@ pages/ → features/ → services/, @shared/utils
 4. **services/**: Supabase API 호출. lib/supabase.ts import 허용. React import 금지
 5. **shared/components/**: 웹앱 전용 공통 UI (Button, Modal, Spinner, ErrorMessage, DevTabBar)
 6. **stores/**: Zustand. UI 상태만. 서버 데이터 넣지 않음
-7. **lib/**: supabase 클라이언트 + cn 유틸리티(clsx + tailwind-merge). 그 외 로직 넣지 않음
+7. **lib/**: supabase 클라이언트 + cn 유틸리티(clsx + tailwind-merge) + envFingerprint(스펙 14 §5-6 — supabase env 배선 검증이라 클라이언트 인접 배치 예외). 그 외 로직 넣지 않음
 
 packages/shared/에 위치하는 것: types/, utils/, constants/ (Supabase 의존 없는 순수 코드)
 

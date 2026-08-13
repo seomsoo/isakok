@@ -462,11 +462,13 @@
 
 - 결정: 새 prod 프로젝트 만들 경우 Northeast Asia (Seoul, ap-northeast-2). 국내 사용자 latency + 데이터 위치 국내(개인정보 처리방침 §5 부합).
 - ⚠️ **ADR-075로 대체** (10-3): prod 신규 미생성, 기존 dev(Seoul)를 prod로 통합 사용 — Seoul 리전 결정은 자동 충족.
+- 분리 실행(14단계): 신규 dev(isakok-dev)도 Seoul — pg_cron/pg_net 등 확장 동작 포함 prod와 조건 동일화 계승(ADR-106).
 
 ### ADR-069: AI 캐시 dev→prod 복사 (P1)
 
 - 결정: `ai_guide_cache`만 복사 허용(공용 캐시). users/auth.users/moves/user_checklist_items/property_photos/auth_provider_links/rate_limit_log/storage.objects 복사 금지.
 - ⚠️ **ADR-075로 대체** (10-3): dev=prod라 복사 작업 자체가 의미 X. 기존 ai_guide_cache 그대로 활용.
+- 역방향 부활(14단계): 분리 후 prod→dev 1회 시딩으로 방향만 반전(ADR-107) — 최초 anon REST 카운트로 "0건 no-op"으로 오판(RLS 차단을 빈 테이블로 오독)했다가 서비스 레벨 재측정에서 완성 5건 확인, 정식 시딩 수행(키셋 일치 검증). 복사 허용 테이블 원칙은 유지.
 
 ### ADR-070: 내부 테스트 = production EAS 빌드 프로파일
 
@@ -510,6 +512,7 @@
 ### ADR-075: dev=prod 단일 프로젝트 (Free 제약 + 분리 트리거)
 
 - 결정: 10-3 단계에서 prod Supabase를 별도 생성하지 않고 기존 dev 프로젝트(ybcqinanfcarhqkclvue, Seoul)를 그대로 prod로 사용. 사용자 성장 또는 위험 임계 도달 시 분리.
+- ⚠️ **ADR-106으로 대체** (14단계): free 슬롯 확보로 dev/prod 분리 실행 — 기존 프로젝트=prod 유지, 신규 isakok-dev 생성. 안전 게이트(백업·키 체계·에러 트리밍 등)는 prod 하드닝으로서 계속 유효.
 - 배경:
   - Supabase Free tier 정책: 계정(seomsoo)이 owner/admin인 모든 org를 합쳐 활성 free 프로젝트 2개 한도. 새 free org 만들어도 같은 카운트에 잡힘.
   - 현재 활성: isakok(dev) + 다른 1개. 새 prod를 별도로 만들려면 Pro($25/mo) 또는 dev pause(7일 자동 삭제 위험) 필요.
@@ -738,6 +741,7 @@
 - 보완: ADR-075(dev=prod)는 _배포 환경_ 얘기 — 테스트는 로컬 일회용으로 가도 "운영을 둘로 안 나눈다"는 철학과 충돌 안 함. 세션은 `signInAnonymously()`(ADR-042) + `storageState` 재사용. `.env.test`는 repo 미커밋, CI는 `supabase status`로 워크플로에서 재생성(운영 env 혼입 차단).
 - 대안: 운영 DB + `delete_my_*` cascade 청소(에이전트 탐색이 청소보다 빨리 오염, blast radius 큼), 별도 prod-분리 staging($25/mo Pro — 출시 전 과투자) — 미채택.
 - 구현: `apps/web/playwright.config.ts`(`loadEnv('test')` 주입·`workers:1`), `apps/web/e2e/seed.spec.ts`(setup 프로젝트), `apps/web/.env.test`, `supabase/seed.sql`, `.github/workflows/ci.yml` `e2e` 잡(`supabase/setup-cli@v2` 2.105.0 핀·readiness curl 폴링).
+- 정식 승격(14단계): dev/prod 분리 후에도 CI 로컬 스택 유지 — "임시 우회"가 아니라 결정성·격리를 위한 정식 선택으로 승격(ADR-109). free dev 자동 pause가 원격 의존 CI를 소음원으로 만드는 점도 근거 추가.
 
 ### ADR-100: E2E = Playwright Chromium+WebKit 2 플로우, 네이티브 제외
 
@@ -788,3 +792,31 @@
 - 구현: `.github/workflows/ci.yml`(`verify` 잡에 ratchet·size-limit + `e2e` 잡 신설), Playwright 브라우저 캐시(`runner.os`+lock/package hash).
 
 > **제외 기록(ADR 아님, 추적용):** Lighthouse CI(ADR-101 사유), mutation testing(옵션·니치, config 1회로 후속 가능), visual regression(스냅샷 유지보수 > 1인 이득) — 13단계 미도입.
+
+### ADR-106: dev/prod 분리 실행 — 기존=prod, 신규=dev, 둘 다 free (ADR-075 대체)
+
+- 결정: free 슬롯 확보로 분리 가능해짐에 따라 dev/prod를 분리(14단계). 기존 `ybcqinanfcarhqkclvue`(실데이터 보유) = **prod** 유지(rename `isakok-prod`), 신규 `yiffgoxnyyngkbasyfaw` = **dev**(`isakok-dev`). 둘 다 free, 리전 Seoul 동일(ADR-068 계승).
+- 배경: ADR-075의 분리 트리거 4개(폐쇄 테스트/DB 50%/MAU 1000+/위험한 변경) 중 **어느 것도 도달 전** — 슬롯이 확보되자 부채를 조기 상환.
+- 대안: (A) 역방향(신규=prod) — 실데이터 dump/restore + Apple/Kakao/Google/Auth/UptimeRobot 등 prod ref가 박힌 외부 설정 전면 변경 + Storage 이전, 이득 0 → 기각. (B) prod만 Pro — 자동 백업 등 이점 있으나 수익화 전 고정비 → 보류(재검토 트리거: 매출 발생 또는 pg_dump/Storage 백업 한계 체감).
+- free 대가 수용: ① prod 백업 = pg_dump가 **Postgres DB의** 유일한 개발자 관리 경로(`SUPABASE_PROD_DB_URL`로 각인) — **Storage 실 객체(property-photos)는 미백업 Accepted Risk**(재검토 트리거: 사진 실사용·유료화·Pro 전환) ② dev 자동 pause(수동 restore로 수용, keep-alive 미도입).
+- 트레이드오프: 비용 0 유지 vs Pro 편의 부재. 1인·출시 초기 규모에 적정.
+
+### ADR-107: dev parity 층위 — DB·함수 아티팩트 100% / 외부 연동 의도적 부분
+
+- 결정: dev는 **DB 스키마·마이그레이션·RLS·Edge Function 소스/배포 아티팩트 parity 100%**(마이그레이션 28 + seed 46 + 함수 9). **외부 연동·런타임 설정은 의도적 부분 parity** — 익명·Google 완전 지원 / Apple·Kakao는 아티팩트만(시크릿 미투입 → 호출 시 통제된 실패) / cron 미스케줄(수동 invoke + DRY_RUN 기본) / 백업·UptimeRobot prod 전용 / dev 시크릿 전부 신규(Anthropic dev 키 + spend limit).
+- `ai_guide_cache`만 prod→dev 1회 시딩 허용(ADR-069 역방향) — 최초 anon REST 카운트가 "prod 0건"을 보고해 no-op으로 오판(service-role 전용 테이블이라 RLS 차단=빈 배열, 10-2 이후 anon 측정 불가) → Management API query(서비스 레벨) 재측정으로 완성 5건 확인 후 정식 시딩(`generating_at` 제외·미완성 행 필터·키셋 일치 검증). 나머지 테이블 복사 금지 재확인.
+- 이유: parity의 목적은 "dev 검증 = prod 동작 보장"이며 이는 스키마·RLS·함수 레이어에서 성립. 소셜 풀세팅·cron·모니터링은 콘솔 작업량·상시 소음 대비 검증 가치가 낮음(Apple/Kakao 고유 플로우는 prod 릴리즈 채널 검증 유지). Google 1개는 회원 전용 영역(사진 게이트·linkIdentity·계정 삭제)의 dev 재현을 위한 최소 구성. 층위를 명시해 "함수는 다 있는데 왜 Apple이 실패하지" 혼동을 예방.
+- 대안: 익명/이메일만(회원 플로우 dev 재현 불가 — 분리 효과 반감), 소셜 풀세팅(콘솔 작업 과다) — 미채택.
+
+### ADR-108: 채널-환경 매핑 — Vercel 단일 프로젝트 + dev 미러 브랜치, EAS dev/preview→dev
+
+- 결정: 빌드 채널별 Supabase 매핑을 표로 고정(스펙 14 §4-1). Vercel은 단일 프로젝트에서 Preview env=dev + **`dev` 브랜치(= deployment mirror, 직접 커밋 금지)**에 `isakok-dev.vercel.app` 할당 — 갱신은 `git push origin main:dev`(publish 연산)뿐. EAS development/preview→dev 환경, production 무변경(ADR-070 유지). **역할 분리**: PR Preview = UI/기본 검증(OAuth·Edge CORS 미보장이 정책) / isakok-dev.vercel.app = 완전한 통합 검증 환경.
+- 이유: `VITE_*`/`EXPO_PUBLIC_*` 빌드타임 인라인 → 배포=환경. 세션 브릿지 불변식(네이티브 Supabase = 페어링 웹의 Supabase, 10-3 실측) 때문에 preview 네이티브의 고정 짝인 안정적 dev 웹 URL이 필수. 별도 Vercel 프로젝트(빌드 2배·Hobby 큐·설정 이중화)보다 관리 표면 최소. 미러 선언으로 GitFlow 오해 차단.
+- 부가: DEV 배지(`getEnv()` 재사용, 사람용) + 웹 startup fingerprint(코드 강제 — production×dev-ref, 비production×prod-ref 조합 throw, 로컬 스택 URL 제외). **Vercel Authentication(프리뷰 SSO 보호) 해제** — dev 도메인이 SSO로 302되어 네이티브 WebView가 열 수 없었음. 스펙 §0-2 "dev 접근 제한 미도입(더미 데이터 원칙으로 대체)" 결정의 실행이며, PR 프리뷰 공개는 일회용 URL + RLS로 수용.
+- 대안: 별도 Vercel 프로젝트, dev 브랜치 상시 동기화, PR Preview에 OAuth 와일드카드(redirect 표면 확대), EAS 환경변수 대신 eas.json env 인라인 — 미채택.
+
+### ADR-109: prod 안전 계층 — CORS env화(fail-closed) + 명령 분리·ref 가드 + CI 로컬 스택 정식화
+
+- 결정: ① `ALLOWED_ORIGINS` 하드코딩 → 프로젝트별 함수 시크릿. **합집합 규칙**: 시크릿 목록 + (`ENVIRONMENT=development`일 때만) localhost. 미설정 시 묵시적 `*` 없음 = 전면 403(fail-closed, ADR-064 정신). prod = `isakok.vercel.app` 단독, dev = isakok-dev + 로컬/LAN 명시(RFC1918 자동 허용 미채택). ② **배포·리셋 스크립트 원칙**(`scripts/supabase-cmd.mjs`): linked 상태는 안전 경계가 아님(모든 원격 명령이 DEV_REF/PROD_REF 코드 대조) / prod는 link하지 않음(ref 직접 타이핑 + 일시 `PROD_DB_URL` 주입) / **prod 통합 deploy 명령 없음**(DB push와 함수 배포 분리 — 함수 핫픽스가 대기 마이그레이션을 끌고 가는 사고 차단) / `supabase db reset --linked` 직접 실행 금지 → `db:reset:dev` wrapper(PROD_REF 무조건 거부) / `db:push:prod`는 ref 타이핑 + dry-run + 명시 확인(이번 단계 사용처 없음). ③ rls-ci/E2E 로컬 스택 "임시"→"정식" 승격(ADR-099 승격).
+- 이유: fail-closed는 시크릿 누락이 조용한 전면 허용으로 퇴화하는 것을 방지(prod 배포 시 시크릿 선설정 순서 필수 — 스펙 14 §6). 가드는 dev-wipe project-ref 가드 패턴의 계승 — prod 오발사를 기억이 아닌 코드로 차단. CD 미도입은 1인 + free pause 환경에서 시크릿 표면·소음이 이득을 상회(재검토 트리거: 협업자 발생).
+- 대안: dev CORS `*.vercel.app` suffix 허용(프리뷰 편의 < 표면 확대), rls-ci dev 실 DB(pause 소음·시크릿·PR 간섭), CI 자동 배포, prod 통합 deploy 명령 — 미채택.

@@ -91,7 +91,7 @@ flowchart TB
 
 - `ADR-021` — AI 모델 Sonnet → Haiku. 가이드 재작성엔 품질 충분, 비용 약 75%↓·응답 단축
 - `ADR-042` — 익명 로그인 우선 후 소셜 연결로 가입 장벽 제거
-- `ADR-075` — Free 티어 제약으로 dev=prod 통합, 대신 분리 트리거를 함께 명시
+- `ADR-075`→`ADR-106` — Free 티어 제약으로 dev=prod 통합하되 분리 트리거를 함께 명시 → 슬롯 확보 시점에 트리거 도달 전 조기 분리 실행
 
 **보안 우선** — 전 테이블 RLS, 클라이언트 anon key만, 센 키는 Edge Function 전용, Sentry/PostHog로 나가는 데이터에서 개인정보(주소·메모) 스크럽, 레이트 리밋은 별도 RPC.
 
