@@ -12,7 +12,11 @@ import {
 } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { URGENCY_GROUP_LABELS, type UrgencyMode } from '@moving/shared'
-import { getTimelineItems } from '@/services/checklist'
+import {
+  getTimelineItems,
+  type ChecklistItemWithMaster,
+  type RescheduledChecklistItem,
+} from '@/services/checklist'
 import { queryKeys } from '@/features/dashboard/hooks/queryKeys'
 import { sortByGuidePriority } from '@/shared/utils/sortByGuidePriority'
 import { computeOverdueDisplayDates } from '@/shared/utils/overdueDisplayDates'
@@ -20,17 +24,17 @@ import { computeOverdueDisplayDates } from '@/shared/utils/overdueDisplayDates'
 export interface PeriodGroup {
   key: string
   label: string
-  items: Record<string, unknown>[]
+  items: ChecklistItemWithMaster[]
   completedCount: number
   totalCount: number
   isCurrent: boolean
-  overdueItems: Record<string, unknown>[]
+  overdueItems: ChecklistItemWithMaster[]
 }
 
 export interface TimelinePeriods {
   periods: PeriodGroup[]
-  completedItems: Record<string, unknown>[]
-  skippableItems: Record<string, unknown>[]
+  completedItems: ChecklistItemWithMaster[]
+  skippableItems: ChecklistItemWithMaster[]
   currentIndex: number
   progress: { completed: number; total: number; percentage: number }
 }
@@ -65,10 +69,13 @@ export function useTimelineItems(
   })
 }
 
-function applyReschedule(items: Record<string, unknown>[], movingDate: string) {
+function applyReschedule(
+  items: ChecklistItemWithMaster[],
+  movingDate: string,
+): RescheduledChecklistItem[] {
   const displayMap = computeOverdueDisplayDates(items, movingDate)
   return items.map((item) => {
-    const display = displayMap.get(item.id as string)
+    const display = displayMap.get(item.id)
     if (!display) return item
     return { ...item, assigned_date: display, _original_date: item.assigned_date }
   })
@@ -92,7 +99,7 @@ export function getDateLabel(assignedDate: string, movingDate: string): string {
   return format(assigned, 'M월 d일 (E)', { locale: ko })
 }
 
-function groupByPeriod(items: Record<string, unknown>[], movingDate: string): TimelinePeriods {
+function groupByPeriod(items: ChecklistItemWithMaster[], movingDate: string): TimelinePeriods {
   const today = new Date()
   const movingDay = parseISO(movingDate)
   const weekOpts = { weekStartsOn: 1 as const }
@@ -112,8 +119,8 @@ function groupByPeriod(items: Record<string, unknown>[], movingDate: string): Ti
     {
       label: string
       isCurrent: boolean
-      items: Record<string, unknown>[]
-      overdueItems: Record<string, unknown>[]
+      items: ChecklistItemWithMaster[]
+      overdueItems: ChecklistItemWithMaster[]
     }
   >()
 
@@ -151,13 +158,12 @@ function groupByPeriod(items: Record<string, unknown>[], movingDate: string): Ti
     overdueItems: [],
   })
 
-  const completedItems: Record<string, unknown>[] = []
+  const completedItems: ChecklistItemWithMaster[] = []
 
   for (const item of items) {
-    const assignedDate = parseISO(item.assigned_date as string)
-    const isCompleted = item.is_completed as boolean
+    const assignedDate = parseISO(item.assigned_date)
 
-    if (isCompleted) {
+    if (item.is_completed) {
       completedItems.push(item)
       continue
     }
@@ -242,30 +248,29 @@ function groupByPeriod(items: Record<string, unknown>[], movingDate: string): Ti
  * - critical: essential / canSkip
  */
 function groupByUrgency(
-  items: Record<string, unknown>[],
+  items: ChecklistItemWithMaster[],
   movingDate: string,
   mode: 'urgent' | 'critical',
 ): TimelinePeriods {
   const today = format(new Date(), 'yyyy-MM-dd')
 
-  const completedItems: Record<string, unknown>[] = []
-  const activeItems: Record<string, unknown>[] = []
+  const completedItems: ChecklistItemWithMaster[] = []
+  const activeItems: ChecklistItemWithMaster[] = []
 
   for (const item of items) {
     if (item.is_completed) completedItems.push(item)
     else activeItems.push(item)
   }
 
-  const isSkippable = (item: Record<string, unknown>) =>
-    (item.master_checklist_items as { is_skippable?: boolean } | null)?.is_skippable === true
-  const guideType = (item: Record<string, unknown>) =>
-    (item.master_checklist_items as { guide_type?: string } | null)?.guide_type
+  const isSkippable = (item: ChecklistItemWithMaster) =>
+    item.master_checklist_items?.is_skippable === true
+  const guideType = (item: ChecklistItemWithMaster) => item.master_checklist_items?.guide_type
 
   const periods: PeriodGroup[] = []
-  const skippableItems: Record<string, unknown>[] = []
+  const skippableItems: ChecklistItemWithMaster[] = []
 
   if (mode === 'critical') {
-    const essentials: Record<string, unknown>[] = []
+    const essentials: ChecklistItemWithMaster[] = []
     for (const item of activeItems) {
       if (isSkippable(item)) skippableItems.push(item)
       else essentials.push(item)
@@ -281,10 +286,10 @@ function groupByUrgency(
     })
   } else {
     // urgent
-    const nowItems: Record<string, unknown>[] = []
-    const thisWeekItems: Record<string, unknown>[] = []
-    const movingDayItems: Record<string, unknown>[] = []
-    const afterMoveItems: Record<string, unknown>[] = []
+    const nowItems: ChecklistItemWithMaster[] = []
+    const thisWeekItems: ChecklistItemWithMaster[] = []
+    const movingDayItems: ChecklistItemWithMaster[] = []
+    const afterMoveItems: ChecklistItemWithMaster[] = []
 
     const movingDay = parseISO(movingDate)
 
@@ -293,7 +298,7 @@ function groupByUrgency(
         skippableItems.push(item)
         continue
       }
-      const assignedStr = item.assigned_date as string
+      const assignedStr = item.assigned_date
       const assigned = parseISO(assignedStr)
       const daysToMoving = differenceInCalendarDays(assigned, movingDay)
 
@@ -311,7 +316,7 @@ function groupByUrgency(
     const addGroup = (
       key: string,
       label: string,
-      items: Record<string, unknown>[],
+      items: ChecklistItemWithMaster[],
       isCurrent = false,
     ) => {
       if (items.length === 0) return

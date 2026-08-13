@@ -16,6 +16,7 @@ import { Skeleton } from '@/shared/components/Skeleton'
 import { ErrorMessage } from '@/shared/components/ErrorMessage'
 import { useUserId } from '@/auth/useSession'
 import type { PeriodGroup } from '@/features/timeline/hooks/useTimelineItems'
+import type { ChecklistItemWithMaster } from '@/services/checklist'
 
 type SortMode = 'time' | 'category'
 
@@ -71,23 +72,19 @@ export function TimelinePage() {
   }
 
   // 검색 필터
-  function filterBySearch(items: Record<string, unknown>[]) {
+  function filterBySearch(items: ChecklistItemWithMaster[]) {
     if (!searchQuery.trim()) return items
     const q = searchQuery.trim().toLowerCase()
-    return items.filter((item) => {
-      const master = item.master_checklist_items as Record<string, unknown> | null
-      return (master?.title as string)?.toLowerCase().includes(q)
-    })
+    return items.filter((item) => item.master_checklist_items?.title.toLowerCase().includes(q))
   }
 
   // 카테고리별 정렬
   function groupByCategory(periods: PeriodGroup[]): PeriodGroup[] {
     const allItems = periods.flatMap((p) => [...p.overdueItems, ...p.items])
-    const grouped = new Map<string, Record<string, unknown>[]>()
+    const grouped = new Map<string, ChecklistItemWithMaster[]>()
 
     for (const item of allItems) {
-      const master = item.master_checklist_items as Record<string, unknown> | null
-      const category = (master?.category as string) ?? '기타'
+      const category = item.master_checklist_items?.category ?? '기타'
       const existing = grouped.get(category) ?? []
       existing.push(item)
       grouped.set(category, existing)
