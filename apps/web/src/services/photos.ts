@@ -1,8 +1,9 @@
 import { supabase } from '@/lib/supabase'
 import type { Tables } from '@shared/types/database'
+import type { PhotoType } from '@shared/types/photo'
 
 export type PropertyPhoto = Tables<'property_photos'>
-export type PhotoType = 'move_in' | 'move_out'
+export type { PhotoType }
 
 const BUCKET = 'property-photos'
 const SIGNED_URL_EXPIRY_SEC = 3600 // 1시간
@@ -31,19 +32,6 @@ export async function getPhotosByMove(
 
   if (error) throw new Error(`[getPhotosByMove] ${error.message}`)
   return data ?? []
-}
-
-/**
- * Storage signed URL 생성 (단일)
- * property-photos 버킷은 private이므로 DB에는 storage_path만 저장
- */
-export async function getSignedUrl(storagePath: string): Promise<string> {
-  const { data, error } = await supabase.storage
-    .from(BUCKET)
-    .createSignedUrl(storagePath, SIGNED_URL_EXPIRY_SEC)
-
-  if (error) throw new Error(`[getSignedUrl] ${error.message}`)
-  return data.signedUrl
 }
 
 /**
