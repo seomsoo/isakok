@@ -1,9 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useRef } from 'react'
 import { isNativeWebView, PUSH_PERMISSION_COPY } from '@moving/shared'
-import { useUserId } from '@/auth/useSession'
-import { getPushPromptState, markPushPromptSeen } from '@/services/push'
 import { requestPushPermission } from '@/push/pushBridge'
+import { usePushPrompt } from '@/features/onboarding/hooks/usePushPrompt'
 import { Button } from '@/shared/components/Button'
 
 /**
@@ -20,27 +18,9 @@ export function PushPermissionSheet() {
 }
 
 function PushPermissionSheetInner() {
-  const { userId } = useUserId()
-  const qc = useQueryClient()
-  const [dismissed, setDismissed] = useState(false)
+  const { visible, recordSeen } = usePushPrompt()
   const headingRef = useRef<HTMLHeadingElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-
-  const { data } = useQuery({
-    queryKey: ['push', 'prompt', userId],
-    queryFn: () => getPushPromptState(userId as string),
-    enabled: !!userId,
-    staleTime: 60_000,
-  })
-
-  const visible = !!data && !dismissed && !data.promptSeen && !data.pushEnabled
-
-  const recordSeen = useCallback(() => {
-    setDismissed(true)
-    markPushPromptSeen()
-      .then(() => qc.invalidateQueries({ queryKey: ['push', 'prompt', userId] }))
-      .catch((err) => console.error('[PushPermissionSheet] markSeen', err))
-  }, [qc, userId])
 
   // 열릴 때 제목으로 포커스 이동 — SR가 모달을 announce, 포커스가 뒤 대시보드에 남지 않게.
   useEffect(() => {
