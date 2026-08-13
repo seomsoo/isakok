@@ -468,7 +468,7 @@
 
 - 결정: `ai_guide_cache`만 복사 허용(공용 캐시). users/auth.users/moves/user_checklist_items/property_photos/auth_provider_links/rate_limit_log/storage.objects 복사 금지.
 - ⚠️ **ADR-075로 대체** (10-3): dev=prod라 복사 작업 자체가 의미 X. 기존 ai_guide_cache 그대로 활용.
-- 역방향 부활(14단계): 분리 후 prod→dev 1회 시딩으로 방향만 반전(ADR-107) — 실측 시점 prod 캐시 0건이라 no-op 성립, 복사 허용 테이블 원칙은 유지.
+- 역방향 부활(14단계): 분리 후 prod→dev 1회 시딩으로 방향만 반전(ADR-107) — 최초 anon REST 카운트로 "0건 no-op"으로 오판(RLS 차단을 빈 테이블로 오독)했다가 서비스 레벨 재측정에서 완성 5건 확인, 정식 시딩 수행(키셋 일치 검증). 복사 허용 테이블 원칙은 유지.
 
 ### ADR-070: 내부 테스트 = production EAS 빌드 프로파일
 
@@ -804,7 +804,7 @@
 ### ADR-107: dev parity 층위 — DB·함수 아티팩트 100% / 외부 연동 의도적 부분
 
 - 결정: dev는 **DB 스키마·마이그레이션·RLS·Edge Function 소스/배포 아티팩트 parity 100%**(마이그레이션 28 + seed 46 + 함수 9). **외부 연동·런타임 설정은 의도적 부분 parity** — 익명·Google 완전 지원 / Apple·Kakao는 아티팩트만(시크릿 미투입 → 호출 시 통제된 실패) / cron 미스케줄(수동 invoke + DRY_RUN 기본) / 백업·UptimeRobot prod 전용 / dev 시크릿 전부 신규(Anthropic dev 키 + spend limit).
-- `ai_guide_cache`만 prod→dev 1회 시딩 허용(ADR-069 역방향) — 실행 시점 prod 캐시 0건으로 no-op 성립, 나머지 테이블 복사 금지 재확인.
+- `ai_guide_cache`만 prod→dev 1회 시딩 허용(ADR-069 역방향) — 최초 anon REST 카운트가 "prod 0건"을 보고해 no-op으로 오판(service-role 전용 테이블이라 RLS 차단=빈 배열, 10-2 이후 anon 측정 불가) → Management API query(서비스 레벨) 재측정으로 완성 5건 확인 후 정식 시딩(`generating_at` 제외·미완성 행 필터·키셋 일치 검증). 나머지 테이블 복사 금지 재확인.
 - 이유: parity의 목적은 "dev 검증 = prod 동작 보장"이며 이는 스키마·RLS·함수 레이어에서 성립. 소셜 풀세팅·cron·모니터링은 콘솔 작업량·상시 소음 대비 검증 가치가 낮음(Apple/Kakao 고유 플로우는 prod 릴리즈 채널 검증 유지). Google 1개는 회원 전용 영역(사진 게이트·linkIdentity·계정 삭제)의 dev 재현을 위한 최소 구성. 층위를 명시해 "함수는 다 있는데 왜 Apple이 실패하지" 혼동을 예방.
 - 대안: 익명/이메일만(회원 플로우 dev 재현 불가 — 분리 효과 반감), 소셜 풀세팅(콘솔 작업 과다) — 미채택.
 
