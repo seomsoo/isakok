@@ -4,9 +4,10 @@ import { checklistDetailPath } from '@shared/constants/routes'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { CRITICAL_SKIPPABLE_HINT, URGENCY_GROUP_LABELS } from '@moving/shared'
 import { ChecklistItem } from '@/shared/components/ChecklistItem'
+import type { ChecklistItemWithMaster } from '@/services/checklist'
 
 interface SkippableSectionProps {
-  items: Record<string, unknown>[]
+  items: ChecklistItemWithMaster[]
   mode: 'urgent' | 'critical'
   onToggle: (id: string, isCompleted: boolean) => void
 }
@@ -41,20 +42,17 @@ export function SkippableSection({ items, mode, onToggle }: SkippableSectionProp
 
       {isOpen && (
         <div id={listId} className="mt-2">
-          {items.map((item) => {
-            const master = item.master_checklist_items as Record<string, unknown> | null
-            return (
-              <ChecklistItem
-                key={item.id as string}
-                id={item.id as string}
-                title={(master?.title as string) ?? ''}
-                isCompleted={item.is_completed as boolean}
-                guideType={master?.guide_type as 'tip' | 'warning' | 'critical' | undefined}
-                onToggle={onToggle}
-                onPress={() => navigate(checklistDetailPath(item.id as string, 'timeline'))}
-              />
-            )
-          })}
+          {items.map((item) => (
+            <ChecklistItem
+              key={item.id}
+              id={item.id}
+              title={item.master_checklist_items?.title ?? ''}
+              isCompleted={item.is_completed}
+              guideType={item.master_checklist_items?.guide_type}
+              onToggle={onToggle}
+              onPress={() => navigate(checklistDetailPath(item.id, 'timeline'))}
+            />
+          ))}
         </div>
       )}
 

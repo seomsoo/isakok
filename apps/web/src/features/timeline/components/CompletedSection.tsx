@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronRight, Check } from 'lucide-react'
 import { cn } from '@/lib/cn'
+import type { ChecklistItemWithMaster } from '@/services/checklist'
 
 interface CompletedSectionProps {
-  items: Record<string, unknown>[]
+  items: ChecklistItemWithMaster[]
   onToggle: (id: string, isCompleted: boolean) => void
 }
 
@@ -34,17 +35,17 @@ export function CompletedSection({ items, onToggle }: CompletedSectionProps) {
       {isOpen && (
         <div className="border-t border-border/80">
           {items.map((item, index) => {
-            const master = item.master_checklist_items as Record<string, unknown> | null
+            const master = item.master_checklist_items
             return (
-              <div key={item.id as string}>
+              <div key={item.id}>
                 {index > 0 && <div className="mx-4 border-t border-border/60" />}
                 <div className="flex min-h-12 items-center gap-3 px-4 py-2.5">
                   <button
                     type="button"
                     role="checkbox"
                     aria-checked={true}
-                    aria-label={`${master?.title as string} 미완료로 변경`}
-                    onClick={() => onToggle(item.id as string, false)}
+                    aria-label={`${master?.title ?? ''} 미완료로 변경`}
+                    onClick={() => onToggle(item.id, false)}
                     className="flex h-11 w-11 shrink-0 items-center justify-center"
                   >
                     <div
@@ -57,7 +58,7 @@ export function CompletedSection({ items, onToggle }: CompletedSectionProps) {
                     </div>
                   </button>
                   <span className="min-w-0 flex-1 truncate text-body text-placeholder line-through">
-                    {(master?.title as string) ?? ''}
+                    {master?.title ?? ''}
                   </span>
                 </div>
               </div>
