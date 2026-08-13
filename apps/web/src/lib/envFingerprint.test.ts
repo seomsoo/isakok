@@ -33,4 +33,19 @@ describe('assertEnvRefPairing (스펙 14 §5-6)', () => {
     expect(() => assertEnvRefPairing(undefined, 'production')).not.toThrow()
     expect(() => assertEnvRefPairing('', 'development')).not.toThrow()
   })
+
+  it('trailing slash·공백·대문자 변형 URL도 정규화 후 검증한다 (조용한 skip 우회 차단)', () => {
+    expect(() => assertEnvRefPairing(`${PROD_URL}/`, 'development')).toThrow(
+      'prod Supabase를 바라본다',
+    )
+    expect(() => assertEnvRefPairing(`  ${PROD_URL}  `, 'development')).toThrow(
+      'prod Supabase를 바라본다',
+    )
+    expect(() => assertEnvRefPairing(PROD_URL.toUpperCase(), 'development')).toThrow(
+      'prod Supabase를 바라본다',
+    )
+    expect(() => assertEnvRefPairing(`${DEV_URL}/`, 'production')).toThrow(
+      'production 빌드가 prod가 아닌',
+    )
+  })
 })

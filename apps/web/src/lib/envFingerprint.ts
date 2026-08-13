@@ -17,7 +17,10 @@ const HOSTED_URL_PATTERN = /^https:\/\/([a-z0-9]+)\.supabase\.co$/
 export function assertEnvRefPairing(supabaseUrl: string | undefined, env: AppEnv): void {
   if (!supabaseUrl) return // 누락 자체는 lib/supabase.ts가 throw로 처리
 
-  const match = HOSTED_URL_PATTERN.exec(supabaseUrl)
+  // 정규화 후 매치 — trailing slash·공백·대소문자 변형(supabase-js는 정상 수용)이
+  // 패턴 불일치 → 조용한 skip으로 빠져 검증이 우회되는 것을 방지 (verify Codex P2)
+  const normalized = supabaseUrl.trim().toLowerCase().replace(/\/+$/, '')
+  const match = HOSTED_URL_PATTERN.exec(normalized)
   if (!match) return
 
   const ref = match[1]
