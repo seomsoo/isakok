@@ -1,21 +1,16 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { format } from 'date-fns'
-import { rescheduleOverdueItems, type UrgencyMode } from '@moving/shared'
+import { type UrgencyMode } from '@moving/shared'
 import { getDashboardItems } from '@/services/checklist'
+import { computeOverdueDisplayDates } from '@/shared/utils/overdueDisplayDates'
 import { queryKeys } from './queryKeys'
 
-export function useDashboardItems(moveId: string, userId: string) {
+function useDashboardItems(moveId: string, userId: string) {
   return useQuery({
     queryKey: queryKeys.todayItems(moveId),
     queryFn: () => getDashboardItems(moveId, userId),
     enabled: !!moveId && !!userId,
   })
-}
-
-interface MasterLike {
-  guide_type?: 'critical' | 'warning' | 'tip'
-  is_skippable?: boolean
 }
 
 /**
@@ -36,22 +31,7 @@ export function useDashboardItemsWithMode(
 
     if (mode !== 'tight') return query.data
 
-    const todayStr = format(new Date(), 'yyyy-MM-dd')
-    const mapped = rescheduleOverdueItems(
-      overdue.map((item) => ({
-        id: item.id as string,
-        assigned_date: item.assigned_date as string,
-        is_completed: item.is_completed as boolean,
-        guide_type:
-          ((item.master_checklist_items as MasterLike | null)?.guide_type as
-            | 'critical'
-            | 'warning'
-            | 'tip') ?? 'tip',
-      })),
-      todayStr,
-      movingDate,
-    )
-    const displayMap = new Map(mapped.map((r) => [r.id, r.display_date]))
+    const displayMap = computeOverdueDisplayDates(overdue, movingDate)
 
     const rescheduledOverdue = overdue.map((item) => ({
       ...item,
