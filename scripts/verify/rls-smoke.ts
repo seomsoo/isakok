@@ -63,6 +63,11 @@ async function main() {
     p_is_first_move: true,
   })
   assert('A move created', !createErr && !!moveId)
+  if (createErr || !moveId) {
+    // move가 없으면 이후 격리 검증 전부가 무의미한 통과/실패로 오염 — 즉시 중단
+    console.error('move 생성 실패로 이후 검증 불가:', createErr?.message ?? 'moveId null')
+    process.exit(1)
+  }
 
   // A can see own move
   const { data: aMoves } = await a.sb.from('moves').select('id').eq('id', moveId)
@@ -115,7 +120,8 @@ async function main() {
   let cacheSeeded = false
   if (SERVICE) {
     const admin = createClient(URL!, SERVICE, { auth: { persistSession: false } })
-    await admin.from('ai_guide_cache').upsert(
+    // 시드 실패를 놓치면 "authenticated가 못 읽음" 검증이 빈 테이블 false-pass가 됨 (14단계 verify)
+    const { error: cacheSeedErr } = await admin.from('ai_guide_cache').upsert(
       {
         cache_key: '__rls_smoke_test__',
         master_version: 0,
@@ -123,6 +129,7 @@ async function main() {
       },
       { onConflict: 'cache_key' },
     )
+    assert('ai_guide_cache seed row inserted', !cacheSeedErr)
     cacheSeeded = true
   }
 
@@ -162,7 +169,7 @@ async function main() {
   if (SERVICE) {
     const admin2 = createClient(URL!, SERVICE, { auth: { persistSession: false } })
     // A 소유 행을 service_role로 시드 → authenticated가 못 읽으면 격리 확정 (빈 테이블 false-positive 방지)
-    await admin2.from('auth_provider_links').upsert(
+    const { error: linkSeedErr } = await admin2.from('auth_provider_links').upsert(
       {
         provider: 'apple',
         provider_user_id: `__rls_smoke_${a.userId}`,
@@ -171,6 +178,7 @@ async function main() {
       },
       { onConflict: 'provider,provider_user_id' },
     )
+    assert('auth_provider_links seed row inserted', !linkSeedErr)
   }
   const { data: aLinks, error: aLinksErr } = await a.sb
     .from('auth_provider_links')
@@ -191,9 +199,17 @@ async function main() {
     .createSignedUrl(fakePhotoPath, 60)
   assert('B cannot get signed URL for A photo path', !!bSignedErr || !bSignedUrl?.signedUrl)
 
-  // Cleanup: soft delete move (A)
+  // Cleanup: soft delete move (A) + service_role 시드 행 제거 (원격 dev 실행 시 잔존 방지 — 14단계 verify)
   console.log('\n[Cleanup]')
   await a.sb.from('moves').update({ deleted_at: new Date().toISOString() }).eq('id', moveId)
+  if (SERVICE) {
+    const adminCleanup = createClient(URL!, SERVICE, { auth: { persistSession: false } })
+    await adminCleanup.from('ai_guide_cache').delete().eq('cache_key', '__rls_smoke_test__')
+    await adminCleanup
+      .from('auth_provider_links')
+      .delete()
+      .eq('provider_user_id', `__rls_smoke_${a.userId}`)
+  }
 
   console.log(`\n${'='.repeat(40)}`)
   console.log(`Results: ${passed} passed, ${failed} failed`)
