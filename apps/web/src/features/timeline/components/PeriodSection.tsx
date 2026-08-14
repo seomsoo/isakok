@@ -6,6 +6,7 @@ import { ChecklistItem } from '@/shared/components/ChecklistItem'
 import { sortByGuidePriority } from '@/shared/utils/sortByGuidePriority'
 import { getDateLabel } from '@/features/timeline/hooks/useTimelineItems'
 import type { PeriodGroup } from '@/features/timeline/hooks/useTimelineItems'
+import type { ChecklistItemWithMaster } from '@/services/checklist'
 
 interface PeriodSectionProps {
   period: PeriodGroup
@@ -18,13 +19,13 @@ interface PeriodSectionProps {
  * 각 날짜 그룹 내에서 guide_type 우선순위로 정렬 (critical > warning > tip)
  */
 function groupItemsByDate(
-  items: Record<string, unknown>[],
+  items: ChecklistItemWithMaster[],
   movingDate: string,
-): { label: string; items: Record<string, unknown>[] }[] {
-  const groups: { label: string; items: Record<string, unknown>[] }[] = []
+): { label: string; items: ChecklistItemWithMaster[] }[] {
+  const groups: { label: string; items: ChecklistItemWithMaster[] }[] = []
 
   for (const item of items) {
-    const label = getDateLabel(item.assigned_date as string, movingDate)
+    const label = getDateLabel(item.assigned_date, movingDate)
     const lastGroup = groups[groups.length - 1]
 
     if (lastGroup && lastGroup.label === label) {
@@ -42,7 +43,7 @@ export const PeriodSection = forwardRef<HTMLDivElement, PeriodSectionProps>(func
   ref,
 ) {
   const allItems = [...period.overdueItems, ...period.items].sort((a, b) =>
-    (a.assigned_date as string).localeCompare(b.assigned_date as string),
+    a.assigned_date.localeCompare(b.assigned_date),
   )
   const dateGroups = groupItemsByDate(allItems, movingDate)
   const navigate = useNavigate()
@@ -79,20 +80,17 @@ export const PeriodSection = forwardRef<HTMLDivElement, PeriodSectionProps>(func
           </div>
 
           {/* 아이템 */}
-          {group.items.map((item) => {
-            const master = item.master_checklist_items as Record<string, unknown> | null
-            return (
-              <ChecklistItem
-                key={item.id as string}
-                id={item.id as string}
-                title={(master?.title as string) ?? ''}
-                isCompleted={item.is_completed as boolean}
-                guideType={master?.guide_type as 'tip' | 'warning' | 'critical' | undefined}
-                onToggle={onToggleItem}
-                onPress={() => navigate(checklistDetailPath(item.id as string, 'timeline'))}
-              />
-            )
-          })}
+          {group.items.map((item) => (
+            <ChecklistItem
+              key={item.id}
+              id={item.id}
+              title={item.master_checklist_items?.title ?? ''}
+              isCompleted={item.is_completed}
+              guideType={item.master_checklist_items?.guide_type}
+              onToggle={onToggleItem}
+              onPress={() => navigate(checklistDetailPath(item.id, 'timeline'))}
+            />
+          ))}
         </div>
       ))}
     </div>
