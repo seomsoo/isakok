@@ -3,9 +3,11 @@ import { View, Text, Pressable, Platform, ActivityIndicator, Alert, StyleSheet }
 import { router } from 'expo-router'
 import * as AppleAuthentication from 'expo-apple-authentication'
 import { AuthService } from '../auth/AuthService'
+import { isUserCancelled } from '../auth/providers/types'
 import type { AuthProviderName } from '../auth/providers/types'
 import { GoogleLogo } from '../components/GoogleLogo'
 import { KakaoSymbol } from '../components/KakaoSymbol'
+import { COLORS } from '../constants/config'
 
 const LABEL: Record<AuthProviderName, string> = {
   apple: 'Apple',
@@ -77,9 +79,9 @@ export default function AuthScreen() {
 
       router.replace('/')
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : '로그인에 실패했어요'
-      if (message === 'USER_CANCELLED') return
-      setError(message)
+      // 사용자가 로그인 창을 닫은 건 에러가 아니다 — 조용히 원래 화면으로.
+      if (isUserCancelled(err)) return
+      setError(err instanceof Error ? err.message : '로그인에 실패했어요')
     } finally {
       setLoading(null)
     }
@@ -169,8 +171,8 @@ export default function AuthScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 24, justifyContent: 'center', backgroundColor: '#F8F7F5' },
-  title: { fontSize: 24, fontWeight: '700', color: '#333344', marginBottom: 8 },
+  container: { flex: 1, padding: 24, justifyContent: 'center', backgroundColor: COLORS.neutral },
+  title: { fontSize: 24, fontWeight: '700', color: COLORS.secondary, marginBottom: 8 },
   subtitle: { fontSize: 15, color: '#666', marginBottom: 32 },
   buttons: { gap: 12 },
   button: {
@@ -182,7 +184,7 @@ const styles = StyleSheet.create({
   },
   appleButton: { width: '100%', height: 52 },
   buttonContent: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  btn_google: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: GOOGLE_BORDER },
+  btn_google: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: GOOGLE_BORDER },
   btn_kakao: { backgroundColor: '#FEE500' },
   buttonText: { fontSize: 18, fontWeight: '600' },
   googleText: { color: GOOGLE_TEXT },
