@@ -86,6 +86,16 @@ export function DeleteAccountSheet({ onClose }: DeleteAccountSheetProps) {
         captureEvent(ANALYTICS_EVENTS.ACCOUNT_DELETE_FAILED)
         toast.error('연결이 끊겼어요. 다시 시도해주세요.')
         setStep('info')
+      } else if (stage === 'offline') {
+        // 네이티브가 만료된 로그인 정보를 갱신하지 못해 요청 자체를 보내지 않음 — 세션은 유지, 연결 후 재시도
+        captureEvent(ANALYTICS_EVENTS.ACCOUNT_DELETE_FAILED)
+        toast.error('연결을 확인하고 다시 시도해주세요.')
+        setStep('info')
+      } else if (stage === 'session-lost') {
+        // 네이티브 세션이 없거나 서버가 거부 — 곧 AUTH_LOGOUT으로 초기화되므로 안내만
+        captureEvent(ANALYTICS_EVENTS.ACCOUNT_DELETE_FAILED)
+        toast.error('로그인 정보가 만료됐어요. 다시 로그인한 뒤 시도해주세요.')
+        setStep('info')
       } else {
         captureEvent(ANALYTICS_EVENTS.ACCOUNT_DELETE_FAILED)
         toast.error('계정 삭제 중 문제가 생겼어요. 잠시 후 다시 시도해주세요.')
