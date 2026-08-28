@@ -1,7 +1,7 @@
 import * as Notifications from 'expo-notifications'
 import * as Device from 'expo-device'
-import { getCurrentSession } from '../auth/sessionState'
-import { registerDeviceToken } from './registerPush'
+import { getFreshSession } from '../auth/sessionLifecycle'
+import { registerDeviceToken, normalizePermission } from './registerPush'
 import type { PushStatusPayload } from './registerPush'
 
 /**
@@ -13,11 +13,10 @@ export async function getPushStatus(): Promise<PushStatusPayload> {
   if (!Device.isDevice) return { permission: 'undetermined', hasToken: false }
 
   const { status } = await Notifications.getPermissionsAsync()
-  if (status !== 'granted') {
-    return { permission: status === 'denied' ? 'denied' : 'undetermined', hasToken: false }
-  }
+  const permission = normalizePermission(status)
+  if (permission !== 'granted') return { permission, hasToken: false }
 
-  const session = getCurrentSession()
+  const session = await getFreshSession()
   if (!session) return { permission: 'granted', hasToken: false }
 
   const hasToken = await registerDeviceToken(session)

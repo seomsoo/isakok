@@ -3,16 +3,15 @@ import * as Device from 'expo-device'
 import Constants from 'expo-constants'
 import { Platform } from 'react-native'
 import type { Session } from '@supabase/supabase-js'
-import { getCurrentSession } from '../auth/sessionState'
+import type { NativeToWebMessage } from '@moving/shared/types/bridge'
+import { getFreshSession } from '../auth/sessionLifecycle'
 import { createAuthedClient } from '../auth/supabaseNative'
 
-export interface PushStatusPayload {
-  permission: 'granted' | 'denied' | 'undetermined'
-  hasToken: boolean
-}
+// 브릿지 계약(bridge.ts)에서 파생 — 여기서 다시 선언하면 웹과 어긋나도 typecheck가 못 잡는다.
+export type PushStatusPayload = Extract<NativeToWebMessage, { type: 'PUSH_STATUS' }>['payload']
 
 /** expo-notifications의 PermissionStatus(enum)를 브릿지 리터럴 유니온으로 정규화. */
-function normalizePermission(
+export function normalizePermission(
   status: Notifications.PermissionStatus,
 ): PushStatusPayload['permission'] {
   if (status === 'granted') return 'granted'
@@ -74,7 +73,8 @@ export async function registerPush(): Promise<PushStatusPayload> {
   const permission = normalizePermission(status)
   if (permission !== 'granted') return { permission, hasToken: false }
 
-  const session = getCurrentSession()
+  // 만료 직전 JWT로 등록하면 조용히 401 → hasToken=false. 관문(getFreshSession)에서 먼저 갱신.
+  const session = await getFreshSession()
   if (!session) {
     console.error('[registerPush] no session — cannot register token')
     return { permission: 'granted', hasToken: false }
