@@ -35,6 +35,9 @@ export { PLATFORM } from './constants/platform'
 // 상수 (support)
 export { SUPPORT_EMAIL } from './constants/support'
 
+// 상수 (storage — 웹·네이티브 버킷 이름 단일 출처)
+export { PROPERTY_PHOTOS_BUCKET } from './constants/storage'
+
 // 인증 (13단계 — E2E 세션 시딩과 앱 클라이언트의 storageKey 단일 출처)
 export { SUPABASE_STORAGE_KEY } from './auth/constants'
 
@@ -48,6 +51,5 @@ export { calculateProgress, calculateEssentialProgress } from './utils/progress'
 export { getRelativeDateLabel, formatDateKorean, parseLocalDate } from './utils/dateLabel'
 export { getUrgencyMode, rescheduleOverdueItems } from './utils/urgencyMode'
 export type { UrgencyMode, RescheduledItem } from './utils/urgencyMode'
-export { generateFileHash } from './utils/photoHash'
 export { buildCacheKey } from './utils/cacheKey'
 export { getConditionTags } from './utils/conditionTags'

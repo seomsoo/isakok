@@ -2,7 +2,9 @@ import * as ImagePicker from 'expo-image-picker'
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator'
 import * as Crypto from 'expo-crypto'
 import { decode } from 'base64-arraybuffer'
-import { getCurrentSession } from '../auth/sessionState'
+import { PROPERTY_PHOTOS_BUCKET } from '@moving/shared'
+import type { NativeToWebMessage, WebToNativeMessage } from '@moving/shared/types/bridge'
+import { getFreshSession } from '../auth/sessionLifecycle'
 import { createAuthedClient } from '../auth/supabaseNative'
 
 // 네이티브 미디어 입력 (ADR-079): 카메라/갤러리 → 촬영일시(EXIF) 추출 → 리사이즈·압축 → Storage 직접 업로드.
@@ -12,25 +14,18 @@ import { createAuthedClient } from '../auth/supabaseNative'
 // EXIF(촬영일시)는 압축 전에 추출해 DB(taken_at)에 보존 — manipulate는 파일 EXIF를 strip하므로.
 // WebP 우선, iOS 등에서 WebP 인코딩 실패 시 JPEG로 폴백(업로드 실패 방지).
 
-const BUCKET = 'property-photos'
+const BUCKET = PROPERTY_PHOTOS_BUCKET
 const MAX_BYTES = 10 * 1024 * 1024
 const MAX_DIMENSION = 1920
 const COMPRESS = 0.8
 
-export interface OpenMediaPickerOptions {
-  kind: 'camera' | 'gallery'
-  multi: boolean
-  moveId: string
-  room: string
-  photoType: 'move_in' | 'move_out'
-  maxSelect: number
-}
-
-export interface UploadedMediaItem {
-  storage_path: string
-  taken_at: string | null
-  hash: string
-}
+// 브릿지 계약(bridge.ts)에서 파생 — 웹이 보내는 피커 옵션과 웹이 받는 업로드 항목 모양의 단일 출처.
+export type OpenMediaPickerOptions = Extract<
+  WebToNativeMessage,
+  { type: 'OPEN_MEDIA_PICKER' }
+>['payload']
+type MediaUploadedPayload = Extract<NativeToWebMessage, { type: 'MEDIA_UPLOADED' }>['payload']
+export type UploadedMediaItem = MediaUploadedPayload['items'][number]
 
 export interface MediaUploadResult {
   items: UploadedMediaItem[]
@@ -47,15 +42,34 @@ async function sha256Hex(buffer: ArrayBuffer): Promise<string> {
 
 /**
  * EXIF DateTimeOriginal("YYYY:MM:DD HH:mm:ss")을 ISO로 변환. 촬영일시는 증거력 핵심이라 압축 전에 보존.
+ * EXIF 시각은 타임존이 없는 "촬영지 현지 시각"이다. OffsetTimeOriginal("+09:00", EXIF 2.31 — iOS 11+·최신 Android)이
+ * 있으면 그 오프셋으로 해석해 기기 타임존과 무관하게 정확한 시각을 얻고, 없으면 기기 현재 타임존으로 해석한다
+ * (촬영지 = 기기 타임존인 경우가 대부분이라 가장 그럴듯한 추정. 해외 촬영분을 귀국 후 올리면 시차만큼 어긋날 수 있음).
  */
 function extractTakenAt(exif: Record<string, unknown> | null | undefined): string | null {
   if (!exif) return null
   const raw = exif.DateTimeOriginal ?? exif.DateTimeDigitized ?? exif.DateTime
   if (typeof raw !== 'string') return null
-  const m = raw.match(/^(\d{4}):(\d{2}):(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/)
+  const m = /^(\d{4}):(\d{2}):(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/.exec(raw)
   if (!m) return null
   const [, y, mo, d, h, mi, s] = m
-  const date = new Date(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(s))
+  const year = Number(y)
+  const monthIndex = Number(mo) - 1
+  const day = Number(d)
+  const hour = Number(h)
+  const minute = Number(mi)
+  const second = Number(s)
+
+  const offset = exif.OffsetTimeOriginal ?? exif.OffsetTimeDigitized ?? exif.OffsetTime
+  const om = typeof offset === 'string' ? /^([+-])(\d{2}):(\d{2})$/.exec(offset) : null
+  let date: Date
+  if (om) {
+    const sign = om[1] === '-' ? -1 : 1
+    const offsetMinutes = sign * (Number(om[2]) * 60 + Number(om[3]))
+    date = new Date(Date.UTC(year, monthIndex, day, hour, minute, second) - offsetMinutes * 60_000)
+  } else {
+    date = new Date(year, monthIndex, day, hour, minute, second)
+  }
   return Number.isNaN(date.getTime()) ? null : date.toISOString()
 }
 
@@ -111,7 +125,8 @@ async function launchPicker(opts: OpenMediaPickerOptions): Promise<ImagePicker.I
  * - 다중 선택 부분 실패: 성공분만 items에 담고 실패 수는 failed로 반환(웹이 toast).
  */
 export async function pickAndUploadMedia(opts: OpenMediaPickerOptions): Promise<MediaUploadResult> {
-  const session = getCurrentSession()
+  // 앱을 1시간 넘게 쓰면 메모리의 JWT는 만료돼 있다 — 만료된 토큰으로 올리면 Storage RLS가 조용히 거부한다.
+  const session = await getFreshSession()
   if (!session) return { items: [], failed: 0, canceled: true }
   const userId = session.user.id
 

@@ -25,6 +25,12 @@ export type WebToNativeMessage =
   | { type: 'REQUEST_LOGOUT' }
   | { type: 'REQUEST_DELETE_ACCOUNT' }
   | { type: 'REQUEST_SESSION_REFRESH' }
+  // 웹 supabase-js가 스스로 refresh해 토큰이 회전됐을 때 네이티브에 되돌려준다(ADR-110). 네이티브가 정본에
+  // 저장해 다음 콜드스타트·직접 호출(업로드·푸시)에 소모된 refresh_token을 쓰지 않게 한다.
+  | {
+      type: 'SESSION_ROTATED'
+      payload: { access_token: string; refresh_token: string; expires_at: number; user_id: string }
+    }
   | { type: 'OPEN_EXTERNAL_LINK'; payload: { url: string } }
   | { type: 'SHARE_REPORT'; payload: { url: string } }
   | { type: 'WEB_READY' }

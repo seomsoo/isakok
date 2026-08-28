@@ -991,6 +991,19 @@ export class AuthService {
 }
 ```
 
+### 6-6. 세션 수명 정책 변경 (ADR-110, 2026-08-28 — 위 §6-5 코드의 `ensureAnonymousSession`/`refreshSession`/`signOut` 대체)
+
+위 코드는 어떤 오류든 `session.clear()` 후 익명 전환한다. 출시 전 코드리뷰에서 두 경로가 실사용 로그아웃 원인으로 확인돼 `auth/sessionLifecycle.ts`로 교체(AuthService는 위임):
+
+| 항목                    | §6-5(기존)                                                          | ADR-110(현재)                                                                                                                         |
+| ----------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| 복원 실패               | 모든 오류 → clear → 익명                                            | 일시(네트워크·5xx·429) → 세션 보존 + 백오프 재시도(10s→60s, single-flight) / 거부(4xx)만 clear → 익명                                 |
+| REQUEST_SESSION_REFRESH | 실패 → clear → 익명                                                 | 일시 → 유지(웹은 다음 401에 재요청) / 거부 → 익명 복구 / 네이티브 세션 없음 → 복원 재시도                                             |
+| 갱신 중 세션 교체(경합) | 해당 없음                                                           | supabase-js `AuthRefreshDiscardedError`(409) → 거부 아님. 정본 재조회해 교체된 세션 사용, 비어 있으면(동시 signOut) 폐기 없이 invalid |
+| JWT 직접 사용           | `getCurrentSession()` 그대로(만료 가능)                             | `getFreshSession()` 관문 — 만료 120s 전이면 먼저 갱신·broadcast (업로드·푸시·로그아웃·카카오 교환·WEB_READY)                          |
+| 웹 자가 refresh         | 미처리(네이티브 refresh_token 낡음 → 다음 콜드스타트 invalid_grant) | 웹 `TOKEN_REFRESHED` → `SESSION_ROTATED` → 네이티브 로컬 저장(네트워크 무관) + 내부 세션 동기화(best-effort)                          |
+| signOut                 | 익명 재생성 실패 시 throw → 세션 없는 채 방치                       | 서버 sign-out·익명 재생성 모두 best-effort(백오프 재시도) — 로컬 로그아웃은 반드시 완료                                               |
+
 ---
 
 ## 7. SessionState (lazy mount 대응)
@@ -1268,6 +1281,11 @@ export type WebToNativeMessage =
     }
   | { type: 'REQUEST_LOGOUT' }
   | { type: 'REQUEST_SESSION_REFRESH' } // 신규 (10-1)
+  | {
+      // 신규 (ADR-110, 2026-08-28): 웹 supabase-js 자가 refresh로 회전된 토큰을 네이티브 정본에 되돌림
+      type: 'SESSION_ROTATED'
+      payload: { access_token: string; refresh_token: string; expires_at: number; user_id: string }
+    }
   | { type: 'OPEN_EXTERNAL_LINK'; payload: { url: string } }
   | { type: 'SHARE_REPORT'; payload: { url: string } }
   | { type: 'WEB_READY' }

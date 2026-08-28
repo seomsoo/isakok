@@ -15,7 +15,6 @@ src/
 │   ├── dateLabel.ts   ← D-Day/날짜 라벨 포맷
 │   ├── progress.ts    ← 진행률 계산
 │   ├── urgencyMode.ts ← 스마트 재배치 모드 판별
-│   ├── photoHash.ts   ← SHA-256 해시 (Web Crypto)
 │   └── nativeBridge.ts ← 네이티브 브릿지 송수신 유틸 (isNativeWebView, sendToNative 등)
 ├── types/             ← 2개+ 파일에서 쓰는 공유 타입
 │   ├── database.ts    ← Supabase gen types 자동 생성

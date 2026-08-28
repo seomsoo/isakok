@@ -1,11 +1,12 @@
 import { supabase } from '@/lib/supabase'
+import { PROPERTY_PHOTOS_BUCKET } from '@moving/shared'
 import type { Tables } from '@shared/types/database'
 import type { PhotoType } from '@shared/types/photo'
 
 export type PropertyPhoto = Tables<'property_photos'>
 export type { PhotoType }
 
-const BUCKET = 'property-photos'
+const BUCKET = PROPERTY_PHOTOS_BUCKET
 const SIGNED_URL_EXPIRY_SEC = 3600 // 1시간
 
 /**
