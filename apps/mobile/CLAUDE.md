@@ -9,7 +9,7 @@
 ```
 src/
 ├── app/           ← Expo Router 파일 기반 라우팅 ((tabs)/, auth, _layout)
-├── auth/          ← 네이티브 인증 + 세션 브릿지 (AuthService, broadcast, sessionState, supabaseNative, providers/)
+├── auth/          ← 네이티브 인증 + 세션 브릿지 (AuthService, sessionLifecycle — 복원·갱신·웹 회전 반영 ADR-110, broadcast, sessionState, supabaseNative, providers/)
 ├── media/         ← 네이티브 미디어 업로드 (mediaUpload — Storage 직접 업로드, ADR-079)
 ├── components/    ← 네이티브 UI 컴포넌트 (WebViewScreen, ErrorFallback 등)
 ├── hooks/         ← 커스텀 훅
