@@ -18,6 +18,23 @@ export interface KakaoProviderResult {
 
 export type AuthProviderResult = OidcProviderResult | KakaoProviderResult
 
+/**
+ * 사용자가 로그인 창을 스스로 닫은 경우. 에러가 아니므로 화면은 아무 표시 없이 원래 상태로 돌아가야 한다.
+ * 각 SDK의 취소 신호(Google: {type:'cancelled'} 응답, Apple: ERR_REQUEST_CANCELED, Kakao: 메시지)를 이 한 가지로 정규화.
+ */
+export class UserCancelledError extends Error {
+  constructor() {
+    super('USER_CANCELLED')
+    this.name = 'UserCancelledError'
+  }
+}
+
+export function isUserCancelled(err: unknown): boolean {
+  return (
+    err instanceof UserCancelledError || (err instanceof Error && err.message === 'USER_CANCELLED')
+  )
+}
+
 export interface AuthProvider {
   name: AuthProviderName
   isAvailable: () => Promise<boolean>

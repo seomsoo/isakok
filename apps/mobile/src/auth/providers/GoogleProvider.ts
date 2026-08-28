@@ -1,5 +1,6 @@
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin'
 import { Platform } from 'react-native'
+import { UserCancelledError } from './types'
 import type { AuthProvider, OidcProviderResult } from './types'
 
 GoogleSignin.configure({
@@ -26,8 +27,10 @@ export const GoogleProvider: AuthProvider = {
       if (Platform.OS === 'android') {
         await GoogleSignin.hasPlayServices()
       }
-      const userInfo = await GoogleSignin.signIn()
-      const idToken = userInfo.data?.idToken
+      const response = await GoogleSignin.signIn()
+      // v13+: 취소는 reject가 아니라 {type:'cancelled'} 응답으로 온다 — 이걸 놓치면 "idToken missing" 에러로 표시된다.
+      if (response.type === 'cancelled') throw new UserCancelledError()
+      const idToken = response.data.idToken
       if (!idToken) throw new Error('[GoogleProvider] idToken missing')
       return { kind: 'oidc', provider: 'google', idToken }
     } catch (err: unknown) {
@@ -35,7 +38,7 @@ export const GoogleProvider: AuthProvider = {
         err instanceof Error &&
         (err as Error & { code?: string }).code === statusCodes.SIGN_IN_CANCELLED
       ) {
-        throw new Error('USER_CANCELLED')
+        throw new UserCancelledError()
       }
       throw err
     }
